@@ -1,0 +1,21 @@
+version: v1
+
+plugins:
+  - plugin: go
+    out: .
+    opt:
+      - paths=source_relative
+  - plugin: go-grpc
+    out: .
+    opt:
+      - paths=source_relative
+  - plugin: go-http
+    out: .
+    opt:
+      - paths=source_relative
+  - plugin: openapi
+    out: api
+    opt:
+      - fq_schema_naming=true
+      - default_response=false
+    strategy: all

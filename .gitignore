@@ -1,38 +1,71 @@
-# Reference https://github.com/github/gitignore/blob/master/Go.gitignore
-# Binaries for programs and plugins
+# Binaries
+/build/
+/bin/
 *.exe
 *.exe~
 *.dll
 *.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-# Dependency directories (remove the comment below to include it)
-vendor/
-
-# Go workspace file
-go.work
-
-# Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a
 *.so
 
-# OS General
-Thumbs.db
-.DS_Store
+# Test artifacts
+*.test
+*.out
+coverage.*
 
-# project
+# Environment/configuration
+.env*
+!.env.example
+configs/*.yaml
 *.cert
 *.key
-*.log
-bin/
 
-# Develop tools
+# IDE/editor
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+
+# Logs & temp
+*.log
+/tmp/
+*.tmp
+
+# Go specific
+go.work
+go.work.sum
+
+# Dependencies
+/vendor/
+
+# Generated code
+sqlc/
+*.pb.go
+*.gw.go
+
+# Build profiles
+*.prof
+*.trace
+
+# Cloud credentials (should not commit)
+*-service-account.json
+*.key.json
+credentials.json
+
+# OS General
+.DS_Store
+Thumbs.db
+
+# Tool caches
+**/.gocache/
+**/.staticcheck/
+**/.gomodcache/
+**/.gotmp/
+**/.DS_Store/
+**/tmp/
+
+# buf
+buf.lock
+**/*.pb.go
