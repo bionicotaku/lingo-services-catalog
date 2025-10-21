@@ -42,7 +42,6 @@ go.work.sum
 
 # Generated code
 sqlc/
-*.pb.go
 *.gw.go
 
 # Build profiles
