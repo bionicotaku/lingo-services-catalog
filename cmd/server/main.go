@@ -1,18 +1,20 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
 	"github.com/bionicotaku/kratos-template/internal/conf"
+	gclog "github.com/bionicotaku/lingo-utils/gclog"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	_ "go.uber.org/automaxprocs"
 )
@@ -49,15 +51,46 @@ func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server) *kratos.App {
 
 func main() {
 	flag.Parse()
-	logger := log.With(log.NewStdLogger(os.Stdout),
-		"ts", log.DefaultTimestamp,
-		"caller", log.DefaultCaller,
-		"service.id", id,
-		"service.name", Name,
-		"service.version", Version,
-		"trace.id", tracing.TraceID(),
-		"span.id", tracing.SpanID(),
+	if Name == "" {
+		Name = "kratos-template"
+	}
+	if Version == "" {
+		Version = "dev"
+	}
+	appEnv := os.Getenv("APP_ENV")
+	if appEnv == "" {
+		appEnv = "development"
+	}
+
+	baseLogger, err := gclog.NewLogger(
+		gclog.WithService(Name),
+		gclog.WithVersion(Version),
+		gclog.WithEnvironment(appEnv),
+		gclog.WithStaticLabels(map[string]string{"service.id": id}),
+		gclog.EnableSourceLocation(),
 	)
+	if err != nil {
+		panic(err)
+	}
+
+	logger := log.With(
+		baseLogger,
+		"trace_id", log.Valuer(func(ctx context.Context) interface{} {
+			sc := oteltrace.SpanContextFromContext(ctx)
+			if sc.HasTraceID() {
+				return sc.TraceID().String()
+			}
+			return ""
+		}),
+		"span_id", log.Valuer(func(ctx context.Context) interface{} {
+			sc := oteltrace.SpanContextFromContext(ctx)
+			if sc.HasSpanID() {
+				return sc.SpanID().String()
+			}
+			return ""
+		}),
+	)
+
 	c := config.New(
 		config.WithSource(
 			file.NewSource(flagconf),
