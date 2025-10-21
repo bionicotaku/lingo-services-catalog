@@ -28,19 +28,33 @@ type GreeterRepo interface {
 	ListAll(context.Context) ([]*Greeter, error)
 }
 
+// GreeterRemote abstracts remote Greeter interaction.
+type GreeterRemote interface {
+	SayHello(ctx context.Context, name string) (string, error)
+}
+
 // GreeterUsecase is a Greeter usecase.
 type GreeterUsecase struct {
-	repo GreeterRepo
-	log  *log.Helper
+	repo   GreeterRepo
+	remote GreeterRemote
+	log    *log.Helper
 }
 
 // NewGreeterUsecase new a Greeter usecase.
-func NewGreeterUsecase(repo GreeterRepo, logger log.Logger) *GreeterUsecase {
-	return &GreeterUsecase{repo: repo, log: log.NewHelper(logger)}
+func NewGreeterUsecase(repo GreeterRepo, remote GreeterRemote, logger log.Logger) *GreeterUsecase {
+	return &GreeterUsecase{repo: repo, remote: remote, log: log.NewHelper(logger)}
 }
 
 // CreateGreeter creates a Greeter, and returns the new Greeter.
 func (uc *GreeterUsecase) CreateGreeter(ctx context.Context, g *Greeter) (*Greeter, error) {
 	uc.log.WithContext(ctx).Infof("CreateGreeter: %v", g.Hello)
 	return uc.repo.Save(ctx, g)
+}
+
+// ForwardHello calls the remote Greeter service if available.
+func (uc *GreeterUsecase) ForwardHello(ctx context.Context, name string) (string, error) {
+	if uc.remote == nil {
+		return "", nil
+	}
+	return uc.remote.SayHello(ctx, name)
 }

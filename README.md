@@ -1,22 +1,21 @@
 # Kratos Project Template 目录说明
 
-本模板基于 go-kratos 官方骨架，配合 Buf 做 proto 依赖与代码生成管理。以下对每个目录与核心文件逐一说明，便于在现有骨架上扩展真实业务。
+本模板基于 go-kratos 官方骨架，可配合 `make api`（protoc）生成所需代码。以下对每个目录与核心文件逐一说明，便于在现有骨架上扩展真实业务。
 
 ## 根目录文件
 
 - `README.md`：当前文档，概览整个模板结构与各层职责，可在接入真实业务前更新本说明。
 - `LICENSE`：MIT 协议文本，继承上游 go-kratos 项目的授权条款。
 - `Makefile`：集中管理常用任务。`make init` 安装开发所需工具（含 Buf/kratos/protoc 插件），`make api` 与 `make config` 通过 Buf 生成 gRPC/HTTP/OpenAPI 代码，`make build` 则输出二进制到 `bin/`。
-- `buf.yaml`：Buf 工作区配置，声明本仓库为单模块并引入 `googleapis` 作为远程依赖，统一 lint/breaking 规则。
-- `buf.gen.yaml`：Buf 生成规则，配置 `go`、`go-grpc`、`go-http`、`openapi` 四类插件及输出目录，其中 OpenAPI 文档会写入 `api/openapi.yaml`。
-- `buf.lock`：Buf 依赖锁文件，记录精确的远程 proto 版本，保证不同环境下生成一致。
+- `openapi.yaml`：通过 `protoc-gen-openapi` 生成的 REST 契约文件，便于前端或 API 测试工具使用。
+- `generate.go`：Kratos 约定的生成入口，可在需要时增加 `//go:generate` 指令集中刷新代码。
 - `go.mod` / `go.sum`：Go Module 与依赖锁定文件，模块名默认是 `github.com/go-kratos/kratos-layout`，落地业务时可按需修改。
 - `Dockerfile`：多阶段构建镜像示例，Stage1 使用官方 Go 镜像编译，Stage2 基于 debian slim 运行产物并暴露 8000/9000 端口。
 
 ## API 层（`api/`）
 
 - `api/helloworld/v1/*.proto`：示例 gRPC 契约，当前仅包含 `Greeter` 场景与错误枚举，展示如何声明 RPC 及 HTTP 注解。
-- `api/helloworld/v1/*_pb.go` / `*_grpc.pb.go` / `*_http.pb.go`：通过 `buf generate --path api` 自动生成的 Go 代码，分别用于消息结构、gRPC 服务端接口与 HTTP 适配层。
+- `api/helloworld/v1/*_pb.go` / `*_grpc.pb.go` / `*_http.pb.go`：运行 `protoc` 或 `make api` 后生成的 Go 代码，分别用于消息结构、gRPC 服务端接口与 HTTP 适配层。
 - `api/openapi.yaml`：由 `protoc-gen-openapi` 生成的 REST 契约文档，可被 Swagger UI 或工具链消费。
 
 ## 入口层（`cmd/`）
@@ -30,74 +29,85 @@
 
 ## 内部实现（`internal/`）
 
-- `internal/biz/`：
-  - `biz.go`：收集业务 ProviderSet。
-  - `greeter.go`：示例 Usecase 与领域接口定义，强调通过依赖倒置让数据访问层实现接口。
-- `internal/conf/`：
-  - `conf.proto`：配置 schema，采用 proto 定义以便生成强类型结构体。
-  - `conf.pb.go`：由 Buf 生成的配置结构体，可被 `config.Scan` 直接填充。
-- `internal/data/`：
-  - `data.go`：封装数据库等基础资源的生命周期，并暴露 ProviderSet。
-  - `greeter.go`：`GreeterRepo` 的具体实现示例，当前为 stub，展示如何连接 biz Usecase。
-- `internal/server/`：
-  - `grpc.go` / `http.go`：分别创建 gRPC 与 HTTP Server，挂载恢复中间件与配置项。
-  - `server.go`：Server ProviderSet，方便 Wire 装配。
-- `internal/service/`：
-  - `service.go`：Service ProviderSet。
-  - `greeter.go`：实现 gRPC/HTTP Service，承担 DTO ↔ 用例的转换。
+该目录下的代码不会被外部模块引用，每一层各司其职，共同完成 DDD-lite 风格的服务拆分：
+
+- `internal/conf/`  
+  采用 proto 描述配置 (`conf.proto`)，生成强类型结构体 (`conf.pb.go`)，再由 `config.Scan` 填充，确保配置访问安全统一。
+
+- `internal/client/`  
+  概念与 `internal/server` 对应：负责“客户端传输层装配”。当前的 `NewGRPCClient` 会根据配置建立 gRPC 连接，挂载 recovery/tracing/circuitbreaker 等通用中间件，并返回 `*grpc.ClientConn` 与清理函数，供数据层或其他客户端包装复用，完全不涉及业务语义。
+
+- `internal/server/`  
+  服务端传输层装配：根据配置创建 HTTP/gRPC Server，集中挂载中间件、健康探针等横切关注点，是所有外部请求进入应用的第一站。
+
+- `internal/service/`  
+  应用层实现，由 proto 生成的接口起点。负责 DTO ↔ DO 转换、参数校验与用例编排，并在互调场景下维护必要元数据（例如避免远端调用递归）。
+
+- `internal/biz/`  
+  定义领域模型与用例 (`GreeterUsecase`)，聚合仓储与外部服务接口，是复杂业务规则与日志的归属地，不触及底层技术细节。
+
+- `internal/data/`  
+  领域仓储实现层，承接数据库、缓存或远端 gRPC 等外部依赖。`data.go` 管理公共资源生命周期；`greeter.go` 与 `greeter_remote.go` 分别示例本地与远端仓储实现，均满足 biz 层定义的接口。
+
+### 请求/数据流转示意
+
+```mermaid
+flowchart TD
+    A[外部调用<br/>HTTP/gRPC Client] --> B[internal/server<br/>HTTP/GRPC Server<br/>路由+中间件]
+    B --> C[internal/service<br/>GreeterService<br/>DTO→DO/编排]
+    C --> D[internal/biz<br/>GreeterUsecase<br/>领域逻辑]
+    D --> E[internal/data<br/>GreeterRepo<br/>本地仓储]
+    D --> F[internal/data<br/>GreeterRemote<br/>远端仓储]
+    E --> I[(数据库/缓存 等本地依赖)]
+    F --> G[internal/client<br/>NewGRPCClient<br/>连接+中间件]
+    G --> H[远端 Greeter 微服务]
+    H --> G
+    G --> F
+    I --> D
+    D --> C
+    C --> B
+    B --> A
+```
+
+> 读或写外部系统（包括远端 gRPC）都经过 `internal/data`，由 biz 层统一编排；`internal/client` 负责通信能力复用；service 与 server 则各自处理协议层与传输层职责。
 
 ## 其它
 
-- （已移除）`third_party/`：原模板中的本地 proto 依赖目录已由 Buf 远程依赖代替，如需新增第三方 proto，请在 `buf.yaml` 的 `deps` 中声明并执行 `buf dep update`。
+- `third_party/`：存放 gRPC/HTTP 注解等常用的第三方 proto 定义（如 `google/api`、`validate`）。编译 proto 时通过 `--proto_path=third_party` 引入这些依赖。
 
 ```text
-├── Dockerfile           // 多阶段构建示例（Go 编译阶段 + Debian 运行阶段）
-├── LICENSE              // 模板沿用的 MIT 授权文本
-├── Makefile             // 常用构建/生成命令集合（init、api、config 等）
-├── README.md            // 本文件，记录结构与使用说明
-├── api                  // Proto 契约与生成代码所在目录
-│   ├── helloworld       // 示例服务命名空间
-│   │   └── v1           // API 版本目录
-│   │       ├── error_reason.pb.go    // 错误枚举生成代码
-│   │       ├── error_reason.proto    // 错误枚举 proto 定义
-│   │       ├── greeter.pb.go         // Greeter 消息结构生成代码
-│   │       ├── greeter.proto         // Greeter 服务 proto 契约
-│   │       ├── greeter_grpc.pb.go    // Greeter gRPC 服务器/客户端桩
-│   │       └── greeter_http.pb.go    // Greeter HTTP 适配层（google.api.http 注解）
-│   └── openapi.yaml     // 自动生成的 REST OpenAPI 文档
-├── buf.gen.yaml         // Buf 代码生成配置（插件与输出位置）
-├── buf.lock             // Buf 依赖锁定文件，固定远程 proto 版本
-├── buf.yaml             // Buf 模块声明与 lint/breaking 规则
-├── cmd                  // 应用入口与依赖注入装配
-│   └── server           // 单进程服务入口
-│       ├── main.go      // 程序入口：加载配置并运行 HTTP/gRPC
-│       ├── wire.go      // Wire 依赖注入定义
-│       └── wire_gen.go  // Wire 自动生成的装配实现
-├── configs              // 样例配置目录
-│   └── config.yaml      // HTTP/GRPC 与数据源示例配置
-├── go.mod               // Go Module 元数据
-├── go.sum               // Go 依赖版本哈希
-├── internal             // 服务内部实现（对外不可见）
-│   ├── biz              // 业务用例层，定义领域接口与用例
-│   │   ├── README.md    // 层级说明
-│   │   ├── biz.go       // Biz ProviderSet
-│   │   └── greeter.go   // Greeter 用例及仓储接口
-│   ├── conf             // 配置 schema 定义与生成代码
-│   │   ├── conf.pb.go   // 配置结构体生成代码
-│   │   └── conf.proto   // 配置 proto 契约
-│   ├── data             // 数据访问实现层（Repo）
-│   │   ├── README.md    // 层级说明
-│   │   ├── data.go      // 数据资源初始化
-│   │   └── greeter.go   // Greeter 仓储实现示例
-│   ├── server           // 传输层服务器配置
-│   │   ├── grpc.go      // gRPC Server 初始化
-│   │   ├── http.go      // HTTP Server 初始化
-│   │   └── server.go    // Server ProviderSet
-│   └── service          // gRPC/HTTP 服务实现层
-│       ├── README.md    // 层级说明
-│       ├── greeter.go   // Greeter Service，实现用例编排
-│       └── service.go   // Service ProviderSet
-└── (bin/)               // 执行 make build 后生成的二进制输出目录（默认忽略）
+├── Dockerfile                // 多阶段构建示例
+├── LICENSE                   // 模板沿用的 MIT 授权文本
+├── Makefile                  // 常用构建/生成命令集合（init、api、config 等）
+├── README.md                 // 本文件，记录结构与使用说明
+├── api                       // Proto 契约与生成代码
+│   └── helloworld/v1         // 示例服务命名空间 + 版本
+│       ├── error_reason.proto
+│       ├── error_reason.pb.go
+│       ├── greeter.proto
+│       ├── greeter.pb.go
+│       ├── greeter_grpc.pb.go
+│       └── greeter_http.pb.go
+├── cmd/server                // 应用入口
+│   ├── main.go               // 程序入口：加载配置并运行 HTTP/gRPC
+│   ├── wire.go               // Wire 依赖注入定义
+│   └── wire_gen.go           // Wire 自动生成装配实现（勿手动修改）
+├── configs                   // 本地调试配置
+│   ├── config.yaml
+│   ├── config.instance-a.yaml
+│   └── config.instance-b.yaml
+├── generate.go               // 预留 go generate 钩子
+├── go.mod / go.sum           // Go Module 元数据与依赖锁定
+├── internal                  // 服务内部实现（对外不可见）
+│   ├── biz                   // 领域用例层，定义接口与用例
+│   ├── client                // 客户端传输层装配（如 gRPC 连接）
+│   ├── conf                  // 配置 schema 与生成代码
+│   ├── data                  // 数据访问层，仓储实现（含远端封装）
+│   ├── server                // 服务端传输层装配
+│   └── service               // 应用服务层，实现 proto 定义的接口
+├── openapi.yaml              // REST OpenAPI 文档
+├── third_party               // 第三方 proto 依赖（google/api、validate 等）
+└── (bin/)                    // 执行 make build 后生成的二进制输出目录（默认忽略）
 ```
 
 以上结构提供了一个最小可行的 Kratos 微服务骨架。开发真实业务时，可在此基础上扩展 proto 契约、补全 data 层与 Usecase，实现自定义领域逻辑与配套测试。*** End Patch​

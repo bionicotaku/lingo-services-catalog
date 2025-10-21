@@ -8,6 +8,7 @@ package main
 
 import (
 	"github.com/go-kratos/kratos-layout/internal/biz"
+	"github.com/go-kratos/kratos-layout/internal/client"
 	"github.com/go-kratos/kratos-layout/internal/conf"
 	"github.com/go-kratos/kratos-layout/internal/data"
 	"github.com/go-kratos/kratos-layout/internal/server"
@@ -29,15 +30,16 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*
 		return nil, nil, err
 	}
 	greeterRepo := data.NewGreeterRepo(dataData, logger)
-	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, logger)
-	greeterService := service.NewGreeterService(greeterUsecase)
-	telemetry, cleanup2, err := server.NewTelemetry(logger)
+	clientConn, cleanup2, err := client.NewGRPCClient(confData, logger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	grpcServer := server.NewGRPCServer(confServer, greeterService, logger, telemetry)
-	httpServer := server.NewHTTPServer(confServer, greeterService, logger, telemetry)
+	greeterRemote := data.NewGreeterRemote(clientConn, logger)
+	greeterUsecase := biz.NewGreeterUsecase(greeterRepo, greeterRemote, logger)
+	greeterService := service.NewGreeterService(greeterUsecase)
+	grpcServer := server.NewGRPCServer(confServer, greeterService, logger)
+	httpServer := server.NewHTTPServer(confServer, greeterService, logger)
 	app := newApp(logger, grpcServer, httpServer)
 	return app, func() {
 		cleanup2()

@@ -65,7 +65,3 @@ Thumbs.db
 **/.gotmp/
 **/.DS_Store/
 **/tmp/
-
-# buf
-buf.lock
-**/*.pb.go
