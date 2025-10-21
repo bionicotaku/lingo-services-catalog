@@ -30,7 +30,6 @@ require_cmd() {
 }
 
 require_cmd go
-require_cmd curl
 require_cmd grpcurl
 
 echo "[step] building dedicated test binary via make build"
@@ -45,13 +44,15 @@ echo "[step] starting instance B"
 env INSTANCE_ID=B "${BIN}" -conf "${CONFIG_B}" >"${LOG_DIR}/instance-b.log" 2>&1 &
 SERVER_B_PID=$!
 
-wait_http() {
-  local url=$1
+wait_grpc_health() {
+  local addr=$1
   local name=$2
   for attempt in {1..30}; do
-    if curl -sSf "${url}" >/dev/null 2>&1; then
-      echo "  ${name} ready (${url})"
-      return 0
+    if output=$(grpcurl -plaintext -d '{"service":""}' "${addr}" grpc.health.v1.Health/Check 2>/dev/null); then
+      if [[ "${output}" == *"SERVING"* ]]; then
+        echo "  ${name} ready (${addr} health)"
+        return 0
+      fi
     fi
     sleep 1
   done
@@ -61,8 +62,8 @@ wait_http() {
 }
 
 echo "[step] waiting for instances to become ready"
-wait_http "http://127.0.0.1:8101/healthz" "a"
-wait_http "http://127.0.0.1:8102/healthz" "b"
+wait_grpc_health "127.0.0.1:9101" "a"
+wait_grpc_health "127.0.0.1:9102" "b"
 
 echo "[step] giving gRPC clients time to connect"
 sleep 2
