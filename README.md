@@ -46,7 +46,7 @@
   概念与 `internal/server` 对应：负责“客户端传输层装配”。当前的 `NewGRPCClient` 会根据配置建立 gRPC 连接，挂载 recovery/tracing/circuitbreaker 等通用中间件，并返回 `*grpc.ClientConn` 与清理函数，供数据层或其他客户端包装复用，完全不涉及业务语义。
 
 - `internal/server/`  
-  服务端传输层装配：根据配置创建 HTTP/gRPC Server，集中挂载中间件、健康探针等横切关注点，是所有外部请求进入应用的第一站。
+  服务端传输层装配：根据配置创建 HTTP/gRPC Server，集中挂载中间件、健康探针等横切关注点，是所有外部请求进入应用的第一站。默认启用 recovery → metadata → rate limit（SRE 算法）→ logging 的中间件链；如需自定义限流策略，可通过 `ratelimit.Server(ratelimit.WithLimiter(...))` 替换。
 
 - `internal/service/`  
   应用层实现，由 proto 生成的接口起点。负责 DTO ↔ DO 转换、参数校验与用例编排，并在互调场景下维护必要元数据（例如避免远端调用递归）。
