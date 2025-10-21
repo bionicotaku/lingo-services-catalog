@@ -3,8 +3,8 @@ package data
 import (
 	"context"
 
-	v1 "github.com/go-kratos/kratos-layout/api/helloworld/v1"
-	"github.com/go-kratos/kratos-layout/internal/biz"
+	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
+	"github.com/bionicotaku/kratos-template/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"google.golang.org/grpc"

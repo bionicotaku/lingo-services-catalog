@@ -7,12 +7,12 @@
 package main
 
 import (
-	"github.com/go-kratos/kratos-layout/internal/biz"
-	"github.com/go-kratos/kratos-layout/internal/client"
-	"github.com/go-kratos/kratos-layout/internal/conf"
-	"github.com/go-kratos/kratos-layout/internal/data"
-	"github.com/go-kratos/kratos-layout/internal/server"
-	"github.com/go-kratos/kratos-layout/internal/service"
+	"github.com/bionicotaku/kratos-template/internal/biz"
+	"github.com/bionicotaku/kratos-template/internal/client"
+	"github.com/bionicotaku/kratos-template/internal/conf"
+	"github.com/bionicotaku/kratos-template/internal/data"
+	"github.com/bionicotaku/kratos-template/internal/server"
+	"github.com/bionicotaku/kratos-template/internal/service"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 )

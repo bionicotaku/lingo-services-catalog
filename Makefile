@@ -16,12 +16,12 @@ init:
 .PHONY: config
 # generate internal proto
 config:
-	buf generate internal/conf
+	buf generate --path internal/conf
 
 .PHONY: api
 # generate api proto
 api:
-	buf generate api
+	buf generate --path api
 
 .PHONY: build
 # build

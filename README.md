@@ -9,7 +9,7 @@
 - `Makefile`：集中管理常用任务。`make init` 安装开发所需工具（含 Buf/kratos/protoc 插件），`make api` 与 `make config` 通过 Buf 生成 gRPC/HTTP/OpenAPI 代码，`make build` 则输出二进制到 `bin/`。
 - `openapi.yaml`：通过 `protoc-gen-openapi` 生成的 REST 契约文件，便于前端或 API 测试工具使用。
 - `generate.go`：Kratos 约定的生成入口，可在需要时增加 `//go:generate` 指令集中刷新代码。
-- `go.mod` / `go.sum`：Go Module 与依赖锁定文件，模块名默认是 `github.com/go-kratos/kratos-layout`，落地业务时可按需修改。
+- `go.mod` / `go.sum`：Go Module 与依赖锁定文件，模块名默认是 `github.com/bionicotaku/kratos-template`，落地业务时可按需修改。
 - `Dockerfile`：多阶段构建镜像示例，Stage1 使用官方 Go 镜像编译，Stage2 基于 debian slim 运行产物并暴露 8000/9000 端口。
 
 ## API 层（`api/`）
