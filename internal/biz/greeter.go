@@ -56,5 +56,10 @@ func (uc *GreeterUsecase) ForwardHello(ctx context.Context, name string) (string
 	if uc.remote == nil {
 		return "", nil
 	}
-	return uc.remote.SayHello(ctx, name)
+	msg, err := uc.remote.SayHello(ctx, name)
+	if err != nil {
+		uc.log.WithContext(ctx).Errorf("ForwardHello remote call failed: %v", err)
+		return "", err
+	}
+	return msg, nil
 }

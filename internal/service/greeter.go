@@ -8,6 +8,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/biz"
 
 	"github.com/go-kratos/kratos/v2/metadata"
+	"github.com/go-kratos/kratos/v2/transport"
 )
 
 // GreeterService is a greeter service.
@@ -44,6 +45,11 @@ func (s *GreeterService) SayHello(ctx context.Context, in *v1.HelloRequest) (*v1
 }
 
 func isForwarded(ctx context.Context) bool {
+	if tr, ok := transport.FromServerContext(ctx); ok {
+		if hdr := tr.RequestHeader(); hdr != nil && hdr.Get(forwardedHeader) != "" {
+			return true
+		}
+	}
 	if md, ok := metadata.FromServerContext(ctx); ok {
 		return md.Get(forwardedHeader) != ""
 	}
