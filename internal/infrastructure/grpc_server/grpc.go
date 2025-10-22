@@ -1,9 +1,10 @@
+// Package grpcserver wires the inbound gRPC server and its middleware stack.
 package grpcserver
 
 import (
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
-	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/logging"
@@ -15,7 +16,7 @@ import (
 )
 
 // NewGRPCServer new a gRPC server.
-func NewGRPCServer(c *conf.Server, greeter *controllers.GreeterHandler, logger log.Logger) *grpc.Server {
+func NewGRPCServer(c *configpb.Server, greeter *controllers.GreeterHandler, logger log.Logger) *grpc.Server {
 	opts := []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),

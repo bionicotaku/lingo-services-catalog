@@ -8,8 +8,8 @@ package main
 
 import (
 	"github.com/bionicotaku/kratos-template/internal/clients"
-	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -25,7 +25,7 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(server *conf.Server, data *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
+func wireApp(server *configpb.Server, data *configpb.Data, logger log.Logger) (*kratos.App, func(), error) {
 	greeterRepo := repositories.NewGreeterRepo(logger)
 	clientConn, cleanup, err := grpcclient.NewGRPCClient(data, logger)
 	if err != nil {

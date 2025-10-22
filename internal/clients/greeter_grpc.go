@@ -1,3 +1,4 @@
+// Package clients contains outbound client façades for external services.
 package clients
 
 import (

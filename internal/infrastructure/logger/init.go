@@ -1,3 +1,4 @@
+// Package logger exposes logging initialization helpers for the service.
 package logger
 
 import "github.com/google/wire"

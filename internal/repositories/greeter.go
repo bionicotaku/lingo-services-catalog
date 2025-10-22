@@ -1,3 +1,4 @@
+// Package repositories hosts data access implementations for the template.
 package repositories
 
 import (
@@ -20,22 +21,22 @@ func NewGreeterRepo(logger log.Logger) services.GreeterRepo {
 	}
 }
 
-func (r *greeterRepo) Save(ctx context.Context, g *po.Greeter) (*po.Greeter, error) {
+func (r *greeterRepo) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
 	return g, nil
 }
 
-func (r *greeterRepo) Update(ctx context.Context, g *po.Greeter) (*po.Greeter, error) {
+func (r *greeterRepo) Update(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
 	return g, nil
 }
 
-func (r *greeterRepo) FindByID(context.Context, int64) (*po.Greeter, error) {
+func (r *greeterRepo) FindByID(_ context.Context, _ int64) (*po.Greeter, error) {
 	return nil, nil
 }
 
-func (r *greeterRepo) ListByHello(context.Context, string) ([]*po.Greeter, error) {
+func (r *greeterRepo) ListByHello(_ context.Context, _ string) ([]*po.Greeter, error) {
 	return nil, nil
 }
 
-func (r *greeterRepo) ListAll(context.Context) ([]*po.Greeter, error) {
+func (r *greeterRepo) ListAll(_ context.Context) ([]*po.Greeter, error) {
 	return nil, nil
 }

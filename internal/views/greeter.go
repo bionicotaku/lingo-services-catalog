@@ -1,3 +1,4 @@
+// Package views provides conversion helpers between view objects and API DTOs.
 package views
 
 import (

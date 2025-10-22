@@ -17,7 +17,13 @@ init:
 .PHONY: config
 # generate internal proto
 config:
-	buf generate --path internal/conf
+	buf generate --template '{"version":"v1","plugins":[{"plugin":"go","out":".","opt":["paths=source_relative"]},{"plugin":"validate","out":".","opt":["paths=source_relative","lang=go"]}]}' --path internal/infrastructure/config_loader/pb
+
+.PHONY: lint
+# run static analysis (staticcheck + revive)
+lint:
+	staticcheck -checks=all,-ST1012,-ST1000 ./...
+	revive ./...
 
 .PHONY: api
 # generate api proto

@@ -1,9 +1,10 @@
+// Package grpcclient configures outbound gRPC connections used by services.
 package grpcclient
 
 import (
 	"context"
 
-	"github.com/bionicotaku/kratos-template/internal/conf"
+	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
@@ -15,7 +16,7 @@ import (
 )
 
 // NewGRPCClient dials a generic gRPC target with common Kratos middlewares applied.
-func NewGRPCClient(c *conf.Data, logger log.Logger) (*grpc.ClientConn, func(), error) {
+func NewGRPCClient(c *configpb.Data, logger log.Logger) (*grpc.ClientConn, func(), error) {
 	helper := log.NewHelper(logger)
 
 	if c == nil || c.GrpcClient == nil || c.GrpcClient.Target == "" {

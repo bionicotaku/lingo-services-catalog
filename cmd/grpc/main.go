@@ -1,3 +1,4 @@
+// Package main boots the Kratos gRPC entrypoint for the template service.
 package main
 
 import (

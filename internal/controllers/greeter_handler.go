@@ -1,3 +1,4 @@
+// Package controllers exposes transport-layer handlers for incoming requests.
 package controllers
 
 import (

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
-	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
@@ -28,6 +28,7 @@ type testRepo struct{}
 func (testRepo) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
 	return g, nil
 }
+
 func (testRepo) Update(context.Context, *po.Greeter) (*po.Greeter, error) {
 	return nil, nil
 }
@@ -49,7 +50,7 @@ func newTestController(t *testing.T) *controllers.GreeterHandler {
 func startServer(t *testing.T) (string, func()) {
 	t.Helper()
 	svc := newTestController(t)
-	cfg := &conf.Server{Grpc: &conf.Server_GRPC{Addr: "127.0.0.1:0"}}
+	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	logger := log.NewStdLogger(io.Discard)
 	srv := grpcserver.NewGRPCServer(cfg, svc, logger)
 
@@ -80,7 +81,7 @@ func waitForServing(t *testing.T, addr string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		conn, err := stdgrpc.Dial(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := stdgrpc.NewClient(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
 			_ = conn.Close()
 			return
@@ -94,7 +95,7 @@ func TestNewGRPCServerServesGreeter(t *testing.T) {
 	addr, cleanup := startServer(t)
 	defer cleanup()
 
-	conn, err := stdgrpc.Dial(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := stdgrpc.NewClient(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -114,7 +115,7 @@ func TestNewGRPCServerProvidesHealth(t *testing.T) {
 	addr, cleanup := startServer(t)
 	defer cleanup()
 
-	conn, err := stdgrpc.Dial(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := stdgrpc.NewClient(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestNewGRPCServerMetadataPropagationPrefix(t *testing.T) {
 	addr, cleanup := startServer(t)
 	defer cleanup()
 
-	conn, err := stdgrpc.Dial(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := stdgrpc.NewClient(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -154,7 +155,7 @@ func TestNewGRPCServerValidationRejectsInvalid(t *testing.T) {
 	addr, cleanup := startServer(t)
 	defer cleanup()
 
-	conn, err := stdgrpc.Dial(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := stdgrpc.NewClient(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}

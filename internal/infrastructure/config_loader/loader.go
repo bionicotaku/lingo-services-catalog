@@ -1,10 +1,11 @@
+// Package loader provides configuration loading utilities for the template service.
 package loader
 
 import (
 	"flag"
 	"os"
 
-	"github.com/bionicotaku/kratos-template/internal/conf"
+	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	loginfra "github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
 
 	"github.com/go-kratos/kratos/v2/config"
@@ -21,7 +22,7 @@ const (
 // Loader bundles configuration objects used by the application.
 type Loader struct {
 	Config    config.Config
-	Bootstrap conf.Bootstrap
+	Bootstrap configpb.Bootstrap
 	LoggerCfg loginfra.Config
 }
 
@@ -49,7 +50,7 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 	if err := c.Load(); err != nil {
 		return nil, func() {}, err
 	}
-	var bc conf.Bootstrap
+	var bc configpb.Bootstrap
 	if err := c.Scan(&bc); err != nil {
 		c.Close()
 		return nil, func() {}, err

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
-	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
@@ -24,6 +24,7 @@ type repoStub struct{}
 func (repoStub) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
 	return g, nil
 }
+
 func (repoStub) Update(context.Context, *po.Greeter) (*po.Greeter, error) {
 	return nil, nil
 }
@@ -41,7 +42,7 @@ func startGreeterServer(t *testing.T) (addr string, stop func()) {
 	uc := services.NewGreeterUsecase(repoStub{}, remoteStub{}, logger)
 	svc := controllers.NewGreeterHandler(uc)
 
-	cfg := &conf.Server{Grpc: &conf.Server_GRPC{Addr: "127.0.0.1:0"}}
+	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	grpcSrv := grpcserver.NewGRPCServer(cfg, svc, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
@@ -70,7 +71,7 @@ func waitForServer(t *testing.T, addr string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
 			conn.Close()
 			return
@@ -82,7 +83,7 @@ func waitForServer(t *testing.T, addr string) {
 
 func TestNewGRPCClient_NoTarget(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	conn, cleanup, err := clientinfra.NewGRPCClient(&conf.Data{}, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(&configpb.Data{}, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -100,7 +101,7 @@ func TestNewGRPCClient_CallGreeter(t *testing.T) {
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
-	cfg := &conf.Data{GrpcClient: &conf.Data_Client{Target: "dns:///" + addr}}
+	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, logger)
 	if err != nil {

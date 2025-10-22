@@ -42,7 +42,7 @@ type stubGreeterRemote struct {
 	reply   string
 }
 
-func (s *stubGreeterRemote) SayHello(ctx context.Context, name string) (string, error) {
+func (s *stubGreeterRemote) SayHello(ctx context.Context, _ string) (string, error) {
 	s.calls++
 	s.lastCtx = ctx
 	return s.reply, nil

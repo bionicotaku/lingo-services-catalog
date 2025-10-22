@@ -7,8 +7,8 @@ package main
 
 import (
 	"github.com/bionicotaku/kratos-template/internal/clients"
-	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	grpcclient "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -20,10 +20,10 @@ import (
 )
 
 // wireApp init kratos application.
-func wireApp(*conf.Server, *conf.Data, log.Logger) (*kratos.App, func(), error) {
+func wireApp(*configpb.Server, *configpb.Data, log.Logger) (*kratos.App, func(), error) {
 	// Providers and their dependencies:
-	//   - grpc_server.NewGRPCServer(*conf.Server, *controllers.GreeterHandler, log.Logger) *grpc.Server
-	//   - grpc_client.NewGRPCClient(*conf.Data, log.Logger) (*grpc.ClientConn, func(), error)
+	//   - grpc_server.NewGRPCServer(*configpb.Server, *controllers.GreeterHandler, log.Logger) *grpc.Server
+	//   - grpc_client.NewGRPCClient(*configpb.Data, log.Logger) (*grpc.ClientConn, func(), error)
 	//   - clients.NewGreeterRemote(*grpc.ClientConn, log.Logger) services.GreeterRemote
 	//   - repositories.NewGreeterRepo(*data.Data, log.Logger) services.GreeterRepo
 	//   - services.NewGreeterUsecase(repositories.GreeterRepo, services.GreeterRemote, log.Logger) *services.GreeterUsecase

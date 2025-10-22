@@ -40,14 +40,14 @@
 
 该目录下的代码不会被外部模块引用，每一层各司其职，共同完成 DDD-lite 风格的服务拆分：
 
-- `internal/conf/`  
-  采用 proto 描述配置 (`conf.proto`)，生成强类型结构体 (`conf.pb.go`)，再由 `config.Scan` 填充，确保配置访问安全统一。
+- `internal/infrastructure/config_loader/`  
+  配置加载与 schema 所在目录：`loader.go` 提供 `ParseConfPath`、`LoadBootstrap`，负责解析 `-conf`/`CONF_PATH`、加载 Kratos `config.Config` 并返回强类型的 `Bootstrap` 与日志配置；`pb/conf.proto` 描述配置结构（`Bootstrap`、`Server`、`Data` 等字段），执行 `buf generate --path internal/infrastructure/config_loader/pb` 会在同目录产出 `conf.pb.go` 与 PGV 校验代码，确保配置访问具备类型安全与 IDE 补全。
 
 - `internal/clients/`  
   业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。
 
 - `internal/infrastructure/`  
-  底层设施统一入口：`config_loader/loader.go` 解析 `-conf`/`CONF_PATH` 并加载配置（返回 `Loader` 包含 Kratos Config, Bootstrap, LoggerCfg），`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`data` 管理数据库/缓存资源，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
+  底层设施统一入口：`config_loader/loader.go` 解析 `-conf`/`CONF_PATH` 并加载配置（返回 `Loader` 包含 Kratos Config、Bootstrap、LoggerCfg），`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
 
 - `internal/controllers/`  
   传输层 Handler / Controller 实现，由 proto 生成的接口起点（现阶段仍为 gRPC，后续会扩展 REST）。负责 DTO ↔ 视图对象转换与用例编排入口，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。
@@ -66,6 +66,8 @@
 
 - `internal/tasks/`  
   预留 Outbox 扫描、定时任务与后台 Worker 的放置位置。需要注入调度器时，同样通过 `init.go` 声明 Provider。
+
+> 单元测试示例存放在对应包的 `test/` 子目录（例如 `internal/controllers/test`）。测试包采用 `package xxx_test` 形式引用被测包，直接运行 `go test ./...` 即可一并覆盖。
 
 ### 请求/数据流转示意
 
