@@ -14,6 +14,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
+	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -25,9 +26,7 @@ func (repoStub) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
 	return g, nil
 }
 
-func (repoStub) Update(context.Context, *po.Greeter) (*po.Greeter, error) {
-	return nil, nil
-}
+func (repoStub) Update(context.Context, *po.Greeter) (*po.Greeter, error)   { return nil, nil }
 func (repoStub) FindByID(context.Context, int64) (*po.Greeter, error)       { return nil, nil }
 func (repoStub) ListByHello(context.Context, string) ([]*po.Greeter, error) { return nil, nil }
 func (repoStub) ListAll(context.Context) ([]*po.Greeter, error)             { return nil, nil }
@@ -37,13 +36,15 @@ type remoteStub struct{}
 func (remoteStub) SayHello(context.Context, string) (string, error) { return "", nil }
 
 func startGreeterServer(t *testing.T) (addr string, stop func()) {
+	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
+
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
 	uc := services.NewGreeterUsecase(repoStub{}, remoteStub{}, logger)
 	svc := controllers.NewGreeterHandler(uc)
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, svc, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, svc, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {
@@ -73,7 +74,7 @@ func waitForServer(t *testing.T, addr string) {
 	for time.Now().Before(deadline) {
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -83,7 +84,8 @@ func waitForServer(t *testing.T, addr string) {
 
 func TestNewGRPCClient_NoTarget(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	conn, cleanup, err := clientinfra.NewGRPCClient(&configpb.Data{}, logger)
+	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
+	conn, cleanup, err := clientinfra.NewGRPCClient(&configpb.Data{}, metricsCfg, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -101,9 +103,10 @@ func TestNewGRPCClient_CallGreeter(t *testing.T) {
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
+	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}

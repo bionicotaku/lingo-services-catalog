@@ -14,6 +14,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
+	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"
 	kratosmd "github.com/go-kratos/kratos/v2/metadata"
 	stdgrpc "google.golang.org/grpc"
@@ -52,7 +53,8 @@ func startServer(t *testing.T) (string, func()) {
 	svc := newTestController(t)
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	logger := log.NewStdLogger(io.Discard)
-	srv := grpcserver.NewGRPCServer(cfg, svc, logger)
+	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, svc, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()

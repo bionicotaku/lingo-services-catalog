@@ -1444,6 +1444,14 @@ func (m *Observability_Metrics) validate(all bool) error {
 
 	// no validation rules for ResourceAttributes
 
+	if m.GrpcEnabled != nil {
+		// no validation rules for GrpcEnabled
+	}
+
+	if m.GrpcIncludeHealth != nil {
+		// no validation rules for GrpcIncludeHealth
+	}
+
 	if len(errors) > 0 {
 		return Observability_MetricsMultiError(errors)
 	}

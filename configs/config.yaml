@@ -27,3 +27,5 @@ observability:
     interval: 60s
     disable_runtime_stats: false
     required: false
+    grpc_enabled: true
+    grpc_include_health: false

@@ -67,6 +67,8 @@ message Observability {
     bool disable_runtime_stats = 7;
     bool required = 8;
     map<string, string> resource_attributes = 9;
+    optional bool grpc_enabled = 10;
+    optional bool grpc_include_health = 11;
   }
   map<string, string> global_attributes = 1;
   Tracing tracing = 2;

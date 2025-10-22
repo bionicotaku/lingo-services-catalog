@@ -20,12 +20,13 @@
 - gRPC Server 默认启用 `logging.Server(logger)` 中间件。配合 `gclog` 的字段映射，`kind/component/operation/args/code/reason/stack/latency` 会自动落在合适的位置，Trace/Span 由 OTel SpanContext 自动注入。
 - 业务侧若需追加自定义标签或 payload，可使用 `gclog.WithLabels` / `gclog.WithAllowedLabelKeys` / `gclog.WithPayload` 等 helper。
 - 单测可调用 `gclog.NewTestLogger` 拿到内存缓冲 logger 断言输出内容。
+- 通过 `github.com/bionicotaku/lingo-utils/gclog` 的 ProviderSet，可在 Wire 中统一注入 trace-aware 的 Kratos logger，无需手动组装。
 
 ### 可观测性（OpenTelemetry）
 
-- 模板依赖 `github.com/bionicotaku/lingo-utils/observability`，在 `cmd/grpc/main.go` 初始化统一的 Tracer/Meter Provider，并在进程退出前调用返回的 shutdown 函数确保缓冲数据被刷新。
+- 模板依赖 `github.com/bionicotaku/lingo-utils/observability`，通过 `github.com/bionicotaku/lingo-utils/observability` 暴露的 Wire Provider 初始化统一的 Tracer/Meter 组件，`wireApp` 返回的 cleanup 会在退出时自动刷新缓冲数据。
 - `configs/config.yaml` 下提供 `observability` 节点，可独立控制 tracing / metrics 的启用、exporter（`stdout` 或 `otlp_grpc`）、endpoint、采样率、运行时指标等；默认配置使用 `stdout` exporter 与 `required=false`，方便无 Collector 的开发环境。
-- gRPC Server/Client 中间件链包含 `observability/tracing.Server()` 与 `observability/tracing.Client()`，与 logging 中间件协同工作，自动补齐结构化日志中的 `trace_id`/`span_id` 字段。
+- gRPC Server/Client 中间件链包含 `observability/tracing.Server()` 与 `observability/tracing.Client()`，与 logging 中间件协同工作，自动补齐结构化日志中的 `trace_id`/`span_id` 字段；同时可选择性挂载 `otelgrpc` stats handler 以采集 RPC 指标，详见下文配置。
 - 如果暂时没有 OTLP Collector，可保持 `stdout` exporter 或直接将 `enabled` 设为 `false`；接入云端（如 Cloud Trace、Tempo）时改为 `otlp_grpc` 并设置对应 `endpoint`、`headers` 即可，无需改动业务代码。
 - 模板只负责安装全局 Provider，业务代码可按需通过 `otel.Tracer`、`otel.Meter` 打点自定义 Span/Metric；必要时可在服务层注入 Meter 统计业务指标。
 
@@ -149,3 +150,25 @@ flowchart TD
 ```
 
 以上结构提供了一个最小可行的 Kratos 微服务骨架。开发真实业务时，可在此基础上扩展 proto 契约、补全 data 层与 Usecase，实现自定义领域逻辑与配套测试。*** End Patch​
+
+## gRPC 指标开关
+
+服务通过 `observability.metrics` 配置控制 gRPC 指标：
+
+```yaml
+observability:
+  metrics:
+    grpc_enabled: true
+    grpc_include_health: false
+```
+
+- `grpc_enabled`：默认 `true`，决定是否挂载 `otelgrpc` stats handler。
+- `grpc_include_health`：默认 `false`，可选地排除 `/grpc.health.v1.Health/Check` 的指标噪音。
+
+模板的 gRPC server/client 会自动读取该配置；若未提供，仍保持指标开启并过滤健康检查。其它业务服务复用模板逻辑时，应在 Wire 中传入同一份 `observability.MetricsConfig` 以保持一致。
+
+
+### Observability 依赖注入
+
+- `github.com/bionicotaku/lingo-utils/observability` _ProviderSet_ 提供 `Component` Provider，Wire 会负责初始化 OpenTelemetry Tracer/Meter，并在 `cleanup` 中执行 `Shutdown`。
+- 其它 Provider 只需依赖 `*observability.Component` 或 `ObservabilityConfig` / `MetricsConfig` 即可，共享同一套观测配置。

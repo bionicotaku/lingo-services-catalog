@@ -637,6 +637,8 @@ type Observability_Metrics struct {
 	DisableRuntimeStats bool                   `protobuf:"varint,7,opt,name=disable_runtime_stats,json=disableRuntimeStats,proto3" json:"disable_runtime_stats,omitempty"`
 	Required            bool                   `protobuf:"varint,8,opt,name=required,proto3" json:"required,omitempty"`
 	ResourceAttributes  map[string]string      `protobuf:"bytes,9,rep,name=resource_attributes,json=resourceAttributes,proto3" json:"resource_attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	GrpcEnabled         *bool                  `protobuf:"varint,10,opt,name=grpc_enabled,json=grpcEnabled,proto3,oneof" json:"grpc_enabled,omitempty"`
+	GrpcIncludeHealth   *bool                  `protobuf:"varint,11,opt,name=grpc_include_health,json=grpcIncludeHealth,proto3,oneof" json:"grpc_include_health,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -734,6 +736,20 @@ func (x *Observability_Metrics) GetResourceAttributes() map[string]string {
 	return nil
 }
 
+func (x *Observability_Metrics) GetGrpcEnabled() bool {
+	if x != nil && x.GrpcEnabled != nil {
+		return *x.GrpcEnabled
+	}
+	return false
+}
+
+func (x *Observability_Metrics) GetGrpcIncludeHealth() bool {
+	if x != nil && x.GrpcIncludeHealth != nil {
+		return *x.GrpcIncludeHealth
+	}
+	return false
+}
+
 var File_internal_infrastructure_config_loader_pb_conf_proto protoreflect.FileDescriptor
 
 const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
@@ -764,7 +780,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\fread_timeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
 	"\rwrite_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x1a \n" +
 	"\x06Client\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\"\x84\r\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\"\x8a\x0e\n" +
 	"\rObservability\x12\\\n" +
 	"\x11global_attributes\x18\x01 \x03(\v2/.kratos.api.Observability.GlobalAttributesEntryR\x10globalAttributes\x12;\n" +
 	"\atracing\x18\x02 \x01(\v2!.kratos.api.Observability.TracingR\atracing\x12;\n" +
@@ -793,7 +809,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a\xb7\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a\xbd\x05\n" +
 	"\aMetrics\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1a\n" +
 	"\bexporter\x18\x02 \x01(\tR\bexporter\x12\x1a\n" +
@@ -803,13 +819,18 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\binterval\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\binterval\x122\n" +
 	"\x15disable_runtime_stats\x18\a \x01(\bR\x13disableRuntimeStats\x12\x1a\n" +
 	"\brequired\x18\b \x01(\bR\brequired\x12j\n" +
-	"\x13resource_attributes\x18\t \x03(\v29.kratos.api.Observability.Metrics.ResourceAttributesEntryR\x12resourceAttributes\x1a:\n" +
+	"\x13resource_attributes\x18\t \x03(\v29.kratos.api.Observability.Metrics.ResourceAttributesEntryR\x12resourceAttributes\x12&\n" +
+	"\fgrpc_enabled\x18\n" +
+	" \x01(\bH\x00R\vgrpcEnabled\x88\x01\x01\x123\n" +
+	"\x13grpc_include_health\x18\v \x01(\bH\x01R\x11grpcIncludeHealth\x88\x01\x01\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aE\n" +
 	"\x17ResourceAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aC\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
+	"\r_grpc_enabledB\x16\n" +
+	"\x14_grpc_include_health\x1aC\n" +
 	"\x15GlobalAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
@@ -878,6 +899,7 @@ func file_internal_infrastructure_config_loader_pb_conf_proto_init() {
 	if File_internal_infrastructure_config_loader_pb_conf_proto != nil {
 		return
 	}
+	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
@@ -14,8 +15,9 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
+	"github.com/bionicotaku/lingo-utils/gclog"
+	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/log"
 )
 
 import (
@@ -25,18 +27,33 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(server *configpb.Server, data *configpb.Data, logger log.Logger) (*kratos.App, func(), error) {
-	greeterRepo := repositories.NewGreeterRepo(logger)
-	clientConn, cleanup, err := grpcclient.NewGRPCClient(data, logger)
+func wireApp(contextContext context.Context, server *configpb.Server, data *configpb.Data, observabilityConfig observability.ObservabilityConfig, serviceInfo observability.ServiceInfo, config gclog.Config) (*kratos.App, func(), error) {
+	component, cleanup, err := gclog.NewComponent(config)
 	if err != nil {
+		return nil, nil, err
+	}
+	logger := gclog.ProvideLogger(component)
+	observabilityComponent, cleanup2, err := observability.NewComponent(contextContext, observabilityConfig, serviceInfo, logger)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	metricsConfig := observability.ProvideMetricsConfig(observabilityConfig)
+	greeterRepo := repositories.NewGreeterRepo(logger)
+	clientConn, cleanup3, err := grpcclient.NewGRPCClient(data, metricsConfig, logger)
+	if err != nil {
+		cleanup2()
+		cleanup()
 		return nil, nil, err
 	}
 	greeterRemote := clients.NewGreeterRemote(clientConn, logger)
 	greeterUsecase := services.NewGreeterUsecase(greeterRepo, greeterRemote, logger)
 	greeterHandler := controllers.NewGreeterHandler(greeterUsecase)
-	grpcServer := grpcserver.NewGRPCServer(server, greeterHandler, logger)
-	app := newApp(logger, grpcServer)
+	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, greeterHandler, logger)
+	app := newApp(observabilityComponent, logger, grpcServer)
 	return app, func() {
+		cleanup3()
+		cleanup2()
 		cleanup()
 	}, nil
 }

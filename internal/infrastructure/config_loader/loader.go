@@ -7,9 +7,8 @@ import (
 	"time"
 
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
-	loginfra "github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
-
-	"github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/gclog"
+	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -24,10 +23,11 @@ const (
 
 // Loader bundles configuration objects used by the application.
 type Loader struct {
-	Config    config.Config
-	Bootstrap *configpb.Bootstrap
-	LoggerCfg loginfra.Config
-	ObsConfig observability.ObservabilityConfig
+	Config      config.Config
+	Bootstrap   *configpb.Bootstrap
+	LoggerCfg   gclog.Config
+	ObsConfig   obswire.ObservabilityConfig
+	ServiceInfo obswire.ServiceInfo
 }
 
 // ParseConfPath reads the configuration path from flags/environment, returning the resolved value.
@@ -62,24 +62,51 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 	cleanup := func() {
 		_ = c.Close()
 	}
-	loggerCfg := loginfra.DefaultConfig(service, version)
+	serviceName := service
+	if serviceName == "" {
+		serviceName = "template"
+	}
+	serviceVersion := version
+	if serviceVersion == "" {
+		serviceVersion = "dev"
+	}
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+	}
+	host, _ := os.Hostname()
+
+	loggerCfg := gclog.Config{
+		Service:              serviceName,
+		Version:              serviceVersion,
+		Environment:          env,
+		InstanceID:           host,
+		EnableSourceLocation: true,
+	}
+
+	serviceInfo := obswire.ServiceInfo{
+		Name:        serviceName,
+		Version:     serviceVersion,
+		Environment: env,
+	}
 	return &Loader{
-		Config:    c,
-		Bootstrap: &bc,
-		LoggerCfg: loggerCfg,
-		ObsConfig: toObservabilityConfig(bc.Observability),
+		Config:      c,
+		Bootstrap:   &bc,
+		LoggerCfg:   loggerCfg,
+		ObsConfig:   toObservabilityConfig(bc.Observability),
+		ServiceInfo: serviceInfo,
 	}, cleanup, nil
 }
 
-func toObservabilityConfig(src *configpb.Observability) observability.ObservabilityConfig {
+func toObservabilityConfig(src *configpb.Observability) obswire.ObservabilityConfig {
 	if src == nil {
-		return observability.ObservabilityConfig{}
+		return obswire.ObservabilityConfig{}
 	}
-	cfg := observability.ObservabilityConfig{
+	cfg := obswire.ObservabilityConfig{
 		GlobalAttributes: cloneStringMap(src.GetGlobalAttributes()),
 	}
 	if tr := src.GetTracing(); tr != nil {
-		cfg.Tracing = &observability.TracingConfig{
+		cfg.Tracing = &obswire.TracingConfig{
 			Enabled:            tr.GetEnabled(),
 			Exporter:           tr.GetExporter(),
 			Endpoint:           tr.GetEndpoint(),
@@ -98,7 +125,17 @@ func toObservabilityConfig(src *configpb.Observability) observability.Observabil
 		}
 	}
 	if mt := src.GetMetrics(); mt != nil {
-		cfg.Metrics = &observability.MetricsConfig{
+		// Metrics block is optional; fall back to defaults so services continue
+		// exporting runtime metrics even when the configuration omits overrides.
+		grpcEnabled := true
+		if mt.GrpcEnabled != nil {
+			grpcEnabled = mt.GetGrpcEnabled()
+		}
+		grpcIncludeHealth := false
+		if mt.GrpcIncludeHealth != nil {
+			grpcIncludeHealth = mt.GetGrpcIncludeHealth()
+		}
+		cfg.Metrics = &obswire.MetricsConfig{
 			Enabled:             mt.GetEnabled(),
 			Exporter:            mt.GetExporter(),
 			Endpoint:            mt.GetEndpoint(),
@@ -108,7 +145,11 @@ func toObservabilityConfig(src *configpb.Observability) observability.Observabil
 			DisableRuntimeStats: mt.GetDisableRuntimeStats(),
 			Required:            mt.GetRequired(),
 			ResourceAttributes:  cloneStringMap(mt.GetResourceAttributes()),
+			GRPCEnabled:         grpcEnabled,
+			GRPCIncludeHealth:   grpcIncludeHealth,
 		}
+	} else {
+		cfg.Metrics = &obswire.MetricsConfig{GRPCEnabled: true}
 	}
 	return cfg
 }
