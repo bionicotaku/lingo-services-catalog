@@ -41,7 +41,7 @@
 
 ## 入口层（`cmd/`）
 
-- `cmd/grpc/main.go`：服务启动入口，`ParseConfPath` 会先解析全局 Flag（优先 `-conf`，其次 `CONF_PATH`，否则回落到仓库根的 `configs/`），随后 `LoadBootstrap` 读取目录/文件并执行 PGV 校验，得到类型安全的 `Loader` 实例，再交给 Wire 装配 Kratos 应用（HTTP 调试入口可在 `cmd/http` 按需创建）。
+- `cmd/grpc/main.go`：服务启动入口，通过标准库 `flag` 注册 `-conf`，直接封装到 `Params` 交给 Wire，由 `Build` 在内部解析路径（优先 `-conf`，其次 `CONF_PATH`，否则回落到仓库根的 `configs/`），读取目录/文件并执行 PGV 校验，生成类型安全的 Bundle 后装配 Kratos 应用（HTTP 调试入口可在 `cmd/http` 按需创建）。
 - `cmd/grpc/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。`wire.go` 中通过 `config_loader.ProviderSet` 将 ServiceMetadata、Bootstrap 子段、日志与观测配置统一暴露给后续 Provider；修改依赖后执行 `wire` 重新生成 `wire_gen.go`。
 
 ## 配置（`configs/`）
@@ -53,7 +53,7 @@
 该目录下的代码不会被外部模块引用，每一层各司其职，共同完成 DDD-lite 风格的服务拆分：
 
 - `internal/infrastructure/config_loader/`  
-  配置加载与 schema 所在目录：`defaults.go` 统一声明默认路径/环境常量；`loader.go` 提供 `ParseConfPath`（兼容全局 FlagSet 与环境变量）与 `LoadBootstrap`（构建 Kratos `config.Config`、扫描 YAML/TOML/JSON，随后触发 PGV `ValidateAll` 并推导 ServiceMetadata、观测与日志配置）；`provider.go` 将这些结果封装成 Wire ProviderSet，后续 Provider 可以直接注入 `*configpb.Server`、`*configpb.Data`、`obswire.ObservabilityConfig` 等类型；`pb/conf.proto` 描述配置结构，执行 `buf generate --path internal/infrastructure/config_loader/pb` 会在同目录产出 `conf.pb.go` 与 PGV 校验代码，确保配置访问具备类型安全与 IDE 补全。
+  配置加载与 schema 所在目录：`defaults.go` 统一声明默认路径/环境常量；`loader.go` 提供 `ResolveConfPath`（兼容 Flag/环境变量 回退）与 `Build`（依据 `Params` 读取配置、扫描 YAML/TOML/JSON，随后触发 PGV `ValidateAll` 并推导 ServiceMetadata、观测与日志配置，最终返回 Bundle）；`provider.go` 将这些结果封装成 Wire ProviderSet，后续 Provider 可以直接注入 `*configpb.Server`、`*configpb.Data`、`obswire.ObservabilityConfig` 等类型；`pb/conf.proto` 描述配置结构，执行 `buf generate --path internal/infrastructure/config_loader/pb` 会在同目录产出 `conf.pb.go` 与 PGV 校验代码，确保配置访问具备类型安全与 IDE 补全。
 
 - `internal/clients/`  
   业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。

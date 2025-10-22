@@ -1,4 +1,5 @@
-// Package grpcclient configures outbound gRPC connections used by services.
+// Package grpcclient 负责配置出站 gRPC 连接，供服务调用下游依赖使用。
+// 包括：追踪、熔断、元数据传播等中间件，以及可选的指标采集。
 package grpcclient
 
 import (
@@ -20,17 +21,35 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
-// NewGRPCClient dials a generic gRPC target with common Kratos middlewares applied.
+// NewGRPCClient 创建配置完整的 gRPC 客户端连接。
+//
+// 中间件链（按执行顺序）：
+// 1. recovery.Recovery() - 捕获客户端调用中的 panic
+// 2. metadata.Client() - 自动传播 metadata 到下游
+// 3. obsTrace.Client() - OpenTelemetry 追踪，创建子 Span
+// 4. circuitbreaker.Client() - 熔断保护，防止雪崩
+//
+// 可选指标采集：
+// - 根据 metricsCfg.GRPCEnabled 决定是否启用 otelgrpc.StatsHandler
+//
+// 返回值：
+// - *grpc.ClientConn: 可复用的连接实例
+// - cleanup func(): 清理函数，应在服务关闭时调用
+// - error: 连接失败时返回错误
+//
+// 特殊处理：
+// - 如果未配置 target，返回 nil conn（不报错），允许服务在无下游依赖时启动
 func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, logger log.Logger) (*grpc.ClientConn, func(), error) {
 	helper := log.NewHelper(logger)
 
+	// 如果未配置目标地址，返回 nil 连接（不报错）
+	// 这允许服务在开发环境或无远程依赖时正常启动
 	if c == nil || c.GrpcClient == nil || c.GrpcClient.Target == "" {
 		helper.Warn("grpc client target not configured; remote calls disabled")
 		return nil, func() {}, nil
 	}
 
-	// metricsCfg may be nil when callers do not configure metrics explicitly;
-	// default to enabling instrumentation so behaviour matches template defaults.
+	// metricsCfg 为可选参数，默认启用指标采集以保持向后兼容
 	metricsEnabled := true
 	includeHealth := false
 	if metricsCfg != nil {
@@ -65,6 +84,13 @@ func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, lo
 	return conn, cleanup, nil
 }
 
+// newClientHandler 构造 gRPC Client 的 OpenTelemetry StatsHandler。
+//
+// 参数：
+//   - includeHealth: 是否采集健康检查 RPC 的指标
+//     false 时会过滤 /grpc.health.v1.Health/Check，减少指标噪音
+//
+// 返回配置好的 StatsHandler，用于采集客户端 RPC 指标（延迟、错误率等）。
 func newClientHandler(includeHealth bool) stats.Handler {
 	opts := []otelgrpc.Option{
 		otelgrpc.WithMeterProvider(otel.GetMeterProvider()),

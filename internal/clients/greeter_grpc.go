@@ -1,4 +1,5 @@
-// Package clients contains outbound client façades for external services.
+// Package clients 包含调用外部服务的客户端门面（Façade），封装 gRPC/REST 调用细节。
+// 实现 Service 层定义的 Remote 接口，提供业务级别的调用抽象。
 package clients
 
 import (
@@ -11,12 +12,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// greeterRemote 是 services.GreeterRemote 接口的实现，封装远程 Greeter 服务调用。
 type greeterRemote struct {
-	client v1.GreeterClient
-	log    *log.Helper
+	client v1.GreeterClient // gRPC 客户端桩（由 grpc.ClientConn 生成）
+	log    *log.Helper      // 结构化日志辅助器
 }
 
-// NewGreeterRemote wraps the shared gRPC client connection with a Greeter-specific facade.
+// NewGreeterRemote 构造 GreeterRemote 接口实现，封装共享的 gRPC 连接。
+// 支持优雅降级：如果 conn 为 nil（未配置远程服务），返回无操作实现。
 func NewGreeterRemote(conn *grpc.ClientConn, logger log.Logger) services.GreeterRemote {
 	helper := log.NewHelper(logger)
 	if conn == nil {
@@ -29,6 +32,8 @@ func NewGreeterRemote(conn *grpc.ClientConn, logger log.Logger) services.Greeter
 	}
 }
 
+// SayHello 调用远程 Greeter 服务的 SayHello RPC。
+// 如果客户端未初始化，记录警告日志并返回空字符串（不报错），允许服务优雅降级。
 func (r *greeterRemote) SayHello(ctx context.Context, name string) (string, error) {
 	if r.client == nil {
 		r.log.WithContext(ctx).Warn("greeter remote client not initialized")

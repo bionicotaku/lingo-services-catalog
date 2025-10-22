@@ -1,3 +1,4 @@
+// Package controllers_test 提供 controllers 层的黑盒测试。
 package controllers_test
 
 import (
@@ -14,6 +15,7 @@ import (
 	kratosmd "github.com/go-kratos/kratos/v2/metadata"
 )
 
+// stubGreeterRepo 是 GreeterRepo 接口的测试桩实现，用于隔离数据层依赖。
 type stubGreeterRepo struct{}
 
 func (stubGreeterRepo) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
@@ -36,10 +38,11 @@ func (stubGreeterRepo) ListAll(context.Context) ([]*po.Greeter, error) {
 	return nil, nil
 }
 
+// stubGreeterRemote 是 GreeterRemote 接口的测试桩，用于验证远程调用逻辑。
 type stubGreeterRemote struct {
-	calls   int
-	lastCtx context.Context
-	reply   string
+	calls   int             // 记录被调用次数
+	lastCtx context.Context // 记录最后一次调用时的上下文
+	reply   string          // 模拟的远程响应
 }
 
 func (s *stubGreeterRemote) SayHello(ctx context.Context, _ string) (string, error) {
@@ -48,6 +51,7 @@ func (s *stubGreeterRemote) SayHello(ctx context.Context, _ string) (string, err
 	return s.reply, nil
 }
 
+// newTestController 构造用于测试的 GreeterHandler 及其依赖的测试桩。
 func newTestController(remoteReply string) (*controllers.GreeterHandler, *stubGreeterRemote) {
 	repo := stubGreeterRepo{}
 	remote := &stubGreeterRemote{reply: remoteReply}
@@ -58,6 +62,8 @@ func newTestController(remoteReply string) (*controllers.GreeterHandler, *stubGr
 
 const forwardedHeader = "x-template-forwarded"
 
+// TestGreeterController_ForwardedOnce 验证在未标记为已转发的请求中，
+// Controller 会调用远程服务一次，并将 forwardedHeader 传递到远程调用的 metadata 中。
 func TestGreeterController_ForwardedOnce(t *testing.T) {
 	svc, remote := newTestController("Remote Hello")
 
@@ -77,6 +83,8 @@ func TestGreeterController_ForwardedOnce(t *testing.T) {
 	}
 }
 
+// TestGreeterController_AvoidsRecursiveForward 验证当请求已被标记为 forwardedHeader 时，
+// Controller 不会再次调用远程服务，从而防止递归调用导致的死循环。
 func TestGreeterController_AvoidsRecursiveForward(t *testing.T) {
 	svc, remote := newTestController("Remote Hello")
 

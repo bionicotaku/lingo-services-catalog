@@ -1,7 +1,9 @@
-// Package services contains application use case orchestration.
+// Package services 包含应用业务用例的编排逻辑。
+// 该层负责协调 Repository 和 Clients，实现核心业务规则，不直接依赖传输层或基础设施细节。
 package services
 
 import "github.com/google/wire"
 
-// ProviderSet is services providers.
+// ProviderSet 暴露 Services 层的构造函数供 Wire 依赖注入使用。
+// 当前包含：GreeterUsecase 的构造器。
 var ProviderSet = wire.NewSet(NewGreeterUsecase)

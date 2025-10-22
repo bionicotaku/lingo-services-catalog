@@ -1,4 +1,5 @@
-// Package grpcserver wires the inbound gRPC server and its middleware stack.
+// Package grpcserver 负责装配入站 gRPC Server 及其中间件栈。
+// 包括：追踪、日志、限流、校验、恢复等中间件，以及可选的指标采集。
 package grpcserver
 
 import (
@@ -22,10 +23,22 @@ import (
 	"google.golang.org/grpc/stats"
 )
 
-// NewGRPCServer new a gRPC server.
+// NewGRPCServer 构造配置完整的 Kratos gRPC Server 实例。
+//
+// 中间件链（按执行顺序）：
+// 1. obsTrace.Server() - OpenTelemetry 追踪，自动创建 Span
+// 2. recovery.Recovery() - Panic 恢复，防止服务崩溃
+// 3. metadata.Server() - 元数据传播，转发 x-template- 前缀的 header
+// 4. ratelimit.Server() - 限流保护
+// 5. validate.Validator() - Proto-Gen-Validate 参数校验
+// 6. logging.Server() - 结构化日志记录（含 trace_id/span_id）
+//
+// 可选指标采集：
+// - 根据 metricsCfg.GRPCEnabled 决定是否启用 otelgrpc.StatsHandler
+// - 可通过 metricsCfg.GRPCIncludeHealth 控制是否采集健康检查指标
 func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, greeter *controllers.GreeterHandler, logger log.Logger) *grpc.Server {
-	// metricsCfg is optional; default to enabled metrics so callers that omit
-	// the configuration still get a functional server with tracing only.
+	// metricsCfg 为可选参数，默认启用指标采集以保持向后兼容。
+	// 调用方可通过配置显式控制指标行为。
 	metricsEnabled := true
 	includeHealth := false
 	if metricsCfg != nil {
@@ -63,6 +76,13 @@ func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, 
 	return srv
 }
 
+// newServerHandler 构造 gRPC Server 的 OpenTelemetry StatsHandler。
+//
+// 参数：
+//   - includeHealth: 是否采集健康检查 RPC 的指标
+//     false 时会过滤 /grpc.health.v1.Health/Check，减少指标噪音
+//
+// 返回配置好的 StatsHandler，用于采集 RPC 指标（延迟、错误率等）。
 func newServerHandler(includeHealth bool) stats.Handler {
 	opts := []otelgrpc.Option{
 		otelgrpc.WithMeterProvider(otel.GetMeterProvider()),

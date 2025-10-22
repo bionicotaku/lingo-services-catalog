@@ -24,7 +24,7 @@ import (
 
 // wireApp 构建整个 Kratos 应用，分阶段装配依赖：
 // 1. config_loader.ProviderSet：
-//   - 解析命令行/环境配置，执行 PGV 校验后返回 *loader.Loader。
+//   - 基于传入的 Params 解析配置路径、执行 PGV 校验后返回 *loader.Bundle。
 //   - 拆分出 ServiceMetadata、Bootstrap(Server/Data) 以及标准化的 ObservabilityConfig。
 //   - 基于 ServiceMetadata 预先派生 gclog.Config 与 observability.ServiceInfo。
 //
@@ -33,7 +33,7 @@ import (
 // 4. grpc/grpc_client ProviderSet：使用 Server/Data 配置与观测设置构建入站 gRPC Server、出站 gRPC Client。
 // 5. 业务 ProviderSet（clients/repositories/services/controllers）：注入上游依赖形成完整 MVC 调用链。
 // 6. newApp：汇总日志器、观测组件与 gRPC Server，返回具备 cleanup 的 kratos.App。
-func wireApp(context.Context, *configloader.Loader) (*kratos.App, func(), error) {
+func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) {
 	// Providers and their dependencies:
 	//   - configloader.ProvideLoggerConfig(configloader.ServiceMetadata) gclog.Config
 	//       由服务元信息（名称/版本/环境/实例 ID）生成 gclog 所需的 Config。
@@ -59,8 +59,8 @@ func wireApp(context.Context, *configloader.Loader) (*kratos.App, func(), error)
 	//       组装业务用例，协调仓储与远程客户端。
 	//   - controllers.NewGreeterHandler(*services.GreeterUsecase) *controllers.GreeterHandler
 	//       构造控制层，为 gRPC handler 提供入口。
-	//   - newApp(log.Logger, *grpc.Server) *kratos.App
-	//       将日志、观测组件和 gRPC Server 装配成 Kratos 应用。
+	//   - newApp(*observability.Component, log.Logger, *grpc.Server, configloader.ServiceMetadata) *kratos.App
+	//       将日志、观测组件、服务元信息和 gRPC Server 装配成 Kratos 应用。
 	panic(wire.Build(
 		configloader.ProviderSet,
 		gclog.ProviderSet,
