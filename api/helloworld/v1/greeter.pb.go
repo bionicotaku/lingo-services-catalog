@@ -7,6 +7,7 @@
 package v1
 
 import (
+	_ "github.com/envoyproxy/protoc-gen-validate/validate"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -116,9 +117,9 @@ var File_api_helloworld_v1_greeter_proto protoreflect.FileDescriptor
 
 const file_api_helloworld_v1_greeter_proto_rawDesc = "" +
 	"\n" +
-	"\x1fapi/helloworld/v1/greeter.proto\x12\rhelloworld.v1\x1a\x1cgoogle/api/annotations.proto\"\"\n" +
-	"\fHelloRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"&\n" +
+	"\x1fapi/helloworld/v1/greeter.proto\x12\rhelloworld.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17validate/validate.proto\"-\n" +
+	"\fHelloRequest\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x18@R\x04name\"&\n" +
 	"\n" +
 	"HelloReply\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage2i\n" +

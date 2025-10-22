@@ -3,6 +3,7 @@ module github.com/bionicotaku/kratos-template
 go 1.24.0
 
 require (
+	github.com/envoyproxy/protoc-gen-validate v1.1.0
 	github.com/go-kratos/kratos/v2 v2.8.0
 	github.com/google/wire v0.7.0
 	go.uber.org/automaxprocs v1.5.1

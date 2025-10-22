@@ -86,3 +86,14 @@ if [[ "${RESP_A}" != *"remote:"* ]] || [[ "${RESP_B}" != *"remote:"* ]]; then
 fi
 
 echo "[success] dual-instance mutual call verified."
+
+echo "[step] verifying validation failure path"
+if grpcurl -plaintext -d '{"name":""}' 127.0.0.1:9101 helloworld.v1.Greeter/SayHello >/dev/null 2>&1; then
+  echo "expected validation error from instance A but call succeeded" >&2
+  exit 1
+fi
+if grpcurl -plaintext -d '{"name":""}' 127.0.0.1:9102 helloworld.v1.Greeter/SayHello >/dev/null 2>&1; then
+  echo "expected validation error from instance B but call succeeded" >&2
+  exit 1
+fi
+echo "[success] validation errors confirmed."
