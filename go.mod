@@ -37,8 +37,8 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/bionicotaku/lingo-utils/gclog v0.0.0
-	github.com/bionicotaku/lingo-utils/observability v0.0.0
+	github.com/bionicotaku/lingo-utils/gclog v0.1.0
+	github.com/bionicotaku/lingo-utils/observability v0.1.0
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-kratos/aegis v0.2.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -56,9 +56,4 @@ require (
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-replace (
-	github.com/bionicotaku/lingo-utils/gclog => ../lingo-utils/gclog
-	github.com/bionicotaku/lingo-utils/observability => ../lingo-utils/observability
 )
