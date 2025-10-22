@@ -11,8 +11,8 @@ import (
 	"github.com/go-kratos/kratos/v2/metadata"
 )
 
-// GreeterController handles Greeter transport logic.
-type GreeterController struct {
+// GreeterHandler handles Greeter transport logic.
+type GreeterHandler struct {
 	v1.UnimplementedGreeterServer
 
 	uc *services.GreeterUsecase
@@ -20,13 +20,13 @@ type GreeterController struct {
 
 const forwardedHeader = "x-template-forwarded"
 
-// NewGreeterController constructs a controller backed by GreeterUsecase.
-func NewGreeterController(uc *services.GreeterUsecase) *GreeterController {
-	return &GreeterController{uc: uc}
+// NewGreeterHandler constructs a handler backed by GreeterUsecase.
+func NewGreeterHandler(uc *services.GreeterUsecase) *GreeterHandler {
+	return &GreeterHandler{uc: uc}
 }
 
 // SayHello implements helloworld.GreeterServer.
-func (s *GreeterController) SayHello(ctx context.Context, in *v1.HelloRequest) (*v1.HelloReply, error) {
+func (s *GreeterHandler) SayHello(ctx context.Context, in *v1.HelloRequest) (*v1.HelloReply, error) {
 	greeting, err := s.uc.CreateGreeting(ctx, in.GetName())
 	if err != nil {
 		return nil, err

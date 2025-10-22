@@ -1,4 +1,4 @@
-package controllers
+package controllers_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
+	"github.com/bionicotaku/kratos-template/internal/controllers"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
@@ -47,13 +48,15 @@ func (s *stubGreeterRemote) SayHello(ctx context.Context, name string) (string, 
 	return s.reply, nil
 }
 
-func newTestController(remoteReply string) (*GreeterController, *stubGreeterRemote) {
+func newTestController(remoteReply string) (*controllers.GreeterHandler, *stubGreeterRemote) {
 	repo := stubGreeterRepo{}
 	remote := &stubGreeterRemote{reply: remoteReply}
 	baseLogger := log.NewStdLogger(io.Discard)
 	uc := services.NewGreeterUsecase(repo, remote, baseLogger)
-	return NewGreeterController(uc), remote
+	return controllers.NewGreeterHandler(uc), remote
 }
+
+const forwardedHeader = "x-template-forwarded"
 
 func TestGreeterController_ForwardedOnce(t *testing.T) {
 	svc, remote := newTestController("Remote Hello")

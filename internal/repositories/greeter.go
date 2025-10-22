@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/data"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
@@ -11,15 +10,13 @@ import (
 )
 
 type greeterRepo struct {
-	data *data.Data
-	log  *log.Helper
+	log *log.Helper
 }
 
-// NewGreeterRepo .
-func NewGreeterRepo(store *data.Data, logger log.Logger) services.GreeterRepo {
+// NewGreeterRepo constructs repository implementation.
+func NewGreeterRepo(logger log.Logger) services.GreeterRepo {
 	return &greeterRepo{
-		data: store,
-		log:  log.NewHelper(logger),
+		log: log.NewHelper(logger),
 	}
 }
 

@@ -52,7 +52,7 @@ func NewLogger(cfg Config) (log.Logger, error) {
 // DefaultConfig builds Config from environment defaults.
 func DefaultConfig(service, version string) Config {
 	if service == "" {
-		service = "kratos-template"
+		service = "template"
 	}
 	if version == "" {
 		version = "dev"

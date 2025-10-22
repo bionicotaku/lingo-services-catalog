@@ -22,12 +22,12 @@ import (
 // wireApp init kratos application.
 func wireApp(*conf.Server, *conf.Data, log.Logger) (*kratos.App, func(), error) {
 	// Providers and their dependencies:
-	//   - grpc_server.NewGRPCServer(*conf.Server, *controllers.GreeterController, log.Logger) *grpc.Server
+	//   - grpc_server.NewGRPCServer(*conf.Server, *controllers.GreeterHandler, log.Logger) *grpc.Server
 	//   - grpc_client.NewGRPCClient(*conf.Data, log.Logger) (*grpc.ClientConn, func(), error)
 	//   - clients.NewGreeterRemote(*grpc.ClientConn, log.Logger) services.GreeterRemote
 	//   - repositories.NewGreeterRepo(*data.Data, log.Logger) services.GreeterRepo
 	//   - services.NewGreeterUsecase(repositories.GreeterRepo, services.GreeterRemote, log.Logger) *services.GreeterUsecase
-	//   - controllers.NewGreeterController(*services.GreeterUsecase) *controllers.GreeterController
+	//   - controllers.NewGreeterHandler(*services.GreeterUsecase) *controllers.GreeterHandler
 	//   - newApp(log.Logger, *grpc.Server) *kratos.App
 	panic(wire.Build(
 		grpcserver.ProviderSet,

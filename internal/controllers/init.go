@@ -2,5 +2,5 @@ package controllers
 
 import "github.com/google/wire"
 
-// ProviderSet is controllers providers.
-var ProviderSet = wire.NewSet(NewGreeterController)
+// ProviderSet exposes controller/handler constructors for DI.
+var ProviderSet = wire.NewSet(NewGreeterHandler)

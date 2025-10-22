@@ -10,7 +10,6 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/data"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -26,24 +25,18 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(server *conf.Server, confData *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
-	dataData, cleanup, err := data.NewData(confData, logger)
+func wireApp(server *conf.Server, data *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
+	greeterRepo := repositories.NewGreeterRepo(logger)
+	clientConn, cleanup, err := grpcclient.NewGRPCClient(data, logger)
 	if err != nil {
-		return nil, nil, err
-	}
-	greeterRepo := repositories.NewGreeterRepo(dataData, logger)
-	clientConn, cleanup2, err := grpcclient.NewGRPCClient(confData, logger)
-	if err != nil {
-		cleanup()
 		return nil, nil, err
 	}
 	greeterRemote := clients.NewGreeterRemote(clientConn, logger)
 	greeterUsecase := services.NewGreeterUsecase(greeterRepo, greeterRemote, logger)
-	greeterController := controllers.NewGreeterController(greeterUsecase)
-	grpcServer := grpcserver.NewGRPCServer(server, greeterController, logger)
+	greeterHandler := controllers.NewGreeterHandler(greeterUsecase)
+	grpcServer := grpcserver.NewGRPCServer(server, greeterHandler, logger)
 	app := newApp(logger, grpcServer)
 	return app, func() {
-		cleanup2()
 		cleanup()
 	}, nil
 }

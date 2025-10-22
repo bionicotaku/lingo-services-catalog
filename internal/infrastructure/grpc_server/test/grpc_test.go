@@ -1,4 +1,4 @@
-package grpcserver
+package grpcserver_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
 	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
@@ -38,11 +39,11 @@ type noopRemote struct{}
 
 func (noopRemote) SayHello(context.Context, string) (string, error) { return "", nil }
 
-func newTestController(t *testing.T) *controllers.GreeterController {
+func newTestController(t *testing.T) *controllers.GreeterHandler {
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
 	uc := services.NewGreeterUsecase(testRepo{}, noopRemote{}, logger)
-	return controllers.NewGreeterController(uc)
+	return controllers.NewGreeterHandler(uc)
 }
 
 func startServer(t *testing.T) (string, func()) {
@@ -50,7 +51,7 @@ func startServer(t *testing.T) (string, func()) {
 	svc := newTestController(t)
 	cfg := &conf.Server{Grpc: &conf.Server_GRPC{Addr: "127.0.0.1:0"}}
 	logger := log.NewStdLogger(io.Discard)
-	srv := NewGRPCServer(cfg, svc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, svc, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()

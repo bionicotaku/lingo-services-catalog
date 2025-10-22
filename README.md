@@ -47,7 +47,7 @@
   业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。
 
 - `internal/infrastructure/`  
-  底层设施统一入口：`config_loader` 解析 `-conf`/`CONF_PATH` 并加载配置，`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`data` 管理数据库/缓存资源，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
+  底层设施统一入口：`config_loader/loader.go` 解析 `-conf`/`CONF_PATH` 并加载配置（返回 `Loader` 包含 Kratos Config, Bootstrap, LoggerCfg），`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`data` 管理数据库/缓存资源，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
 
 - `internal/controllers/`  
   传输层 Handler / Controller 实现，由 proto 生成的接口起点（现阶段仍为 gRPC，后续会扩展 REST）。负责 DTO ↔ 视图对象转换与用例编排入口，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。
@@ -56,7 +56,7 @@
   定义领域用例 (`GreeterUsecase`)，聚合仓储与外部服务接口，是复杂业务规则与日志的归属地，不触及底层技术细节。返回值统一使用 `internal/models/vo` 下的视图对象。
 
 - `internal/repositories/`  
-  领域仓储实现层，承接数据库、缓存或远端 gRPC 等外部依赖。默认通过 `internal/infrastructure/data` 提供的 `Data` 结构管理资源生命周期；`greeter.go` 与 `greeter_remote.go` 分别示例本地与远端仓储实现，均满足 services 层定义的接口。
+  领域仓储实现层，承接数据库、缓存或远端 gRPC 等外部依赖。示例中 `greeter.go` 展示本地仓储，`internal/clients/greeter_grpc.go` 展示远端访问封装；根据业务需要可自行引入持久化连接的初始化逻辑。
 
 - `internal/models/`  
   `po`（persistent object）用于仓储与底层存储的实体表示；`vo`（view object）面向上层展示与跨服务返回值，避免直接暴露内部结构。
@@ -72,7 +72,7 @@
 ```mermaid
 flowchart TD
     A[外部调用<br/>gRPC Client] --> B[internal/infrastructure/grpc_server<br/>gRPC Server<br/>路由+中间件]
-    B --> C[internal/controllers<br/>GreeterController<br/>DTO→视图/编排入口]
+    B --> C[internal/controllers<br/>GreeterHandler<br/>DTO→视图/编排入口]
     C --> D[internal/services<br/>GreeterUsecase<br/>领域逻辑]
     D --> E[internal/repositories<br/>GreeterRepo<br/>本地仓储]
     D --> F[internal/repositories<br/>GreeterRemote<br/>远端仓储]

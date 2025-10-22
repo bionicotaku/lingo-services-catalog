@@ -1,4 +1,4 @@
-package grpcclient
+package grpcclient_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
 	"github.com/bionicotaku/kratos-template/internal/conf"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/services"
@@ -38,7 +39,7 @@ func startGreeterServer(t *testing.T) (addr string, stop func()) {
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
 	uc := services.NewGreeterUsecase(repoStub{}, remoteStub{}, logger)
-	svc := controllers.NewGreeterController(uc)
+	svc := controllers.NewGreeterHandler(uc)
 
 	cfg := &conf.Server{Grpc: &conf.Server_GRPC{Addr: "127.0.0.1:0"}}
 	grpcSrv := grpcserver.NewGRPCServer(cfg, svc, logger)
@@ -81,7 +82,7 @@ func waitForServer(t *testing.T, addr string) {
 
 func TestNewGRPCClient_NoTarget(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	conn, cleanup, err := NewGRPCClient(&conf.Data{}, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(&conf.Data{}, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestNewGRPCClient_CallGreeter(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	cfg := &conf.Data{GrpcClient: &conf.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := NewGRPCClient(cfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
