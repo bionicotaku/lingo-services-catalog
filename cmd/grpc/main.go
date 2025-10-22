@@ -42,8 +42,7 @@ func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server) *kratos.Ap
 func main() {
 	ctx := context.Background()
 	// Parse command-line flags (currently only -conf).
-	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	confPath, err := loader.ParseConfPath(fs, os.Args[1:])
+	confPath, err := loader.ParseConfPath(flag.CommandLine, os.Args[1:])
 	if err != nil {
 		panic(err)
 	}
@@ -56,13 +55,7 @@ func main() {
 	defer cleanupConfig()
 
 	// Assemble all dependencies (logger, servers, repositories, etc.) via Wire and create the Kratos app.
-	app, cleanupApp, err := wireApp(
-		ctx,
-		cfgLoader.Bootstrap.GetServer(),
-		cfgLoader.Bootstrap.GetData(),
-		cfgLoader.ObsConfig,
-		cfgLoader.Service,
-	)
+	app, cleanupApp, err := wireApp(ctx, cfgLoader)
 	if err != nil {
 		panic(err)
 	}

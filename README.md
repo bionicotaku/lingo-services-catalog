@@ -41,8 +41,8 @@
 
 ## 入口层（`cmd/`）
 
-- `cmd/grpc/main.go`：服务启动入口，调用 `internal/infrastructure/config_loader.ParseConfPath + LoadBootstrap` 解析 `-conf`/`CONF_PATH`，加载配置与日志参数，然后执行 Wire 注入并启动 gRPC Server（HTTP 调试入口可在 `cmd/http` 按需创建）。
-- `cmd/grpc/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。开发时修改 `wire.go` 声明 ProviderSet，执行 `wire` 重新生成 `wire_gen.go`。
+- `cmd/grpc/main.go`：服务启动入口，`ParseConfPath` 会先解析全局 Flag（优先 `-conf`，其次 `CONF_PATH`，否则回落到仓库根的 `configs/`），随后 `LoadBootstrap` 读取目录/文件并执行 PGV 校验，得到类型安全的 `Loader` 实例，再交给 Wire 装配 Kratos 应用（HTTP 调试入口可在 `cmd/http` 按需创建）。
+- `cmd/grpc/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。`wire.go` 中通过 `config_loader.ProviderSet` 将 ServiceMetadata、Bootstrap 子段、日志与观测配置统一暴露给后续 Provider；修改依赖后执行 `wire` 重新生成 `wire_gen.go`。
 
 ## 配置（`configs/`）
 
@@ -53,13 +53,13 @@
 该目录下的代码不会被外部模块引用，每一层各司其职，共同完成 DDD-lite 风格的服务拆分：
 
 - `internal/infrastructure/config_loader/`  
-  配置加载与 schema 所在目录：`loader.go` 提供 `ParseConfPath`、`LoadBootstrap`，负责解析 `-conf`/`CONF_PATH`、加载 Kratos `config.Config` 并返回强类型的 `Bootstrap` 与日志配置；`pb/conf.proto` 描述配置结构（`Bootstrap`、`Server`、`Data` 等字段），执行 `buf generate --path internal/infrastructure/config_loader/pb` 会在同目录产出 `conf.pb.go` 与 PGV 校验代码，确保配置访问具备类型安全与 IDE 补全。
+  配置加载与 schema 所在目录：`defaults.go` 统一声明默认路径/环境常量；`loader.go` 提供 `ParseConfPath`（兼容全局 FlagSet 与环境变量）与 `LoadBootstrap`（构建 Kratos `config.Config`、扫描 YAML/TOML/JSON，随后触发 PGV `ValidateAll` 并推导 ServiceMetadata、观测与日志配置）；`provider.go` 将这些结果封装成 Wire ProviderSet，后续 Provider 可以直接注入 `*configpb.Server`、`*configpb.Data`、`obswire.ObservabilityConfig` 等类型；`pb/conf.proto` 描述配置结构，执行 `buf generate --path internal/infrastructure/config_loader/pb` 会在同目录产出 `conf.pb.go` 与 PGV 校验代码，确保配置访问具备类型安全与 IDE 补全。
 
 - `internal/clients/`  
   业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。
 
 - `internal/infrastructure/`  
-  底层设施统一入口：`config_loader/loader.go` 解析 `-conf`/`CONF_PATH` 并加载配置（返回 `Loader` 包含 Kratos Config、Bootstrap、LoggerCfg），`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
+  底层设施统一入口：`config_loader` 负责解析配置并提供 Wire Provider，`grpc_client` 根据数据配置与观测指标构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 读取 Server 配置装配入站 Server，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
 
 - `internal/controllers/`  
   传输层 Handler / Controller 实现，由 proto 生成的接口起点（现阶段仍为 gRPC，后续会扩展 REST）。负责 DTO ↔ 视图对象转换与用例编排入口，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。

@@ -11,7 +11,6 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	grpcclient "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -23,13 +22,18 @@ import (
 	"github.com/google/wire"
 )
 
-// wireApp 构建整个 Kratos 应用，包括：
-// 1. 读取配置（Server/Data/ServiceMetadata/Observability）。
-// 2. 初始化 gclog 日志组件，暴露 trace 关联的 log.Logger。
-// 3. 初始化观测组件（Tracing/Metrics Provider）。
-// 4. 构造 gRPC Server/Client、仓储、业务用例、控制层。
-// 5. 返回带统一 cleanup 的 kratos.App。
-func wireApp(context.Context, *configpb.Server, *configpb.Data, obswire.ObservabilityConfig, configloader.ServiceMetadata) (*kratos.App, func(), error) {
+// wireApp 构建整个 Kratos 应用，分阶段装配依赖：
+// 1. config_loader.ProviderSet：
+//   - 解析命令行/环境配置，执行 PGV 校验后返回 *loader.Loader。
+//   - 拆分出 ServiceMetadata、Bootstrap(Server/Data) 以及标准化的 ObservabilityConfig。
+//   - 基于 ServiceMetadata 预先派生 gclog.Config 与 observability.ServiceInfo。
+//
+// 2. gclog.ProviderSet：根据 gclog.Config 初始化结构化日志组件，并导出 trace-aware log.Logger。
+// 3. observability.ProviderSet：用标准化配置和 ServiceInfo 装配 Tracer/Meter Provider，同时暴露 gRPC 指标配置。
+// 4. grpc/grpc_client ProviderSet：使用 Server/Data 配置与观测设置构建入站 gRPC Server、出站 gRPC Client。
+// 5. 业务 ProviderSet（clients/repositories/services/controllers）：注入上游依赖形成完整 MVC 调用链。
+// 6. newApp：汇总日志器、观测组件与 gRPC Server，返回具备 cleanup 的 kratos.App。
+func wireApp(context.Context, *configloader.Loader) (*kratos.App, func(), error) {
 	// Providers and their dependencies:
 	//   - configloader.ProvideLoggerConfig(configloader.ServiceMetadata) gclog.Config
 	//       由服务元信息（名称/版本/环境/实例 ID）生成 gclog 所需的 Config。
@@ -58,9 +62,8 @@ func wireApp(context.Context, *configpb.Server, *configpb.Data, obswire.Observab
 	//   - newApp(log.Logger, *grpc.Server) *kratos.App
 	//       将日志、观测组件和 gRPC Server 装配成 Kratos 应用。
 	panic(wire.Build(
-		configloader.ProvideLoggerConfig,
+		configloader.ProviderSet,
 		gclog.ProviderSet,
-		configloader.ProvideObservabilityInfo,
 		obswire.ProviderSet,
 		grpcserver.ProviderSet,
 		grpcclient.ProviderSet,

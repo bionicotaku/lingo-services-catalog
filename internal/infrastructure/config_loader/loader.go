@@ -3,6 +3,7 @@ package loader
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -12,13 +13,6 @@ import (
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"google.golang.org/protobuf/types/known/durationpb"
-)
-
-const (
-	// defaultConfPath is the fallback configuration directory when no overrides are provided.
-	defaultConfPath = "../../configs"
-	// envConfPath is the env var name that overrides configuration directory when flag is absent.
-	envConfPath = "CONF_PATH"
 )
 
 // Loader bundles configuration objects used by the application.
@@ -67,10 +61,20 @@ type Loader struct {
 // ParseConfPath reads the configuration path from flags/environment, returning the resolved value.
 // Priority: explicit flag override > CONF_PATH environment variable > default path.
 func ParseConfPath(fs *flag.FlagSet, args []string) (string, error) {
+	if fs == nil {
+		fs = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	}
 	var confPath string
-	fs.StringVar(&confPath, "conf", "", "config path, eg: -conf config.yaml")
+	if fs.Lookup("conf") == nil {
+		fs.StringVar(&confPath, "conf", "", "config path or directory, eg: -conf configs/config.yaml")
+	}
 	if err := fs.Parse(args); err != nil {
 		return "", err
+	}
+	if confPath == "" {
+		if f := fs.Lookup("conf"); f != nil {
+			confPath = f.Value.String()
+		}
 	}
 	if confPath != "" {
 		return confPath, nil
@@ -93,6 +97,10 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 		c.Close()
 		return nil, func() {}, err
 	}
+	if err := bc.ValidateAll(); err != nil {
+		c.Close()
+		return nil, func() {}, fmt.Errorf("validate bootstrap config: %w", err)
+	}
 	cleanup := func() {
 		_ = c.Close()
 	}
@@ -106,7 +114,7 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 	}
 	env := os.Getenv("APP_ENV")
 	if env == "" {
-		env = "development"
+		env = defaultEnvironment
 	}
 	host, _ := os.Hostname()
 
@@ -151,13 +159,11 @@ func toObservabilityConfig(src *configpb.Observability) obswire.ObservabilityCon
 		}
 	}
 	if mt := src.GetMetrics(); mt != nil {
-		// Metrics block is optional; fall back to defaults so services continue
-		// exporting runtime metrics even when the configuration omits overrides.
-		grpcEnabled := true
+		grpcEnabled := defaultGRPCMetricsEnabled
 		if mt.GrpcEnabled != nil {
 			grpcEnabled = mt.GetGrpcEnabled()
 		}
-		grpcIncludeHealth := false
+		grpcIncludeHealth := defaultGRPCIncludeHealth
 		if mt.GrpcIncludeHealth != nil {
 			grpcIncludeHealth = mt.GetGrpcIncludeHealth()
 		}
@@ -174,8 +180,6 @@ func toObservabilityConfig(src *configpb.Observability) obswire.ObservabilityCon
 			GRPCEnabled:         grpcEnabled,
 			GRPCIncludeHealth:   grpcIncludeHealth,
 		}
-	} else {
-		cfg.Metrics = &obswire.MetricsConfig{GRPCEnabled: true}
 	}
 	return cfg
 }

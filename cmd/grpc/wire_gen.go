@@ -8,27 +8,32 @@ package main
 
 import (
 	"context"
+
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
+	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	grpcclient "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
+	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
-)
 
-import (
 	_ "go.uber.org/automaxprocs"
 )
 
 // Injectors from wire.go:
 
-// wireApp init kratos application.
-func wireApp(contextContext context.Context, server *configpb.Server, data *configpb.Data, observabilityConfig observability.ObservabilityConfig, serviceMetadata loader.ServiceMetadata) (*kratos.App, func(), error) {
+// wireApp 构建整个 Kratos 应用，包括：
+// 1. 读取配置（Server/Data/ServiceMetadata/Observability）。
+// 2. 初始化 gclog 日志组件，暴露 trace 关联的 log.Logger。
+// 3. 初始化观测组件（Tracing/Metrics Provider）。
+// 4. 构造 gRPC Server/Client、仓储、业务用例、控制层。
+// 5. 返回带统一 cleanup 的 kratos.App。
+func wireApp(contextContext context.Context, loaderLoader *loader.Loader) (*kratos.App, func(), error) {
+	observabilityConfig := loader.ProvideObservabilityConfig(loaderLoader)
+	serviceMetadata := loader.ProvideServiceMetadata(loaderLoader)
 	serviceInfo := loader.ProvideObservabilityInfo(serviceMetadata)
 	config := loader.ProvideLoggerConfig(serviceMetadata)
 	component, cleanup, err := gclog.NewComponent(config)
@@ -41,8 +46,11 @@ func wireApp(contextContext context.Context, server *configpb.Server, data *conf
 		cleanup()
 		return nil, nil, err
 	}
+	bootstrap := loader.ProvideBootstrap(loaderLoader)
+	server := loader.ProvideServerConfig(bootstrap)
 	metricsConfig := observability.ProvideMetricsConfig(observabilityConfig)
 	greeterRepo := repositories.NewGreeterRepo(logger)
+	data := loader.ProvideDataConfig(bootstrap)
 	clientConn, cleanup3, err := grpcclient.NewGRPCClient(data, metricsConfig, logger)
 	if err != nil {
 		cleanup2()
