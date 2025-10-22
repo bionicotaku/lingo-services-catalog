@@ -21,6 +21,17 @@
 - 业务侧若需追加自定义标签或 payload，可使用 `gclog.WithLabels` / `gclog.WithAllowedLabelKeys` / `gclog.WithPayload` 等 helper。
 - 单测可调用 `gclog.NewTestLogger` 拿到内存缓冲 logger 断言输出内容。
 
+### 可观测性（OpenTelemetry）
+
+- 模板依赖 `github.com/bionicotaku/lingo-utils/observability`，在 `cmd/grpc/main.go` 初始化统一的 Tracer/Meter Provider，并在进程退出前调用返回的 shutdown 函数确保缓冲数据被刷新。
+- `configs/config.yaml` 下提供 `observability` 节点，可独立控制 tracing / metrics 的启用、exporter（`stdout` 或 `otlp_grpc`）、endpoint、采样率、运行时指标等；默认配置使用 `stdout` exporter 与 `required=false`，方便无 Collector 的开发环境。
+- gRPC Server/Client 中间件链包含 `observability/tracing.Server()` 与 `observability/tracing.Client()`，与 logging 中间件协同工作，自动补齐结构化日志中的 `trace_id`/`span_id` 字段。
+- 如果暂时没有 OTLP Collector，可保持 `stdout` exporter 或直接将 `enabled` 设为 `false`；接入云端（如 Cloud Trace、Tempo）时改为 `otlp_grpc` 并设置对应 `endpoint`、`headers` 即可，无需改动业务代码。
+- 模板只负责安装全局 Provider，业务代码可按需通过 `otel.Tracer`、`otel.Meter` 打点自定义 Span/Metric；必要时可在服务层注入 Meter 统计业务指标。
+
+> **离线/受限网络环境构建提示**  
+> `make all` 默认会执行 `go generate`→`wire`，过程中需要从 `sum.golang.org` 校验 `golang.org/x/tools`。若网络无法访问该校验服务，可临时使用 `GOSUMDB=off make all` 绕过外部校验（或改用自建 sumdb 镜像），再配合私有 Proxy 分发依赖。
+
 ## API 层（`api/`）
 
 - `api/helloworld/v1/*.proto`：示例 gRPC 契约，当前仅包含 `Greeter` 场景与错误枚举，展示如何声明 RPC 及 HTTP 注解。

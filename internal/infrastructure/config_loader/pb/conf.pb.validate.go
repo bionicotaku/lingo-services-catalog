@@ -115,6 +115,35 @@ func (m *Bootstrap) validate(all bool) error {
 		}
 	}
 
+	if all {
+		switch v := interface{}(m.GetObservability()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, BootstrapValidationError{
+					field:  "Observability",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, BootstrapValidationError{
+					field:  "Observability",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetObservability()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return BootstrapValidationError{
+				field:  "Observability",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return BootstrapMultiError(errors)
 	}
@@ -503,6 +532,166 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = DataValidationError{}
+
+// Validate checks the field values on Observability with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *Observability) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on Observability with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in ObservabilityMultiError, or
+// nil if none found.
+func (m *Observability) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *Observability) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for GlobalAttributes
+
+	if all {
+		switch v := interface{}(m.GetTracing()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ObservabilityValidationError{
+					field:  "Tracing",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ObservabilityValidationError{
+					field:  "Tracing",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetTracing()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ObservabilityValidationError{
+				field:  "Tracing",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetMetrics()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ObservabilityValidationError{
+					field:  "Metrics",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ObservabilityValidationError{
+					field:  "Metrics",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetMetrics()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ObservabilityValidationError{
+				field:  "Metrics",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return ObservabilityMultiError(errors)
+	}
+
+	return nil
+}
+
+// ObservabilityMultiError is an error wrapping multiple validation errors
+// returned by Observability.ValidateAll() if the designated constraints
+// aren't met.
+type ObservabilityMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ObservabilityMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ObservabilityMultiError) AllErrors() []error { return m }
+
+// ObservabilityValidationError is the validation error returned by
+// Observability.Validate if the designated constraints aren't met.
+type ObservabilityValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ObservabilityValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ObservabilityValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ObservabilityValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ObservabilityValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ObservabilityValidationError) ErrorName() string { return "ObservabilityValidationError" }
+
+// Error satisfies the builtin error interface
+func (e ObservabilityValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sObservability.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ObservabilityValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ObservabilityValidationError{}
 
 // Validate checks the field values on Server_GRPC with the rules defined in
 // the proto definition for this message. If any rules are violated, the first
@@ -1001,3 +1190,336 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = Data_ClientValidationError{}
+
+// Validate checks the field values on Observability_Tracing with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *Observability_Tracing) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on Observability_Tracing with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// Observability_TracingMultiError, or nil if none found.
+func (m *Observability_Tracing) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *Observability_Tracing) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Enabled
+
+	// no validation rules for Exporter
+
+	// no validation rules for Endpoint
+
+	// no validation rules for Headers
+
+	// no validation rules for Insecure
+
+	// no validation rules for SamplingRatio
+
+	if all {
+		switch v := interface{}(m.GetBatchTimeout()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, Observability_TracingValidationError{
+					field:  "BatchTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, Observability_TracingValidationError{
+					field:  "BatchTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetBatchTimeout()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return Observability_TracingValidationError{
+				field:  "BatchTimeout",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetExportTimeout()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, Observability_TracingValidationError{
+					field:  "ExportTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, Observability_TracingValidationError{
+					field:  "ExportTimeout",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetExportTimeout()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return Observability_TracingValidationError{
+				field:  "ExportTimeout",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	// no validation rules for MaxQueueSize
+
+	// no validation rules for MaxExportBatchSize
+
+	// no validation rules for Required
+
+	// no validation rules for ServiceName
+
+	// no validation rules for ServiceVersion
+
+	// no validation rules for Environment
+
+	// no validation rules for Attributes
+
+	if len(errors) > 0 {
+		return Observability_TracingMultiError(errors)
+	}
+
+	return nil
+}
+
+// Observability_TracingMultiError is an error wrapping multiple validation
+// errors returned by Observability_Tracing.ValidateAll() if the designated
+// constraints aren't met.
+type Observability_TracingMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m Observability_TracingMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m Observability_TracingMultiError) AllErrors() []error { return m }
+
+// Observability_TracingValidationError is the validation error returned by
+// Observability_Tracing.Validate if the designated constraints aren't met.
+type Observability_TracingValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e Observability_TracingValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e Observability_TracingValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e Observability_TracingValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e Observability_TracingValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e Observability_TracingValidationError) ErrorName() string {
+	return "Observability_TracingValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e Observability_TracingValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sObservability_Tracing.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = Observability_TracingValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = Observability_TracingValidationError{}
+
+// Validate checks the field values on Observability_Metrics with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *Observability_Metrics) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on Observability_Metrics with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// Observability_MetricsMultiError, or nil if none found.
+func (m *Observability_Metrics) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *Observability_Metrics) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Enabled
+
+	// no validation rules for Exporter
+
+	// no validation rules for Endpoint
+
+	// no validation rules for Headers
+
+	// no validation rules for Insecure
+
+	if all {
+		switch v := interface{}(m.GetInterval()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, Observability_MetricsValidationError{
+					field:  "Interval",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, Observability_MetricsValidationError{
+					field:  "Interval",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetInterval()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return Observability_MetricsValidationError{
+				field:  "Interval",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	// no validation rules for DisableRuntimeStats
+
+	// no validation rules for Required
+
+	// no validation rules for ResourceAttributes
+
+	if len(errors) > 0 {
+		return Observability_MetricsMultiError(errors)
+	}
+
+	return nil
+}
+
+// Observability_MetricsMultiError is an error wrapping multiple validation
+// errors returned by Observability_Metrics.ValidateAll() if the designated
+// constraints aren't met.
+type Observability_MetricsMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m Observability_MetricsMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m Observability_MetricsMultiError) AllErrors() []error { return m }
+
+// Observability_MetricsValidationError is the validation error returned by
+// Observability_Metrics.Validate if the designated constraints aren't met.
+type Observability_MetricsValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e Observability_MetricsValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e Observability_MetricsValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e Observability_MetricsValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e Observability_MetricsValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e Observability_MetricsValidationError) ErrorName() string {
+	return "Observability_MetricsValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e Observability_MetricsValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sObservability_Metrics.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = Observability_MetricsValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = Observability_MetricsValidationError{}

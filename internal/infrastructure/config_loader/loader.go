@@ -4,12 +4,15 @@ package loader
 import (
 	"flag"
 	"os"
+	"time"
 
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	loginfra "github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
 
+	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
@@ -24,6 +27,7 @@ type Loader struct {
 	Config    config.Config
 	Bootstrap configpb.Bootstrap
 	LoggerCfg loginfra.Config
+	ObsConfig observability.ObservabilityConfig
 }
 
 // ParseConfPath reads the configuration path from flags/environment, returning the resolved value.
@@ -59,5 +63,70 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 		_ = c.Close()
 	}
 	loggerCfg := loginfra.DefaultConfig(service, version)
-	return &Loader{Config: c, Bootstrap: bc, LoggerCfg: loggerCfg}, cleanup, nil
+	return &Loader{
+		Config:    c,
+		Bootstrap: bc,
+		LoggerCfg: loggerCfg,
+		ObsConfig: toObservabilityConfig(bc.Observability),
+	}, cleanup, nil
+}
+
+func toObservabilityConfig(src *configpb.Observability) observability.ObservabilityConfig {
+	if src == nil {
+		return observability.ObservabilityConfig{}
+	}
+	cfg := observability.ObservabilityConfig{
+		GlobalAttributes: cloneStringMap(src.GetGlobalAttributes()),
+	}
+	if tr := src.GetTracing(); tr != nil {
+		cfg.Tracing = &observability.TracingConfig{
+			Enabled:            tr.GetEnabled(),
+			Exporter:           tr.GetExporter(),
+			Endpoint:           tr.GetEndpoint(),
+			Headers:            cloneStringMap(tr.GetHeaders()),
+			Insecure:           tr.GetInsecure(),
+			SamplingRatio:      tr.GetSamplingRatio(),
+			BatchTimeout:       durationValue(tr.GetBatchTimeout()),
+			ExportTimeout:      durationValue(tr.GetExportTimeout()),
+			MaxQueueSize:       int(tr.GetMaxQueueSize()),
+			MaxExportBatchSize: int(tr.GetMaxExportBatchSize()),
+			Required:           tr.GetRequired(),
+			ServiceName:        tr.GetServiceName(),
+			ServiceVersion:     tr.GetServiceVersion(),
+			Environment:        tr.GetEnvironment(),
+			Attributes:         cloneStringMap(tr.GetAttributes()),
+		}
+	}
+	if mt := src.GetMetrics(); mt != nil {
+		cfg.Metrics = &observability.MetricsConfig{
+			Enabled:             mt.GetEnabled(),
+			Exporter:            mt.GetExporter(),
+			Endpoint:            mt.GetEndpoint(),
+			Headers:             cloneStringMap(mt.GetHeaders()),
+			Insecure:            mt.GetInsecure(),
+			Interval:            durationValue(mt.GetInterval()),
+			DisableRuntimeStats: mt.GetDisableRuntimeStats(),
+			Required:            mt.GetRequired(),
+			ResourceAttributes:  cloneStringMap(mt.GetResourceAttributes()),
+		}
+	}
+	return cfg
+}
+
+func cloneStringMap(src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func durationValue(d *durationpb.Duration) time.Duration {
+	if d == nil {
+		return 0
+	}
+	return d.AsDuration()
 }

@@ -2,12 +2,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
 	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	loginfra "github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
 
+	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -58,6 +60,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	obsShutdown, err := observability.Init(context.Background(), cfgLoader.ObsConfig,
+		observability.WithLogger(loggr),
+		observability.WithServiceName(cfgLoader.LoggerCfg.Service),
+		observability.WithServiceVersion(cfgLoader.LoggerCfg.Version),
+		observability.WithEnvironment(cfgLoader.LoggerCfg.Env),
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if obsShutdown != nil {
+			_ = obsShutdown(context.Background())
+		}
+	}()
 
 	// Assemble all dependencies (logger, servers, repositories, etc.) via Wire and create the Kratos app.
 	app, cleanupApp, err := wireApp(cfgLoader.Bootstrap.Server, cfgLoader.Bootstrap.Data, loggr)

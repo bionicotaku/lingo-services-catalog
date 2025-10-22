@@ -6,11 +6,11 @@ import (
 
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
+	obsTrace "github.com/bionicotaku/lingo-utils/observability/tracing"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
 	"github.com/go-kratos/kratos/v2/middleware/metadata"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
-	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	kgrpc "github.com/go-kratos/kratos/v2/transport/grpc"
 	"google.golang.org/grpc"
 )
@@ -29,7 +29,7 @@ func NewGRPCClient(c *configpb.Data, logger log.Logger) (*grpc.ClientConn, func(
 		kgrpc.WithMiddleware(
 			recovery.Recovery(),
 			metadata.Client(),
-			tracing.Client(),
+			obsTrace.Client(),
 			circuitbreaker.Client(),
 		),
 	)

@@ -8,6 +8,7 @@ import "google/protobuf/duration.proto";
 message Bootstrap {
   Server server = 1;
   Data data = 2;
+  Observability observability = 3;
 }
 
 message Server {
@@ -36,4 +37,38 @@ message Data {
   Database database = 1;
   Redis redis = 2;
   Client grpc_client = 3;
+}
+
+message Observability {
+  message Tracing {
+    bool enabled = 1;
+    string exporter = 2;
+    string endpoint = 3;
+    map<string, string> headers = 4;
+    bool insecure = 5;
+    double sampling_ratio = 6;
+    google.protobuf.Duration batch_timeout = 7;
+    google.protobuf.Duration export_timeout = 8;
+    int32 max_queue_size = 9;
+    int32 max_export_batch_size = 10;
+    bool required = 11;
+    string service_name = 12;
+    string service_version = 13;
+    string environment = 14;
+    map<string, string> attributes = 15;
+  }
+  message Metrics {
+    bool enabled = 1;
+    string exporter = 2;
+    string endpoint = 3;
+    map<string, string> headers = 4;
+    bool insecure = 5;
+    google.protobuf.Duration interval = 6;
+    bool disable_runtime_stats = 7;
+    bool required = 8;
+    map<string, string> resource_attributes = 9;
+  }
+  map<string, string> global_attributes = 1;
+  Tracing tracing = 2;
+  Metrics metrics = 3;
 }

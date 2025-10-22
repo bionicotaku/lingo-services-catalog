@@ -6,6 +6,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
+	obsTrace "github.com/bionicotaku/lingo-utils/observability/tracing"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/middleware/metadata"
@@ -19,6 +20,7 @@ import (
 func NewGRPCServer(c *configpb.Server, greeter *controllers.GreeterHandler, logger log.Logger) *grpc.Server {
 	opts := []grpc.ServerOption{
 		grpc.Middleware(
+			obsTrace.Server(),
 			recovery.Recovery(),
 			metadata.Server(
 				metadata.WithPropagatedPrefix("x-template-"),

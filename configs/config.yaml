@@ -12,3 +12,18 @@ data:
     write_timeout: 0.2s
   grpc_client:
     target: dns:///127.0.0.1:9000
+observability:
+  global_attributes:
+    service.group: template
+    region: local
+  tracing:
+    enabled: true
+    exporter: stdout
+    sampling_ratio: 1.0
+    required: false
+  metrics:
+    enabled: true
+    exporter: stdout
+    interval: 60s
+    disable_runtime_stats: false
+    required: false
