@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"time"
 
 	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	loginfra "github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
@@ -71,13 +72,22 @@ func main() {
 		panic(err)
 	}
 	defer func() {
-		if obsShutdown != nil {
-			_ = obsShutdown(context.Background())
+		if obsShutdown == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := obsShutdown(ctx); err != nil {
+			log.NewHelper(loggr).Warnf("shutdown observability: %v", err)
 		}
 	}()
 
 	// Assemble all dependencies (logger, servers, repositories, etc.) via Wire and create the Kratos app.
-	app, cleanupApp, err := wireApp(cfgLoader.Bootstrap.Server, cfgLoader.Bootstrap.Data, loggr)
+	app, cleanupApp, err := wireApp(
+		cfgLoader.Bootstrap.GetServer(),
+		cfgLoader.Bootstrap.GetData(),
+		loggr,
+	)
 	if err != nil {
 		panic(err)
 	}

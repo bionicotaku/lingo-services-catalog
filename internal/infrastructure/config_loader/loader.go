@@ -25,7 +25,7 @@ const (
 // Loader bundles configuration objects used by the application.
 type Loader struct {
 	Config    config.Config
-	Bootstrap configpb.Bootstrap
+	Bootstrap *configpb.Bootstrap
 	LoggerCfg loginfra.Config
 	ObsConfig observability.ObservabilityConfig
 }
@@ -65,7 +65,7 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 	loggerCfg := loginfra.DefaultConfig(service, version)
 	return &Loader{
 		Config:    c,
-		Bootstrap: bc,
+		Bootstrap: &bc,
 		LoggerCfg: loggerCfg,
 		ObsConfig: toObservabilityConfig(bc.Observability),
 	}, cleanup, nil
