@@ -27,7 +27,7 @@ api:
 .PHONY: build
 # build
 build:
-	mkdir -p bin/ && go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/ ./...
+	mkdir -p bin/ && go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/grpc ./cmd/grpc
 
 .PHONY: test
 # run unit tests

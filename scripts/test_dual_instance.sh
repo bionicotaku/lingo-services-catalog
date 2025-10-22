@@ -8,7 +8,7 @@ LOG_DIR="${ROOT_DIR}/.tmp/test-logs"
 rm -rf "${LOG_DIR}"
 mkdir -p "${LOG_DIR}"
 
-BIN="${ROOT_DIR}/bin/server-test"
+BIN="${ROOT_DIR}/bin/grpc-test"
 
 cleanup() {
   local code=$?
@@ -34,7 +34,7 @@ require_cmd grpcurl
 
 echo "[step] building dedicated test binary via make build"
 make -C "${ROOT_DIR}" build >/dev/null
-cp "${ROOT_DIR}/bin/server" "${BIN}"
+cp "${ROOT_DIR}/bin/grpc" "${BIN}"
 
 echo "[step] starting instance A"
 env INSTANCE_ID=A "${BIN}" -conf "${CONFIG_A}" >"${LOG_DIR}/instance-a.log" 2>&1 &

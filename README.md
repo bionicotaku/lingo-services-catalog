@@ -16,7 +16,7 @@
 ### 日志（gclog）
 
 - 通过 `github.com/bionicotaku/lingo-utils/gclog` 输出结构化 JSON，字段与 Cloud Logging 模型保持一致（`timestamp`、`severity`、`serviceContext`、`labels`、`jsonPayload` 等）。
-- `cmd/server/main.go` 根据 `APP_ENV` 设置 `environment`，并写入静态标签 `service.id=<hostname>`。若 `APP_ENV` 未设置则默认 `development`。
+- `cmd/grpc/main.go` 根据 `APP_ENV` 设置 `environment`，并写入静态标签 `service.id=<hostname>`。若 `APP_ENV` 未设置则默认 `development`。
 - gRPC Server 默认启用 `logging.Server(logger)` 中间件。配合 `gclog` 的字段映射，`kind/component/operation/args/code/reason/stack/latency` 会自动落在合适的位置，Trace/Span 由 OTel SpanContext 自动注入。
 - 业务侧若需追加自定义标签或 payload，可使用 `gclog.WithLabels` / `gclog.WithAllowedLabelKeys` / `gclog.WithPayload` 等 helper。
 - 单测可调用 `gclog.NewTestLogger` 拿到内存缓冲 logger 断言输出内容。
@@ -29,8 +29,8 @@
 
 ## 入口层（`cmd/`）
 
-- `cmd/server/main.go`：服务启动入口，加载配置、初始化日志、执行 Wire 注入并启动 gRPC Server。
-- `cmd/server/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。开发时修改 `wire.go` 声明 ProviderSet，执行 `wire` 重新生成 `wire_gen.go`。
+- `cmd/grpc/main.go`：服务启动入口，加载配置、初始化日志、执行 Wire 注入并启动 gRPC Server（HTTP 调试入口可在 `cmd/http` 按需创建）。
+- `cmd/grpc/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。开发时修改 `wire.go` 声明 ProviderSet，执行 `wire` 重新生成 `wire_gen.go`。
 
 ## 配置（`configs/`）
 
@@ -43,42 +43,54 @@
 - `internal/conf/`  
   采用 proto 描述配置 (`conf.proto`)，生成强类型结构体 (`conf.pb.go`)，再由 `config.Scan` 填充，确保配置访问安全统一。
 
-- `internal/client/`  
-  概念与 `internal/server` 对应：负责“客户端传输层装配”。当前的 `NewGRPCClient` 会根据配置建立 gRPC 连接，挂载 recovery/tracing/circuitbreaker 等通用中间件，并返回 `*grpc.ClientConn` 与清理函数，供数据层或其他客户端包装复用，完全不涉及业务语义。
+- `internal/clients/`  
+  业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。
 
-- `internal/server/`  
-  服务端传输层装配：根据配置创建 gRPC Server，集中挂载中间件、健康探针（基于 gRPC health 服务）等横切关注点，是所有外部调用进入应用的第一站。默认启用 recovery → metadata（传播 `x-template-` 前缀）→ rate limit（SRE 算法）→ validate（PGV 校验）→ logging 的中间件链；如需自定义限流策略，可通过 `ratelimit.Server(ratelimit.WithLimiter(...))` 替换。指标推荐通过 OTLP 上报，无需额外暴露 HTTP `/metrics` 端点。
+- `internal/infrastructure/`  
+  底层设施统一入口：`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`data` 管理数据库/缓存资源，`logger`/`trace` 等子目录封装观测初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
 
-- `internal/service/`  
-  应用层实现，由 proto 生成的接口起点。负责 DTO ↔ DO 转换与用例编排，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。
+- `internal/controllers/`  
+  传输层 Handler / Controller 实现，由 proto 生成的接口起点（现阶段仍为 gRPC，后续会扩展 REST）。负责 DTO ↔ 视图对象转换与用例编排入口，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。
 
-- `internal/biz/`  
-  定义领域模型与用例 (`GreeterUsecase`)，聚合仓储与外部服务接口，是复杂业务规则与日志的归属地，不触及底层技术细节。
+- `internal/services/`  
+  定义领域用例 (`GreeterUsecase`)，聚合仓储与外部服务接口，是复杂业务规则与日志的归属地，不触及底层技术细节。返回值统一使用 `internal/models/vo` 下的视图对象。
 
-- `internal/data/`  
-  领域仓储实现层，承接数据库、缓存或远端 gRPC 等外部依赖。`data.go` 管理公共资源生命周期；`greeter.go` 与 `greeter_remote.go` 分别示例本地与远端仓储实现，均满足 biz 层定义的接口。
+- `internal/repositories/`  
+  领域仓储实现层，承接数据库、缓存或远端 gRPC 等外部依赖。默认通过 `internal/infrastructure/data` 提供的 `Data` 结构管理资源生命周期；`greeter.go` 与 `greeter_remote.go` 分别示例本地与远端仓储实现，均满足 services 层定义的接口。
+
+- `internal/models/`  
+  `po`（persistent object）用于仓储与底层存储的实体表示；`vo`（view object）面向上层展示与跨服务返回值，避免直接暴露内部结构。
+
+- `internal/views/`  
+  负责将 usecase 返回的视图对象渲染为对外响应（Problem Details、分页、ETag 等），保持 Controller 的精简。
+
+- `internal/tasks/`  
+  预留 Outbox 扫描、定时任务与后台 Worker 的放置位置。需要注入调度器时，同样通过 `init.go` 声明 Provider。
 
 ### 请求/数据流转示意
 
 ```mermaid
 flowchart TD
-    A[外部调用<br/>gRPC Client] --> B[internal/server<br/>gRPC Server<br/>路由+中间件]
-    B --> C[internal/service<br/>GreeterService<br/>DTO→DO/编排]
-    C --> D[internal/biz<br/>GreeterUsecase<br/>领域逻辑]
-    D --> E[internal/data<br/>GreeterRepo<br/>本地仓储]
-    D --> F[internal/data<br/>GreeterRemote<br/>远端仓储]
+    A[外部调用<br/>gRPC Client] --> B[internal/infrastructure/grpc_server<br/>gRPC Server<br/>路由+中间件]
+    B --> C[internal/controllers<br/>GreeterController<br/>DTO→视图/编排入口]
+    C --> D[internal/services<br/>GreeterUsecase<br/>领域逻辑]
+    D --> E[internal/repositories<br/>GreeterRepo<br/>本地仓储]
+    D --> F[internal/repositories<br/>GreeterRemote<br/>远端仓储]
     E --> I[(数据库/缓存 等本地依赖)]
-    F --> G[internal/client<br/>NewGRPCClient<br/>连接+中间件]
+    F --> G[internal/infrastructure/grpc_client<br/>NewGRPCClient<br/>连接+中间件]
     G --> H[远端 Greeter 微服务]
     H --> G
-    G --> F
+    F --> J[internal/clients<br/>GreeterRemote]
+    G --> J
+    J --> D
     I --> D
     D --> C
-    C --> B
+    C --> K[internal/views<br/>渲染响应]
+    K --> B
     B --> A
 ```
 
-> 读或写外部系统（包括远端 gRPC）都经过 `internal/data`，由 biz 层统一编排；`internal/client` 负责通信能力复用；service 与 server 则各自处理协议层与传输层职责。
+> 读或写外部系统（包括远端 gRPC）都经过 `internal/repositories`，由 services 层统一编排；`internal/clients` 负责通信能力复用；controllers 与 `internal/infrastructure/grpc_server` 则各自处理协议层与传输层职责。
 
 ## 其它
 
@@ -97,10 +109,11 @@ flowchart TD
 │       ├── greeter.pb.go
 │       ├── greeter_grpc.pb.go
 │       └── greeter_http.pb.go
-├── cmd/server                // 应用入口
+├── cmd/grpc                  // 强制 gRPC 入口
 │   ├── main.go               // 程序入口：加载配置并运行 gRPC
 │   ├── wire.go               // Wire 依赖注入定义
 │   └── wire_gen.go           // Wire 自动生成装配实现（勿手动修改）
+├── cmd/http (可选)          // 如需暴露 HTTP 调试入口，可在此新增
 ├── configs                   // 本地调试配置
 │   ├── config.yaml
 │   ├── config.instance-a.yaml
@@ -108,12 +121,15 @@ flowchart TD
 ├── generate.go               // 预留 go generate 钩子
 ├── go.mod / go.sum           // Go Module 元数据与依赖锁定
 ├── internal                  // 服务内部实现（对外不可见）
-│   ├── biz                   // 领域用例层，定义接口与用例
-│   ├── client                // 客户端传输层装配（如 gRPC 连接）
+│   ├── clients               // 外部依赖客户端封装（gRPC/HTTP 等），需注入时在 init.go 注册 Wire Provider
 │   ├── conf                  // 配置 schema 与生成代码
-│   ├── data                  // 数据访问层，仓储实现（含远端封装）
-│   ├── server                // 服务端传输层装配（仅 gRPC）
-│   └── service               // 应用服务层，实现 proto 定义的接口
+│   ├── controllers           // 传输层 handler（gRPC/HTTP），仅做参数校验与调用 Service
+│   ├── infrastructure        // 底层设施（server、data、logger 等），统一在各子目录 init.go 暴露 Provider
+│   ├── models                // 领域模型：`po`（持久化对象）与 `vo`（视图对象）
+│   ├── repositories          // 数据访问层，实现 Service 所需的仓储接口
+│   ├── services              // 业务用例层（MVC 中的 Service），组合仓储与客户端
+│   ├── tasks                 // 异步任务、Outbox 扫描等后台 Worker
+│   └── views                 // 响应包装（Problem Details、分页、ETag 等）
 ├── openapi.yaml              // REST OpenAPI 文档
 ├── third_party               // 第三方 proto 依赖（google/api、validate 等）
 └── (bin/)                    // 执行 make build 后生成的二进制输出目录（默认忽略）
