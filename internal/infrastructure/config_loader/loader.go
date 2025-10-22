@@ -22,12 +22,45 @@ const (
 )
 
 // Loader bundles configuration objects used by the application.
+// ServiceMetadata holds service identity shared by logging/observability.
+type ServiceMetadata struct {
+	Name        string
+	Version     string
+	Environment string
+	InstanceID  string
+}
+
+// ObservabilityInfo converts service metadata into observability.ServiceInfo.
+func (m ServiceMetadata) ObservabilityInfo() obswire.ServiceInfo {
+	return obswire.ServiceInfo{
+		Name:        m.Name,
+		Version:     m.Version,
+		Environment: m.Environment,
+	}
+}
+
+// LoggerConfig converts metadata into gclog.Config with consistent defaults.
+func (m ServiceMetadata) LoggerConfig() gclog.Config {
+	labels := map[string]string{}
+	if m.InstanceID != "" {
+		labels["service.id"] = m.InstanceID
+	}
+	return gclog.Config{
+		Service:              m.Name,
+		Version:              m.Version,
+		Environment:          m.Environment,
+		InstanceID:           m.InstanceID,
+		StaticLabels:         labels,
+		EnableSourceLocation: true,
+	}
+}
+
+// Loader bundles configuration objects used by the application.
 type Loader struct {
-	Config      config.Config
-	Bootstrap   *configpb.Bootstrap
-	LoggerCfg   gclog.Config
-	ObsConfig   obswire.ObservabilityConfig
-	ServiceInfo obswire.ServiceInfo
+	Config    config.Config
+	Bootstrap *configpb.Bootstrap
+	ObsConfig obswire.ObservabilityConfig
+	Service   ServiceMetadata
 }
 
 // ParseConfPath reads the configuration path from flags/environment, returning the resolved value.
@@ -76,25 +109,17 @@ func LoadBootstrap(confPath, service, version string) (*Loader, func(), error) {
 	}
 	host, _ := os.Hostname()
 
-	loggerCfg := gclog.Config{
-		Service:              serviceName,
-		Version:              serviceVersion,
-		Environment:          env,
-		InstanceID:           host,
-		EnableSourceLocation: true,
-	}
-
-	serviceInfo := obswire.ServiceInfo{
+	meta := ServiceMetadata{
 		Name:        serviceName,
 		Version:     serviceVersion,
 		Environment: env,
+		InstanceID:  host,
 	}
 	return &Loader{
-		Config:      c,
-		Bootstrap:   &bc,
-		LoggerCfg:   loggerCfg,
-		ObsConfig:   toObservabilityConfig(bc.Observability),
-		ServiceInfo: serviceInfo,
+		Config:    c,
+		Bootstrap: &bc,
+		ObsConfig: toObservabilityConfig(bc.Observability),
+		Service:   meta,
 	}, cleanup, nil
 }
 
@@ -170,4 +195,14 @@ func durationValue(d *durationpb.Duration) time.Duration {
 		return 0
 	}
 	return d.AsDuration()
+}
+
+// ProvideObservabilityInfo exposes service metadata to observability Provider.
+func ProvideObservabilityInfo(meta ServiceMetadata) obswire.ServiceInfo {
+	return meta.ObservabilityInfo()
+}
+
+// ProvideLoggerConfig exposes service metadata to logging Provider.
+func ProvideLoggerConfig(meta ServiceMetadata) gclog.Config {
+	return meta.LoggerConfig()
 }

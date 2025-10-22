@@ -10,6 +10,7 @@ import (
 	"context"
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
@@ -27,7 +28,9 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(contextContext context.Context, server *configpb.Server, data *configpb.Data, observabilityConfig observability.ObservabilityConfig, serviceInfo observability.ServiceInfo, config gclog.Config) (*kratos.App, func(), error) {
+func wireApp(contextContext context.Context, server *configpb.Server, data *configpb.Data, observabilityConfig observability.ObservabilityConfig, serviceMetadata loader.ServiceMetadata) (*kratos.App, func(), error) {
+	serviceInfo := loader.ProvideObservabilityInfo(serviceMetadata)
+	config := loader.ProvideLoggerConfig(serviceMetadata)
 	component, cleanup, err := gclog.NewComponent(config)
 	if err != nil {
 		return nil, nil, err

@@ -20,7 +20,7 @@
 - gRPC Server 默认启用 `logging.Server(logger)` 中间件。配合 `gclog` 的字段映射，`kind/component/operation/args/code/reason/stack/latency` 会自动落在合适的位置，Trace/Span 由 OTel SpanContext 自动注入。
 - 业务侧若需追加自定义标签或 payload，可使用 `gclog.WithLabels` / `gclog.WithAllowedLabelKeys` / `gclog.WithPayload` 等 helper。
 - 单测可调用 `gclog.NewTestLogger` 拿到内存缓冲 logger 断言输出内容。
-- 通过 `github.com/bionicotaku/lingo-utils/gclog` 的 ProviderSet，可在 Wire 中统一注入 trace-aware 的 Kratos logger，无需手动组装。
+- 通过 `github.com/bionicotaku/lingo-utils/gclog` 的 ProviderSet，可在 Wire 中统一注入 trace-aware 的 Kratos logger，无需手动组装；`internal/infrastructure/config_loader` 会基于 `ServiceMetadata` 自动生成 gclog 所需配置。
 
 ### 可观测性（OpenTelemetry）
 
@@ -172,3 +172,9 @@ observability:
 
 - `github.com/bionicotaku/lingo-utils/observability` _ProviderSet_ 提供 `Component` Provider，Wire 会负责初始化 OpenTelemetry Tracer/Meter，并在 `cleanup` 中执行 `Shutdown`。
 - 其它 Provider 只需依赖 `*observability.Component` 或 `ObservabilityConfig` / `MetricsConfig` 即可，共享同一套观测配置。
+
+### 配置加载 Provider
+
+- `internal/infrastructure/config_loader` 暴露 `ServiceMetadata`（服务名/版本/环境/实例 ID），以及 `ProvideLoggerConfig` / `ProvideObservabilityInfo`，用于将配置拆分给 gclog 与 observability Provider。
+- `ServiceMetadata` 默认从命令行 `-conf`、编译期注入 `Name/Version` 和 `APP_ENV` 推导：缺省值分别为 `template`、`dev`、`development`，实例 ID 取自主机名。
+- 有了这些 Provider，`wireApp` 只需传入根 context、Bootstrap 的 Server/Data 配置和 `ServiceMetadata`，即可统一完成日志与观测组件的初始化。

@@ -25,6 +25,7 @@ var (
 	id, _ = os.Hostname()
 )
 
+// newApp 负责组装 Kratos 应用：注入观测组件、日志器以及 gRPC Server。
 func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server) *kratos.App {
 	return kratos.New(
 		kratos.ID(id),
@@ -60,8 +61,7 @@ func main() {
 		cfgLoader.Bootstrap.GetServer(),
 		cfgLoader.Bootstrap.GetData(),
 		cfgLoader.ObsConfig,
-		cfgLoader.ServiceInfo,
-		cfgLoader.LoggerCfg,
+		cfgLoader.Service,
 	)
 	if err != nil {
 		panic(err)
