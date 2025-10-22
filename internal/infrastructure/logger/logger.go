@@ -10,8 +10,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Options captures runtime metadata used to annotate logs.
-type Options struct {
+// Config captures runtime metadata used to annotate logs.
+type Config struct {
 	Service string
 	Version string
 	HostID  string
@@ -19,12 +19,12 @@ type Options struct {
 }
 
 // NewLogger builds a Kratos-compatible logger with trace/span enrichment.
-func NewLogger(opts Options) (log.Logger, error) {
+func NewLogger(cfg Config) (log.Logger, error) {
 	baseLogger, err := gclog.NewLogger(
-		gclog.WithService(opts.Service),
-		gclog.WithVersion(opts.Version),
-		gclog.WithEnvironment(opts.Env),
-		gclog.WithStaticLabels(map[string]string{"service.id": opts.HostID}),
+		gclog.WithService(cfg.Service),
+		gclog.WithVersion(cfg.Version),
+		gclog.WithEnvironment(cfg.Env),
+		gclog.WithStaticLabels(map[string]string{"service.id": cfg.HostID}),
 		gclog.EnableSourceLocation(),
 	)
 	if err != nil {
@@ -49,8 +49,8 @@ func NewLogger(opts Options) (log.Logger, error) {
 	), nil
 }
 
-// DefaultOptions builds Options from environment defaults.
-func DefaultOptions(service, version string) Options {
+// DefaultConfig builds Config from environment defaults.
+func DefaultConfig(service, version string) Config {
 	if service == "" {
 		service = "kratos-template"
 	}
@@ -62,5 +62,5 @@ func DefaultOptions(service, version string) Options {
 	if env == "" {
 		env = "development"
 	}
-	return Options{Service: service, Version: version, HostID: host, Env: env}
+	return Config{Service: service, Version: version, HostID: host, Env: env}
 }

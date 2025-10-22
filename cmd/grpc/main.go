@@ -4,12 +4,10 @@ import (
 	"flag"
 	"os"
 
-	"github.com/bionicotaku/kratos-template/internal/conf"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
+	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	loginfra "github.com/bionicotaku/kratos-template/internal/infrastructure/logger"
 
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/config"
-	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 
@@ -22,15 +20,9 @@ var (
 	Name string
 	// Version is the version of the compiled software.
 	Version string
-	// flagconf is the config flag.
-	flagconf string
 
 	id, _ = os.Hostname()
 )
-
-func init() {
-	flag.StringVar(&flagconf, "conf", "../../configs", "config path, eg: -conf config.yaml")
-}
 
 func newApp(logger log.Logger, gs *grpc.Server) *kratos.App {
 	return kratos.New(
@@ -46,42 +38,34 @@ func newApp(logger log.Logger, gs *grpc.Server) *kratos.App {
 }
 
 func main() {
-	flag.Parse()
-	if Name == "" {
-		Name = "kratos-template"
-	}
-	if Version == "" {
-		Version = "dev"
-	}
-	opts := logger.DefaultOptions(Name, Version)
-	loggr, err := logger.NewLogger(opts)
+	// Parse command-line flags (currently only -conf).
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	confPath, err := loader.ParseConfPath(fs, os.Args[1:])
 	if err != nil {
 		panic(err)
 	}
 
-	c := config.New(
-		config.WithSource(
-			file.NewSource(flagconf),
-		),
-	)
-	defer c.Close()
-
-	if err := c.Load(); err != nil {
-		panic(err)
-	}
-
-	var bc conf.Bootstrap
-	if err := c.Scan(&bc); err != nil {
-		panic(err)
-	}
-
-	app, cleanup, err := wireApp(bc.Server, bc.Data, loggr)
+	// Load bootstrap configuration and derive logger settings.
+	cfgLoader, cleanupConfig, err := loader.LoadBootstrap(confPath, Name, Version)
 	if err != nil {
 		panic(err)
 	}
-	defer cleanup()
+	defer cleanupConfig()
 
-	// start and wait for stop signal
+	// Build the structured logger used by the entire application.
+	loggr, err := loginfra.NewLogger(cfgLoader.LoggerCfg)
+	if err != nil {
+		panic(err)
+	}
+
+	// Assemble all dependencies (logger, servers, repositories, etc.) via Wire and create the Kratos app.
+	app, cleanupApp, err := wireApp(cfgLoader.Bootstrap.Server, cfgLoader.Bootstrap.Data, loggr)
+	if err != nil {
+		panic(err)
+	}
+	defer cleanupApp()
+
+	// Start the application and block until a stop signal is received.
 	if err := app.Run(); err != nil {
 		panic(err)
 	}

@@ -29,7 +29,7 @@
 
 ## 入口层（`cmd/`）
 
-- `cmd/grpc/main.go`：服务启动入口，加载配置、初始化日志、执行 Wire 注入并启动 gRPC Server（HTTP 调试入口可在 `cmd/http` 按需创建）。
+- `cmd/grpc/main.go`：服务启动入口，调用 `internal/infrastructure/config_loader.ParseConfPath + LoadBootstrap` 解析 `-conf`/`CONF_PATH`，加载配置与日志参数，然后执行 Wire 注入并启动 gRPC Server（HTTP 调试入口可在 `cmd/http` 按需创建）。
 - `cmd/grpc/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。开发时修改 `wire.go` 声明 ProviderSet，执行 `wire` 重新生成 `wire_gen.go`。
 
 ## 配置（`configs/`）
@@ -47,7 +47,7 @@
   业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。
 
 - `internal/infrastructure/`  
-  底层设施统一入口：`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`data` 管理数据库/缓存资源，`logger`/`trace` 等子目录封装观测初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
+  底层设施统一入口：`config_loader` 解析 `-conf`/`CONF_PATH` 并加载配置，`grpc_client` 根据配置构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 负责 Server 装配，`data` 管理数据库/缓存资源，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
 
 - `internal/controllers/`  
   传输层 Handler / Controller 实现，由 proto 生成的接口起点（现阶段仍为 gRPC，后续会扩展 REST）。负责 DTO ↔ 视图对象转换与用例编排入口，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。
