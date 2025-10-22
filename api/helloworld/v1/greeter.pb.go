@@ -8,7 +8,6 @@ package v1
 
 import (
 	_ "github.com/envoyproxy/protoc-gen-validate/validate"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -117,14 +116,14 @@ var File_api_helloworld_v1_greeter_proto protoreflect.FileDescriptor
 
 const file_api_helloworld_v1_greeter_proto_rawDesc = "" +
 	"\n" +
-	"\x1fapi/helloworld/v1/greeter.proto\x12\rhelloworld.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17validate/validate.proto\"-\n" +
+	"\x1fapi/helloworld/v1/greeter.proto\x12\rhelloworld.v1\x1a\x17validate/validate.proto\"-\n" +
 	"\fHelloRequest\x12\x1d\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x18@R\x04name\"&\n" +
 	"\n" +
 	"HelloReply\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2i\n" +
-	"\aGreeter\x12^\n" +
-	"\bSayHello\x12\x1b.helloworld.v1.HelloRequest\x1a\x19.helloworld.v1.HelloReply\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/helloworld/{name}Bp\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage2M\n" +
+	"\aGreeter\x12B\n" +
+	"\bSayHello\x12\x1b.helloworld.v1.HelloRequest\x1a\x19.helloworld.v1.HelloReplyBp\n" +
 	"\x1cdev.kratos.api.helloworld.v1B\x11HelloworldProtoV1P\x01Z;github.com/bionicotaku/kratos-template/api/helloworld/v1;v1b\x06proto3"
 
 var (

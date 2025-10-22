@@ -9,18 +9,8 @@ plugins:
     out: .
     opt:
       - paths=source_relative
-  - plugin: go-http
-    out: .
-    opt:
-      - paths=source_relative
   - plugin: validate
     out: .
     opt:
       - paths=source_relative
       - lang=go
-  - plugin: openapi
-    out: api
-    opt:
-      - fq_schema_naming=true
-      - default_response=false
-    strategy: all

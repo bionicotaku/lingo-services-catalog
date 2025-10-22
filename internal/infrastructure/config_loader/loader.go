@@ -22,6 +22,7 @@ const (
 )
 
 // Loader bundles configuration objects used by the application.
+
 // ServiceMetadata holds service identity shared by logging/observability.
 type ServiceMetadata struct {
 	Name        string
