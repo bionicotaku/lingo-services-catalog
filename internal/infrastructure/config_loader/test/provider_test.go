@@ -278,6 +278,242 @@ func TestProvideLoggerConfig(t *testing.T) {
 	}
 }
 
+// TestProvideJWTConfig 验证 JWT 配置提取完整性。
+func TestProvideJWTConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  grpc:
+    addr: 0.0.0.0:9000
+  jwt:
+    expected_audience: "https://my-service.run.app/"
+    skip_validate: false
+    required: true
+    header_key: "x-cloud-run-jwt"
+data:
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 1
+    min_open_conns: 0
+    schema: "test"
+    enable_prepared_statements: false
+  grpc_client:
+    target: "dns:///downstream:9000"
+    jwt:
+      audience: "https://downstream.run.app/"
+      disabled: false
+      header_key: "x-custom-jwt"
+`
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	params := loader.Params{ConfPath: tmpDir}
+	bundle, err := loader.Build(params)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	bootstrap := loader.ProvideBootstrap(bundle)
+	serverCfg := loader.ProvideServerConfig(bootstrap)
+	dataCfg := loader.ProvideDataConfig(bootstrap)
+
+	jwtCfg := loader.ProvideJWTConfig(serverCfg, dataCfg)
+
+	// 验证 Server JWT 配置
+	if jwtCfg.Server == nil {
+		t.Fatal("expected non-nil Server JWT config")
+	}
+	if jwtCfg.Server.ExpectedAudience != "https://my-service.run.app/" {
+		t.Errorf("expected audience 'https://my-service.run.app/', got %s", jwtCfg.Server.ExpectedAudience)
+	}
+	if jwtCfg.Server.SkipValidate {
+		t.Error("expected SkipValidate=false")
+	}
+	if !jwtCfg.Server.Required {
+		t.Error("expected Required=true")
+	}
+	if jwtCfg.Server.HeaderKey != "x-cloud-run-jwt" {
+		t.Errorf("expected header_key 'x-cloud-run-jwt', got %s", jwtCfg.Server.HeaderKey)
+	}
+
+	// 验证 Client JWT 配置
+	if jwtCfg.Client == nil {
+		t.Fatal("expected non-nil Client JWT config")
+	}
+	if jwtCfg.Client.Audience != "https://downstream.run.app/" {
+		t.Errorf("expected audience 'https://downstream.run.app/', got %s", jwtCfg.Client.Audience)
+	}
+	if jwtCfg.Client.Disabled {
+		t.Error("expected Disabled=false")
+	}
+	if jwtCfg.Client.HeaderKey != "x-custom-jwt" {
+		t.Errorf("expected header_key 'x-custom-jwt', got %s", jwtCfg.Client.HeaderKey)
+	}
+}
+
+// TestProvideJWTConfig_ServerOnly 验证仅配置服务端的情况。
+func TestProvideJWTConfig_ServerOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  grpc:
+    addr: 0.0.0.0:9000
+  jwt:
+    expected_audience: "https://my-service.run.app/"
+    skip_validate: false
+    required: true
+data:
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 1
+    min_open_conns: 0
+    schema: "test"
+    enable_prepared_statements: false
+`
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	params := loader.Params{ConfPath: tmpDir}
+	bundle, err := loader.Build(params)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	bootstrap := loader.ProvideBootstrap(bundle)
+	serverCfg := loader.ProvideServerConfig(bootstrap)
+	dataCfg := loader.ProvideDataConfig(bootstrap)
+
+	jwtCfg := loader.ProvideJWTConfig(serverCfg, dataCfg)
+
+	// 验证 Server JWT 配置存在
+	if jwtCfg.Server == nil {
+		t.Fatal("expected non-nil Server JWT config")
+	}
+	if jwtCfg.Server.ExpectedAudience != "https://my-service.run.app/" {
+		t.Errorf("expected audience 'https://my-service.run.app/', got %s", jwtCfg.Server.ExpectedAudience)
+	}
+
+	// 验证 Client JWT 配置为 nil（未配置）
+	if jwtCfg.Client != nil {
+		t.Errorf("expected nil Client JWT config, got %+v", jwtCfg.Client)
+	}
+}
+
+// TestProvideJWTConfig_ClientOnly 验证仅配置客户端的情况。
+func TestProvideJWTConfig_ClientOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  grpc:
+    addr: 0.0.0.0:9000
+data:
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 1
+    min_open_conns: 0
+    schema: "test"
+    enable_prepared_statements: false
+  grpc_client:
+    target: "dns:///downstream:9000"
+    jwt:
+      audience: "https://downstream.run.app/"
+      disabled: false
+`
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	params := loader.Params{ConfPath: tmpDir}
+	bundle, err := loader.Build(params)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	bootstrap := loader.ProvideBootstrap(bundle)
+	serverCfg := loader.ProvideServerConfig(bootstrap)
+	dataCfg := loader.ProvideDataConfig(bootstrap)
+
+	jwtCfg := loader.ProvideJWTConfig(serverCfg, dataCfg)
+
+	// 验证 Server JWT 配置为 nil（未配置）
+	if jwtCfg.Server != nil {
+		t.Errorf("expected nil Server JWT config, got %+v", jwtCfg.Server)
+	}
+
+	// 验证 Client JWT 配置存在
+	if jwtCfg.Client == nil {
+		t.Fatal("expected non-nil Client JWT config")
+	}
+	if jwtCfg.Client.Audience != "https://downstream.run.app/" {
+		t.Errorf("expected audience 'https://downstream.run.app/', got %s", jwtCfg.Client.Audience)
+	}
+}
+
+// TestProvideJWTConfig_NoJWT 验证未配置 JWT 时的默认行为。
+func TestProvideJWTConfig_NoJWT(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  grpc:
+    addr: 0.0.0.0:9000
+data:
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 1
+    min_open_conns: 0
+    schema: "test"
+    enable_prepared_statements: false
+`
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	params := loader.Params{ConfPath: tmpDir}
+	bundle, err := loader.Build(params)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	bootstrap := loader.ProvideBootstrap(bundle)
+	serverCfg := loader.ProvideServerConfig(bootstrap)
+	dataCfg := loader.ProvideDataConfig(bootstrap)
+
+	jwtCfg := loader.ProvideJWTConfig(serverCfg, dataCfg)
+
+	// 验证返回零值 Config
+	if jwtCfg.Server != nil {
+		t.Errorf("expected nil Server JWT config, got %+v", jwtCfg.Server)
+	}
+	if jwtCfg.Client != nil {
+		t.Errorf("expected nil Client JWT config, got %+v", jwtCfg.Client)
+	}
+	if !jwtCfg.IsZero() {
+		t.Error("expected IsZero()=true for empty JWT config")
+	}
+}
+
+// TestProvideJWTConfig_NilInputs 验证 nil 输入的安全处理。
+func TestProvideJWTConfig_NilInputs(t *testing.T) {
+	// nil server, nil data
+	jwtCfg := loader.ProvideJWTConfig(nil, nil)
+	if jwtCfg.Server != nil || jwtCfg.Client != nil {
+		t.Error("expected zero-value Config for nil inputs")
+	}
+
+	// nil server, valid data (without JWT)
+	dataCfg := loader.ProvideDataConfig(nil)
+	jwtCfg = loader.ProvideJWTConfig(nil, dataCfg)
+	if jwtCfg.Server != nil || jwtCfg.Client != nil {
+		t.Error("expected zero-value Config when server is nil")
+	}
+}
+
 // writeConfigFile 是辅助函数，创建配置文件。
 func writeConfigFile(t *testing.T, dir, content string) error {
 	t.Helper()

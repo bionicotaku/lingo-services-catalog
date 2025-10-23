@@ -40,31 +40,31 @@ func TestVideoUsecase_GetVideoDetail(t *testing.T) {
 	now := time.Now().UTC()
 
 	tests := []struct {
-		name          string
-		videoID       uuid.UUID
-		mockSetup     func(*MockVideoRepo)
-		wantErr       bool
-		checkError    func(t *testing.T, err error)
-		checkResult   func(t *testing.T, result *services.VideoUsecase, videoID uuid.UUID)
+		name        string
+		videoID     uuid.UUID
+		mockSetup   func(*MockVideoRepo)
+		wantErr     bool
+		checkError  func(t *testing.T, err error)
+		checkResult func(t *testing.T, result *services.VideoUsecase, videoID uuid.UUID)
 	}{
 		{
 			name:    "成功获取视频详情",
 			videoID: videoID,
 			mockSetup: func(repo *MockVideoRepo) {
 				video := &po.Video{
-					VideoID:           videoID,
-					UploadUserID:      uploadUserID,
-					CreatedAt:         now,
-					UpdatedAt:         now,
-					Title:             "测试视频",
-					Description:       stringPtr("视频描述"),
-					RawFileReference:  "gs://bucket/video.mp4",
-					Status:            po.VideoStatusPublished,
-					MediaStatus:       po.StageReady,
-					AnalysisStatus:    po.StageReady,
-					ThumbnailURL:      stringPtr("https://cdn.example.com/thumb.jpg"),
-					DurationMicros:    int64Ptr(120000000),
-					Tags:              []string{"golang", "tutorial"},
+					VideoID:          videoID,
+					UploadUserID:     uploadUserID,
+					CreatedAt:        now,
+					UpdatedAt:        now,
+					Title:            "测试视频",
+					Description:      stringPtr("视频描述"),
+					RawFileReference: "gs://bucket/video.mp4",
+					Status:           po.VideoStatusPublished,
+					MediaStatus:      po.StageReady,
+					AnalysisStatus:   po.StageReady,
+					ThumbnailURL:     stringPtr("https://cdn.example.com/thumb.jpg"),
+					DurationMicros:   int64Ptr(120000000),
+					Tags:             []string{"golang", "tutorial"},
 				}
 				repo.On("FindByID", mock.Anything, videoID).Return(video, nil)
 			},

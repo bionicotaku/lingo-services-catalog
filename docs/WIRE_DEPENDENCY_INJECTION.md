@@ -215,6 +215,7 @@ graph TB
     style Injector fill:#9b59b6,color:#fff
     style Generated fill:#2ecc71,color:#fff
     style Binary fill:#e74c3c,color:#fff
+    style App fill:#27ae60,color:#fff
 ```
 
 **示例**：
@@ -335,7 +336,7 @@ graph LR
 
         subgraph Before["绑定前"]
             B_UC["VideoUsecase"] -->|需要| B_I["VideoRepo<br/>(接口)"]
-            B_I -.x|找不到| B_C["*VideoRepository"]
+            B_I -.->|找不到| B_C["*VideoRepository"]
         end
 
         subgraph After["绑定后"]

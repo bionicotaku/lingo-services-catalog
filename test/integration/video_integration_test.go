@@ -220,7 +220,6 @@ func TestIntegration_GetVideoDetail_Success(t *testing.T) {
 
 	req := &videov1.GetVideoDetailRequest{VideoId: videoID}
 	resp, err := srv.client.GetVideoDetail(ctx, req)
-
 	// 验证响应
 	if err != nil {
 		t.Fatalf("GetVideoDetail failed: %v", err)
@@ -401,7 +400,6 @@ func TestIntegration_GetVideoDetail_MultipleVideos(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := &videov1.GetVideoDetailRequest{VideoId: tc.videoID}
 			resp, err := srv.client.GetVideoDetail(ctx, req)
-
 			if err != nil {
 				t.Fatalf("GetVideoDetail failed: %v", err)
 			}
@@ -541,7 +539,6 @@ func TestIntegration_GetVideoDetail_TagsHandling(t *testing.T) {
 
 	req := &videov1.GetVideoDetailRequest{VideoId: videoID}
 	resp, err := srv.client.GetVideoDetail(ctx, req)
-
 	if err != nil {
 		t.Fatalf("GetVideoDetail failed: %v", err)
 	}
