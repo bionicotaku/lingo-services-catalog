@@ -7,17 +7,22 @@ import (
 	"time"
 
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
+	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
+	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 type repoStub struct{}
@@ -35,6 +40,12 @@ type remoteStub struct{}
 
 func (remoteStub) SayHello(context.Context, string) (string, error) { return "", nil }
 
+type videoRepoStub struct{}
+
+func (videoRepoStub) FindByID(context.Context, uuid.UUID) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
 func startGreeterServer(t *testing.T) (addr string, stop func()) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
@@ -42,9 +53,10 @@ func startGreeterServer(t *testing.T) (addr string, stop func()) {
 	logger := log.NewStdLogger(io.Discard)
 	uc := services.NewGreeterUsecase(repoStub{}, remoteStub{}, logger)
 	svc := controllers.NewGreeterHandler(uc)
+	videoSvc := controllers.NewVideoHandler(services.NewVideoUsecase(videoRepoStub{}, logger))
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, svc, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, svc, videoSvc, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {
@@ -122,5 +134,29 @@ func TestNewGRPCClient_CallGreeter(t *testing.T) {
 	}
 	if resp.GetMessage() != "Hello Client" {
 		t.Fatalf("unexpected response: %s", resp.GetMessage())
+	}
+}
+
+func TestNewGRPCClient_VideoNotFound(t *testing.T) {
+	addr, stop := startGreeterServer(t)
+	defer stop()
+
+	logger := log.NewStdLogger(io.Discard)
+	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
+	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
+
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	if err != nil {
+		t.Fatalf("NewGRPCClient error: %v", err)
+	}
+	if conn == nil {
+		t.Fatalf("expected connection")
+	}
+	defer cleanup()
+
+	client := videov1.NewVideoQueryServiceClient(conn)
+	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: uuid.NewString()})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("expected NotFound, got %v", status.Code(err))
 	}
 }

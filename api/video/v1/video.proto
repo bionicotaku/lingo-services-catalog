@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package video.v1;
+
+option go_package = "github.com/bionicotaku/kratos-template/api/video/v1;videov1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+// VideoQueryService 提供视频只读查询能力。
+service VideoQueryService {
+  // GetVideoDetail 根据 video_id 返回视频元数据。
+  rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
+}
+
+// GetVideoDetailRequest 表示查询参数。
+message GetVideoDetailRequest {
+  string video_id = 1; // UUID 字符串
+}
+
+// GetVideoDetailResponse 封装查询结果。
+message GetVideoDetailResponse {
+  VideoDetail detail = 1;
+}
+
+// VideoDetail 对应领域模型的只读视图。
+message VideoDetail {
+  string video_id = 1;
+  string title = 2;
+  google.protobuf.StringValue description = 3;
+  string status = 4;
+  string media_status = 5;
+  string analysis_status = 6;
+  google.protobuf.StringValue thumbnail_url = 7;
+  google.protobuf.Int64Value duration_micros = 8;
+  repeated string tags = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}

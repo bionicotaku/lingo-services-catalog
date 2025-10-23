@@ -72,7 +72,9 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		clients.ProviderSet,
 		repositories.ProviderSet,
 		wire.Bind(new(services.GreeterRepo), new(*repositories.GreeterRepository)),
+		wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository)),
 		services.ProviderSet,
+		services.VideoProviderSet,
 		controllers.ProviderSet,
 		newApp,
 	))

@@ -4,6 +4,7 @@ package grpcserver
 
 import (
 	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
+	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
@@ -36,7 +37,7 @@ import (
 // 可选指标采集：
 // - 根据 metricsCfg.GRPCEnabled 决定是否启用 otelgrpc.StatsHandler
 // - 可通过 metricsCfg.GRPCIncludeHealth 控制是否采集健康检查指标
-func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, greeter *controllers.GreeterHandler, logger log.Logger) *grpc.Server {
+func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, greeter *controllers.GreeterHandler, video *controllers.VideoHandler, logger log.Logger) *grpc.Server {
 	// metricsCfg 为可选参数，默认启用指标采集以保持向后兼容。
 	// 调用方可通过配置显式控制指标行为。
 	metricsEnabled := true
@@ -73,6 +74,7 @@ func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, 
 	}
 	srv := grpc.NewServer(opts...)
 	v1.RegisterGreeterServer(srv, greeter)
+	videov1.RegisterVideoQueryServiceServer(srv, video)
 	return srv
 }
 

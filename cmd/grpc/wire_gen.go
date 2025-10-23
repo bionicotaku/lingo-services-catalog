@@ -78,7 +78,10 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	greeterRemote := clients.NewGreeterRemote(clientConn, logger)
 	greeterUsecase := services.NewGreeterUsecase(greeterRepository, greeterRemote, logger)
 	greeterHandler := controllers.NewGreeterHandler(greeterUsecase)
-	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, greeterHandler, logger)
+	videoRepository := repositories.NewVideoRepository(pool, logger)
+	videoUsecase := services.NewVideoUsecase(videoRepository, logger)
+	videoHandler := controllers.NewVideoHandler(videoUsecase)
+	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, greeterHandler, videoHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
 	return app, func() {
 		cleanup4()
