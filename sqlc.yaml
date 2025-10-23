@@ -1,7 +1,7 @@
 version: "2"
 sql:
   - schema:
-      - "migrations/*.sql"
+      - "sqlc/schema/*.sql"
     queries:
       - "internal/repositories/sqlc/video.sql"
     engine: postgresql

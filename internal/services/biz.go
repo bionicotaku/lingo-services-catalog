@@ -8,5 +8,7 @@ import "github.com/google/wire"
 // 包含所有 Usecase 的构造器（GreeterUsecase, VideoUsecase 等）。
 var ProviderSet = wire.NewSet(
 	NewGreeterUsecase,
-	NewVideoUsecase, // ← 新增：Video 业务用例
 )
+
+// VideoProviderSet 暴露视频相关用例，后续接入 Catalog 控制层时引用。
+var VideoProviderSet = wire.NewSet(NewVideoUsecase)

@@ -4,44 +4,46 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/bionicotaku/kratos-template/internal/models/po"
+	"github.com/bionicotaku/kratos-template/internal/repositories/mappers"
 	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
-	"github.com/bionicotaku/kratos-template/internal/services"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// VideoRepository 实现 services.VideoRepo 接口。
-// 基于 sqlc 生成的 Queries，封装数据库操作。
+// ErrVideoNotFound 表示请求的视频不存在。
+var ErrVideoNotFound = errors.New("video not found")
+
+// VideoRepository 提供视频相关的持久化访问能力。
 type VideoRepository struct {
-	db      *pgxpool.Pool       // PostgreSQL 连接池
-	queries *catalogsql.Queries // sqlc 生成的查询对象
+	db      *pgxpool.Pool
+	queries *catalogsql.Queries
+	log     *log.Helper
 }
 
-// NewVideoRepository 构造 VideoRepository 实例。
-// 通过 Wire 注入数据库连接池。
-func NewVideoRepository(db *pgxpool.Pool) services.VideoRepo {
+// NewVideoRepository 构造 VideoRepository 实例（供 Wire 注入使用）。
+func NewVideoRepository(db *pgxpool.Pool, logger log.Logger) *VideoRepository {
 	return &VideoRepository{
 		db:      db,
 		queries: catalogsql.New(db),
+		log:     log.NewHelper(logger),
 	}
 }
 
 // FindByID 根据 video_id 查询视频详情。
-// 实现 services.VideoRepo 接口。
-//
-// 错误处理：
-//   - pgx.ErrNoRows → services.ErrVideoNotFound
-//   - 其他数据库错误原样返回
-func (r *VideoRepository) FindByID(ctx context.Context, videoID uuid.UUID) (*catalogsql.CatalogVideo, error) {
-	video, err := r.queries.FindVideoByID(ctx, videoID)
+func (r *VideoRepository) FindByID(ctx context.Context, videoID uuid.UUID) (*po.Video, error) {
+	record, err := r.queries.FindVideoByID(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, services.ErrVideoNotFound
+			return nil, ErrVideoNotFound
 		}
-		return nil, err
+		r.log.WithContext(ctx).Errorf("find video by id failed: video_id=%s err=%v", videoID, err)
+		return nil, fmt.Errorf("find video by id: %w", err)
 	}
-	return &video, nil
+	return mappers.VideoFromCatalog(record), nil
 }

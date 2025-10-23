@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// 分阶段执行状态：pending/processing/ready/failed
 type CatalogStageStatus string
 
 const (
@@ -58,7 +57,6 @@ func (ns NullCatalogStageStatus) Value() (driver.Value, error) {
 	return string(ns.CatalogStageStatus), nil
 }
 
-// 视频总体生命周期状态：pending_upload/processing/ready/published/failed/rejected/archived
 type CatalogVideoStatus string
 
 const (
@@ -106,52 +104,28 @@ func (ns NullCatalogVideoStatus) Value() (driver.Value, error) {
 	return string(ns.CatalogVideoStatus), nil
 }
 
-// 视频主表：记录上传者、状态流转、媒体与AI分析产物等
 type CatalogVideo struct {
-	// 主键：UUID（默认 gen_random_uuid()）。可显式传入自生成 UUID 覆盖默认
-	VideoID uuid.UUID `json:"video_id"`
-	// 上传者用户ID（auth.users.id），受 RLS 策略约束
-	UploadUserID uuid.UUID `json:"upload_user_id"`
-	// 记录创建时间（timestamptz, 默认 now()）
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	// 最近更新时间（timestamptz），由触发器在 UPDATE 时写入 now()
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	// 视频标题（必填）
-	Title string `json:"title"`
-	// 视频描述（可选，长文本）
-	Description pgtype.Text `json:"description"`
-	// 原始对象位置（如 gs://bucket/path/file.mp4）
-	RawFileReference string `json:"raw_file_reference"`
-	// 总体状态：pending_upload→processing→ready/published 或 failed/rejected/archived
-	Status po.VideoStatus `json:"status"`
-	// 媒体阶段状态：pending/processing/ready/failed（转码/封面等）
-	MediaStatus po.StageStatus `json:"media_status"`
-	// AI 阶段状态：pending/processing/ready/failed（ASR/标签/摘要等）
-	AnalysisStatus po.StageStatus `json:"analysis_status"`
-	// 原始文件大小（字节，>0）
-	RawFileSize pgtype.Int8 `json:"raw_file_size"`
-	// 原始分辨率（如 3840x2160）
-	RawResolution pgtype.Text `json:"raw_resolution"`
-	// 原始码率（kbps）
-	RawBitrate pgtype.Int4 `json:"raw_bitrate"`
-	// 视频时长（微秒）
-	DurationMicros pgtype.Int8 `json:"duration_micros"`
-	// 主转码分辨率（如 1920x1080）
-	EncodedResolution pgtype.Text `json:"encoded_resolution"`
-	// 主转码码率（kbps）
-	EncodedBitrate pgtype.Int4 `json:"encoded_bitrate"`
-	// 主缩略图 URL/路径
-	ThumbnailUrl pgtype.Text `json:"thumbnail_url"`
-	// HLS 主清单（master.m3u8）URL/路径
-	HlsMasterPlaylist pgtype.Text `json:"hls_master_playlist"`
-	// AI 评估难度（自由文本，可后续枚举化）
-	Difficulty pgtype.Text `json:"difficulty"`
-	// AI 生成摘要
-	Summary pgtype.Text `json:"summary"`
-	// AI 生成标签（text[]，使用 GIN 索引提升包含查询）
-	Tags []string `json:"tags"`
-	// 原始字幕/ASR 输出 URL/路径
-	RawSubtitleUrl pgtype.Text `json:"raw_subtitle_url"`
-	// 最近一次失败/拒绝原因（排障/审计）
-	ErrorMessage pgtype.Text `json:"error_message"`
+	VideoID           uuid.UUID          `json:"video_id"`
+	UploadUserID      uuid.UUID          `json:"upload_user_id"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	Title             string             `json:"title"`
+	Description       pgtype.Text        `json:"description"`
+	RawFileReference  string             `json:"raw_file_reference"`
+	Status            po.VideoStatus     `json:"status"`
+	MediaStatus       po.StageStatus     `json:"media_status"`
+	AnalysisStatus    po.StageStatus     `json:"analysis_status"`
+	RawFileSize       pgtype.Int8        `json:"raw_file_size"`
+	RawResolution     pgtype.Text        `json:"raw_resolution"`
+	RawBitrate        pgtype.Int4        `json:"raw_bitrate"`
+	DurationMicros    pgtype.Int8        `json:"duration_micros"`
+	EncodedResolution pgtype.Text        `json:"encoded_resolution"`
+	EncodedBitrate    pgtype.Int4        `json:"encoded_bitrate"`
+	ThumbnailUrl      pgtype.Text        `json:"thumbnail_url"`
+	HlsMasterPlaylist pgtype.Text        `json:"hls_master_playlist"`
+	Difficulty        pgtype.Text        `json:"difficulty"`
+	Summary           pgtype.Text        `json:"summary"`
+	Tags              []string           `json:"tags"`
+	RawSubtitleUrl    pgtype.Text        `json:"raw_subtitle_url"`
+	ErrorMessage      pgtype.Text        `json:"error_message"`
 }

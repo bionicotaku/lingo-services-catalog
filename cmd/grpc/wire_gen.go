@@ -8,19 +8,20 @@ package main
 
 import (
 	"context"
-
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
-	grpcclient "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
-	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
+)
 
+import (
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -66,7 +67,7 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		cleanup()
 		return nil, nil, err
 	}
-	greeterRepo := repositories.NewGreeterRepo(pool, logger)
+	greeterRepository := repositories.NewGreeterRepo(pool, logger)
 	clientConn, cleanup4, err := grpcclient.NewGRPCClient(data, metricsConfig, logger)
 	if err != nil {
 		cleanup3()
@@ -75,7 +76,7 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		return nil, nil, err
 	}
 	greeterRemote := clients.NewGreeterRemote(clientConn, logger)
-	greeterUsecase := services.NewGreeterUsecase(greeterRepo, greeterRemote, logger)
+	greeterUsecase := services.NewGreeterUsecase(greeterRepository, greeterRemote, logger)
 	greeterHandler := controllers.NewGreeterHandler(greeterUsecase)
 	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, greeterHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
