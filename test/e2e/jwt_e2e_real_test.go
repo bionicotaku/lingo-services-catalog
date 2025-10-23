@@ -3,16 +3,17 @@
 // ⚠️ 注意：此文件中的测试需要 Google Cloud 凭证才能运行。
 //
 // 运行方式：
-// 1. 本地开发：
-//    gcloud auth application-default login
-//    go test -v ./test/e2e -run TestE2E_JWT_Real
 //
-// 2. CI/CD with Service Account：
-//    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json
-//    go test -v ./test/e2e -run TestE2E_JWT_Real
+//  1. 本地开发：
+//     gcloud auth application-default login
+//     go test -v ./test/e2e -run TestE2E_JWT_Real
 //
-// 3. 跳过真实 GCP 测试：
-//    go test -v ./test/e2e -short  (这些测试会被跳过)
+//  2. CI/CD with Service Account：
+//     export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json
+//     go test -v ./test/e2e -run TestE2E_JWT_Real
+//
+//  3. 跳过真实 GCP 测试：
+//     go test -v ./test/e2e -short  (这些测试会被跳过)
 package e2e
 
 import (

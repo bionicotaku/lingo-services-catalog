@@ -133,7 +133,6 @@ func (h *JWTTestHelper) VerifyToken(tokenString, expectedAudience string) (*Clou
 		}
 		return h.publicKey, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
 	}

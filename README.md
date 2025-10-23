@@ -335,90 +335,118 @@ Controllers  →  Services  →  Repositories  →  Database
 
 ### Wire 依赖注入图
 
-本项目使用 **Google Wire** 进行依赖注入，以下是完整的依赖关系图：
+本项目使用 **Google Wire** 进行依赖注入，以下是完整的依赖关系图（箭头表示数据流向：提供者 → 使用者）：
 
 ```mermaid
-graph TB
-    subgraph DependencyGraph["kratos-template 依赖图"]
-        App["*kratos.App<br/>(目标)"]
-
-        subgraph Controllers["Controller 层"]
-            VH["*VideoHandler"]
-        end
-
-        subgraph Services["Service 层"]
-            VU["*VideoUsecase"]
-        end
-
-        subgraph Repositories["Repository 层"]
-            VR["*VideoRepository"]
-        end
-
-        subgraph Infrastructure["基础设施层"]
-            DB["*pgxpool.Pool"]
-            Logger["log.Logger"]
-            Server["*grpc.Server"]
-            Obs["*observability.Component"]
-        end
-
-        subgraph Config["配置层"]
-            Bundle["*loader.Bundle"]
-            Metadata["ServiceMetadata"]
-        end
-
-        App -->|依赖| VH
-        App -->|依赖| Server
-        App -->|依赖| Logger
-        App -->|依赖| Metadata
-        App -->|依赖| Obs
-
-        VH -->|依赖| VU
-
-        VU -->|接口| VR
-        VU -->|依赖| Logger
-
-        VR -->|依赖| DB
-        VR -->|依赖| Logger
-
-        Server -->|依赖| VH
-        Server -->|依赖| Metadata
-        Server -->|依赖| Logger
-
-        DB -->|依赖| Bundle
-        Logger -->|依赖| Metadata
-        Obs -->|依赖| Metadata
-
-        Bundle -->|来自| Params["configloader.Params<br/>(输入参数)"]
+graph LR
+    subgraph Input["输入层"]
+        Params["configloader.Params<br/>(命令行参数)"]
     end
 
+    subgraph Config["配置层"]
+        Bundle["*loader.Bundle<br/>(配置包)"]
+        Metadata["ServiceMetadata<br/>(服务元信息)"]
+        ServerCfg["*configpb.Server"]
+        DataCfg["*configpb.Data"]
+    end
+
+    subgraph Foundation["基础组件层"]
+        Logger["log.Logger<br/>(结构化日志)"]
+        Obs["*observability.Component<br/>(追踪/指标)"]
+        JWT["*gcjwt.Component<br/>(JWT 中间件)"]
+        DB["*pgxpool.Pool<br/>(数据库连接池)"]
+    end
+
+    subgraph Business["业务层"]
+        VR["*VideoRepository<br/>(仓储实现)"]
+        VU["*VideoUsecase<br/>(业务用例)"]
+        VH["*VideoHandler<br/>(gRPC Handler)"]
+    end
+
+    subgraph Server["服务器层"]
+        GRPCServer["*grpc.Server<br/>(gRPC 服务器)"]
+        App["*kratos.App<br/>(应用实例)"]
+    end
+
+    %% 配置流
+    Params --> Bundle
+    Bundle --> Metadata
+    Bundle --> ServerCfg
+    Bundle --> DataCfg
+
+    %% 基础组件流
+    Metadata --> Logger
+    Metadata --> Obs
+    ServerCfg --> JWT
+    DataCfg --> JWT
+    DataCfg --> DB
+
+    %% 业务流（自底向上）
+    DB --> VR
+    Logger --> VR
+    VR --> VU
+    Logger --> VU
+    VU --> VH
+
+    %% 服务器流
+    VH --> GRPCServer
+    JWT --> GRPCServer
+    Logger --> GRPCServer
+    ServerCfg --> GRPCServer
+
+    GRPCServer --> App
+    Logger --> App
+    Metadata --> App
+    Obs --> App
+
+    %% 样式
     style App fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:4px
-    style Controllers fill:#f39c12,color:#fff
-    style Services fill:#3498db,color:#fff
-    style Repositories fill:#9b59b6,color:#fff
-    style Infrastructure fill:#2ecc71,color:#fff
+    style Params fill:#95a5a6,color:#fff
     style Config fill:#95a5a6,color:#fff
+    style Foundation fill:#2ecc71,color:#fff
+    style Business fill:#3498db,color:#fff
+    style Server fill:#f39c12,color:#fff
 ```
 
-**关键说明**：
-- 🔴 **App (红色)** - Wire 装配的最终目标，聚合所有依赖
-- 🟠 **Controller 层** - 处理 gRPC 请求，依赖 Service 层
-- 🔵 **Service 层** - 业务逻辑编排，通过**接口**依赖 Repository
-- 🟣 **Repository 层** - 数据访问实现，依赖数据库连接池
-- 🟢 **Infrastructure 层** - 基础设施组件（DB、日志、服务器、可观测性）
-- ⚪ **Config 层** - 配置加载与服务元信息
+**依赖流向说明**（自底向上构建）：
+
+1. **配置层** (灰色)
+   - `Params` (输入) → `Bundle` (配置包)
+   - `Bundle` → `ServiceMetadata` + `Server/Data Config`
+
+2. **基础组件层** (绿色)
+   - `ServiceMetadata` → `Logger` (gclog)
+   - `ServiceMetadata` → `Obs` (observability)
+   - `Server/Data Config` → `JWT` (gcjwt)
+   - `Data Config` → `DB` (pgxpool)
+
+3. **业务层** (蓝色)
+   - `DB + Logger` → `VideoRepository`
+   - `VideoRepository + Logger` → `VideoUsecase` (通过接口)
+   - `VideoUsecase` → `VideoHandler`
+
+4. **服务器层** (橙色/红色)
+   - `VideoHandler + JWT + Logger + Config` → `gRPC Server`
+   - `gRPC Server + Logger + Metadata + Obs` → `kratos.App` (最终目标)
 
 **依赖倒置体现**：
 ```go
-// Service 层定义接口
+// 1. Service 层定义接口
 type VideoRepo interface {
     FindByID(ctx context.Context, videoID uuid.UUID) (*po.Video, error)
 }
 
-// Repository 层实现接口
+// 2. Repository 层实现接口
 type VideoRepository struct { ... }
+func (r *VideoRepository) FindByID(...) (*po.Video, error) { ... }
 
-// Wire 绑定实现到接口
+// 3. Wire 绑定（接口 ← 实现）
 wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository))
+
+// 4. Service 依赖接口，运行时注入实现
+func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
+    return &VideoUsecase{repo: repo, log: log.NewHelper(logger)}
+}
 ```
 
 ### 详细架构图

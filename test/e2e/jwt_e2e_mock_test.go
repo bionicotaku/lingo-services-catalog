@@ -41,9 +41,9 @@ func TestE2E_JWT_MockToken_SkipValidate(t *testing.T) {
 	serverJWTCfg := gcjwt.Config{
 		Server: &gcjwt.ServerConfig{
 			ExpectedAudience: testAudience,
-			SkipValidate:     true,  // 跳过验证，仅提取 Claims
-			Required:         true,  // Token 必需
-			HeaderKey:        "",    // 使用默认 "authorization"
+			SkipValidate:     true, // 跳过验证，仅提取 Claims
+			Required:         true, // Token 必需
+			HeaderKey:        "",   // 使用默认 "authorization"
 		},
 	}
 	serverJWTComp, serverCleanup, err := gcjwt.NewComponent(serverJWTCfg, logger)
