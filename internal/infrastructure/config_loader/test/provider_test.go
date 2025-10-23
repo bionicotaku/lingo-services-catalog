@@ -150,9 +150,12 @@ server:
   grpc:
     addr: 0.0.0.0:9000
 data:
-  database:
-    driver: mysql
-    source: "root@tcp(localhost:3306)/test"
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 10
+    min_open_conns: 2
+    schema: "kratos_template"
+    enable_prepared_statements: false
   grpc_client:
     target: "dns:///remote:9000"
 `
@@ -171,8 +174,8 @@ data:
 	if dataCfg == nil {
 		t.Fatal("expected non-nil Data config")
 	}
-	if driver := dataCfg.GetDatabase().GetDriver(); driver != "mysql" {
-		t.Errorf("expected driver 'mysql', got %s", driver)
+	if dsn := dataCfg.GetPostgres().GetDsn(); dsn != "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable" {
+		t.Errorf("expected dsn 'postgresql://postgres:postgres@localhost:5432/test?sslmode=disable', got %s", dsn)
 	}
 	if target := dataCfg.GetGrpcClient().GetTarget(); target != "dns:///remote:9000" {
 		t.Errorf("expected target 'dns:///remote:9000', got %s", target)

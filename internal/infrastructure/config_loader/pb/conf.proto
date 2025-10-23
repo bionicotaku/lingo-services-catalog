@@ -4,6 +4,7 @@ package kratos.api;
 option go_package = "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpb";
 
 import "google/protobuf/duration.proto";
+import "validate/validate.proto";
 
 message Bootstrap {
   Server server = 1;
@@ -21,22 +22,34 @@ message Server {
 }
 
 message Data {
-  message Database {
-    string driver = 1;
-    string source = 2;
+  // PostgreSQL 数据库配置（Supabase 专用）
+  message PostgreSQL {
+    // DSN 连接串（必填）
+    // 示例: postgresql://user:pass@host:5432/db?sslmode=require&search_path=myschema
+    string dsn = 1 [(validate.rules).string = {
+      min_len: 1,
+      pattern: "^postgres(ql)?://.*"
+    }];
+
+    // 连接池配置
+    int32 max_open_conns = 2 [(validate.rules).int32 = {gte: 1, lte: 100}];
+    int32 min_open_conns = 3 [(validate.rules).int32 = {gte: 0, lte: 50}];
+    google.protobuf.Duration max_conn_lifetime = 4;
+    google.protobuf.Duration max_conn_idle_time = 5;
+    google.protobuf.Duration health_check_period = 6;
+
+    // Supabase 特定配置
+    string schema = 7;  // 默认 schema (如 "kratos_template")
+    bool enable_prepared_statements = 8;  // Pooler 模式建议设为 false
   }
-  message Redis {
-    string network = 1;
-    string addr = 2;
-    google.protobuf.Duration read_timeout = 3;
-    google.protobuf.Duration write_timeout = 4;
-  }
+
+  // gRPC Client 配置（可选，用于服务间调用）
   message Client {
-    string target = 1;
+    string target = 1;  // 目标地址，留空则不创建 client
   }
-  Database database = 1;
-  Redis redis = 2;
-  Client grpc_client = 3;
+
+  PostgreSQL postgres = 1 [(validate.rules).message.required = true];
+  Client grpc_client = 2;
 }
 
 message Observability {

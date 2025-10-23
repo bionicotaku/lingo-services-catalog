@@ -1,17 +1,27 @@
 server:
   grpc:
     addr: 0.0.0.0:9000
-    timeout: 1s
+    timeout: 5s
 data:
-  database:
-    driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/test?parseTime=True&loc=Local
-  redis:
-    addr: 127.0.0.1:6379
-    read_timeout: 0.2s
-    write_timeout: 0.2s
+  postgres:
+    # Supabase DSN（使用环境变量，默认值为本地开发）
+    # 生产环境：export DATABASE_URL="postgresql://postgres.xxxxx:password@..."
+    dsn: ${DATABASE_URL:-postgresql://postgres:postgres@localhost:54322/postgres?sslmode=disable&search_path=kratos_template}
+
+    # 连接池配置
+    max_open_conns: 10
+    min_open_conns: 2
+    max_conn_lifetime: 1h
+    max_conn_idle_time: 30m
+    health_check_period: 1m
+
+    # Supabase 配置
+    schema: kratos_template
+    enable_prepared_statements: false  # Supabase Pooler 必须禁用
+
+  # gRPC Client 配置（服务间调用，留空表示不启用）
   grpc_client:
-    target: dns:///127.0.0.1:9000
+    target: ""
 observability:
   global_attributes:
     service.group: template

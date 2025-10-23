@@ -562,17 +562,15 @@ server:
   grpc:
     addr: 0.0.0.0:9000
 data:
-  database:
-    driver: postgres
-    source: "host=db port=5432"
-  redis:
-    network: tcp
-    addr: "redis:6379"
-    read_timeout: 0.5s
-    write_timeout: 0.5s
-    dial_timeout: 1s
-    password: "secret"
-    db: 1
+  postgres:
+    dsn: "postgresql://user:pass@db:5432/testdb?sslmode=require"
+    max_open_conns: 10
+    min_open_conns: 2
+    max_conn_lifetime: 1h
+    max_conn_idle_time: 30m
+    health_check_period: 1m
+    schema: "kratos_template"
+    enable_prepared_statements: false
   grpc_client:
     target: "dns:///remote:9000"
 `
@@ -586,25 +584,22 @@ data:
 		t.Fatalf("Build failed: %v", err)
 	}
 
-	// 验证 Database
-	db := bundle.Bootstrap.GetData().GetDatabase()
-	if db.GetDriver() != "postgres" {
-		t.Errorf("expected driver 'postgres', got %s", db.GetDriver())
+	// 验证 PostgreSQL
+	pg := bundle.Bootstrap.GetData().GetPostgres()
+	if pg.GetDsn() != "postgresql://user:pass@db:5432/testdb?sslmode=require" {
+		t.Errorf("expected dsn 'postgresql://user:pass@db:5432/testdb?sslmode=require', got %s", pg.GetDsn())
 	}
-	if db.GetSource() != "host=db port=5432" {
-		t.Errorf("expected source 'host=db port=5432', got %s", db.GetSource())
+	if pg.GetMaxOpenConns() != 10 {
+		t.Errorf("expected max_open_conns 10, got %d", pg.GetMaxOpenConns())
 	}
-
-	// 验证 Redis
-	redis := bundle.Bootstrap.GetData().GetRedis()
-	if redis.GetNetwork() != "tcp" {
-		t.Errorf("expected network 'tcp', got %s", redis.GetNetwork())
+	if pg.GetMinOpenConns() != 2 {
+		t.Errorf("expected min_open_conns 2, got %d", pg.GetMinOpenConns())
 	}
-	if redis.GetAddr() != "redis:6379" {
-		t.Errorf("expected addr 'redis:6379', got %s", redis.GetAddr())
+	if pg.GetSchema() != "kratos_template" {
+		t.Errorf("expected schema 'kratos_template', got %s", pg.GetSchema())
 	}
-	if redis.GetReadTimeout().AsDuration() != 500*time.Millisecond {
-		t.Errorf("expected read_timeout 0.5s, got %v", redis.GetReadTimeout().AsDuration())
+	if pg.GetEnablePreparedStatements() != false {
+		t.Errorf("expected enable_prepared_statements false, got %v", pg.GetEnablePreparedStatements())
 	}
 
 	// 验证 gRPC Client

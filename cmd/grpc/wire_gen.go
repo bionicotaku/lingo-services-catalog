@@ -11,6 +11,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -59,10 +60,17 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	bootstrap := loader.ProvideBootstrap(bundle)
 	server := loader.ProvideServerConfig(bootstrap)
 	metricsConfig := observability.ProvideMetricsConfig(observabilityConfig)
-	greeterRepo := repositories.NewGreeterRepo(logger)
 	data := loader.ProvideDataConfig(bootstrap)
-	clientConn, cleanup3, err := grpcclient.NewGRPCClient(data, metricsConfig, logger)
+	pool, cleanup3, err := database.NewPgxPool(contextContext, data, logger)
 	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	greeterRepo := repositories.NewGreeterRepo(pool, logger)
+	clientConn, cleanup4, err := grpcclient.NewGRPCClient(data, metricsConfig, logger)
+	if err != nil {
+		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
@@ -73,6 +81,7 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, greeterHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
 	return app, func() {
+		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()

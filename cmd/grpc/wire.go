@@ -11,6 +11,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
 	grpcclient "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -65,6 +66,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		configloader.ProviderSet,
 		gclog.ProviderSet,
 		obswire.ProviderSet,
+		database.ProviderSet,        // ← 新增：数据库连接池
 		grpcserver.ProviderSet,
 		grpcclient.ProviderSet,
 		clients.ProviderSet,

@@ -9,21 +9,22 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/services"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // greeterRepo 是 services.GreeterRepo 接口的实现。
-// 当前为测试桩实现，后续可替换为真实的数据库访问逻辑（如 sqlc、GORM 等）。
+// 使用 pgxpool.Pool 进行数据库访问（Supabase PostgreSQL）。
 type greeterRepo struct {
-	log *log.Helper // 结构化日志辅助器
-	// TODO: 接入真实数据库时添加字段，如：
-	// db *sql.DB 或 queries *sqlc.Queries
+	pool *pgxpool.Pool // PostgreSQL 连接池
+	log  *log.Helper   // 结构化日志辅助器
 }
 
 // NewGreeterRepo 构造 GreeterRepo 接口的实现实例。
-// 通过 Wire 注入 logger，后续接入数据库时可注入 DB 连接池。
-func NewGreeterRepo(logger log.Logger) services.GreeterRepo {
+// 通过 Wire 注入数据库连接池和 logger。
+func NewGreeterRepo(pool *pgxpool.Pool, logger log.Logger) services.GreeterRepo {
 	return &greeterRepo{
-		log: log.NewHelper(logger),
+		pool: pool,
+		log:  log.NewHelper(logger),
 	}
 }
 
