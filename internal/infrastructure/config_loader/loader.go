@@ -20,6 +20,7 @@ const (
 	envServiceName    = "SERVICE_NAME"
 	envServiceVersion = "SERVICE_VERSION"
 	envAppEnv         = "APP_ENV"
+	envDatabaseURL    = "DATABASE_URL"
 )
 
 var envFileNames = []string{".env.local", ".env"}
@@ -141,10 +142,24 @@ func loadBootstrap(confPath string) (*configpb.Bootstrap, error) {
 	if err := c.Scan(&bc); err != nil {
 		return nil, BuildError{Stage: "scan", Path: confPath, Err: err}
 	}
+	applyEnvOverrides(&bc)
 	if err := bc.ValidateAll(); err != nil {
 		return nil, BuildError{Stage: "validate", Path: confPath, Err: err}
 	}
 	return &bc, nil
+}
+
+func applyEnvOverrides(bc *configpb.Bootstrap) {
+	if bc == nil {
+		return
+	}
+	if dsn := os.Getenv(envDatabaseURL); dsn != "" {
+		if data := bc.GetData(); data != nil {
+			if pg := data.GetPostgres(); pg != nil {
+				pg.Dsn = dsn
+			}
+		}
+	}
 }
 
 func buildServiceMetadata() ServiceMetadata {

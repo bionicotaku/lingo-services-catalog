@@ -4,13 +4,13 @@ server:
     timeout: 5s
 data:
   postgres:
-    dsn: ${DATABASE_URL:-postgresql://postgres:postgres@localhost:54322/postgres?sslmode=disable&search_path=kratos_template}
+    dsn: "" # 环境变量 DATABASE_URL 覆盖此值
     max_open_conns: 10
     min_open_conns: 2
     max_conn_lifetime: 3600s
     max_conn_idle_time: 1800s
     health_check_period: 60s
-    schema: kratos_template
+    schema: catalog
     enable_prepared_statements: false
   grpc_client:
     target: 127.0.0.1:9102

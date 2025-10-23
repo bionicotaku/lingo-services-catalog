@@ -43,6 +43,8 @@ import (
 //	}
 //	defer cleanup()
 func NewPgxPool(ctx context.Context, c *configpb.Data, logger log.Logger) (*pgxpool.Pool, func(), error) {
+	helper := log.NewHelper(logger)
+
 	pgCfg := c.GetPostgres()
 	if pgCfg == nil {
 		return nil, nil, fmt.Errorf("postgres configuration is required")
@@ -51,7 +53,7 @@ func NewPgxPool(ctx context.Context, c *configpb.Data, logger log.Logger) (*pgxp
 	// 1. 解析 DSN
 	dsn := pgCfg.GetDsn()
 	if dsn == "" {
-		return nil, nil, fmt.Errorf("postgres DSN is required")
+		return nil, nil, fmt.Errorf("postgres DSN is required (set DATABASE_URL)")
 	}
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)
@@ -77,7 +79,7 @@ func NewPgxPool(ctx context.Context, c *configpb.Data, logger log.Logger) (*pgxp
 	}
 
 	// 3. 集成 Kratos Logger（映射 pgx 日志级别到 Kratos 日志）
-	poolConfig.ConnConfig.Tracer = &pgxLogger{logger: logger}
+	poolConfig.ConnConfig.Tracer = &pgxLogger{helper: helper}
 
 	// 4. 设置默认 Schema（如果配置中指定）
 	if schema := pgCfg.GetSchema(); schema != "" {
@@ -105,24 +107,24 @@ func NewPgxPool(ctx context.Context, c *configpb.Data, logger log.Logger) (*pgxp
 	}
 
 	// 7. 启动时健康检查
-	if err := healthCheck(ctx, pool, logger); err != nil {
+	if err := healthCheck(ctx, pool, helper); err != nil {
 		pool.Close()
 		return nil, nil, fmt.Errorf("postgres health check failed: %w", err)
 	}
 
 	// 8. 日志输出连接池摘要（脱敏 DSN）
-	logger.Log(log.LevelInfo,
-		"msg", "postgres pool created",
-		"dsn", sanitizeDSN(dsn),
-		"max_conns", poolConfig.MaxConns,
-		"min_conns", poolConfig.MinConns,
-		"schema", pgCfg.GetSchema(),
-		"prepared_statements", pgCfg.GetEnablePreparedStatements(),
+	helper.Infof(
+		"postgres pool created: dsn=%s max_conns=%d min_conns=%d schema=%s prepared_statements=%v",
+		sanitizeDSN(dsn),
+		poolConfig.MaxConns,
+		poolConfig.MinConns,
+		pgCfg.GetSchema(),
+		pgCfg.GetEnablePreparedStatements(),
 	)
 
 	// 9. 返回 cleanup 函数（优雅关闭）
 	cleanup := func() {
-		logger.Log(log.LevelInfo, "msg", "closing postgres pool")
+		helper.Info("closing postgres pool")
 		pool.Close()
 	}
 
@@ -136,7 +138,7 @@ func NewPgxPool(ctx context.Context, c *configpb.Data, logger log.Logger) (*pgxp
 //  2. 查询 PostgreSQL 版本（验证可执行 SQL）
 //
 // 失败时返回错误，不会 panic。
-func healthCheck(ctx context.Context, pool *pgxpool.Pool, logger log.Logger) error {
+func healthCheck(ctx context.Context, pool *pgxpool.Pool, helper *log.Helper) error {
 	// 超时上下文（避免健康检查长时间阻塞启动）
 	healthCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -154,9 +156,9 @@ func healthCheck(ctx context.Context, pool *pgxpool.Pool, logger log.Logger) err
 	}
 
 	// 记录成功日志
-	logger.Log(log.LevelInfo,
-		"msg", "database health check passed",
-		"version", truncateVersion(version),
+	helper.Infof(
+		"database health check passed: version=%s",
+		truncateVersion(version),
 	)
 
 	return nil
@@ -210,7 +212,7 @@ func truncateVersion(version string) string {
 //   - pgx.LogLevelInfo  → Kratos INFO
 //   - 其他级别不记录（避免日志噪音）
 type pgxLogger struct {
-	logger log.Logger
+	helper *log.Helper
 }
 
 // TraceQueryStart 实现 pgx.QueryTracer 接口（查询开始时调用）。
@@ -224,10 +226,10 @@ func (l *pgxLogger) TraceQueryStart(ctx context.Context, _ *pgx.Conn, _ pgx.Trac
 func (l *pgxLogger) TraceQueryEnd(_ context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
 	if data.Err != nil {
 		// 记录查询错误（仅包含错误信息，不记录 SQL 以避免敏感数据泄露）
-		l.logger.Log(log.LevelError,
-			"msg", "postgres query failed",
-			"error", data.Err.Error(),
-			"command_tag", data.CommandTag.String(),
+		l.helper.Errorf(
+			"postgres query failed: error=%v command_tag=%s",
+			data.Err,
+			data.CommandTag.String(),
 		)
 	}
 }

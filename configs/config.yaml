@@ -4,20 +4,19 @@ server:
     timeout: 5s
 data:
   postgres:
-    # Supabase DSN（使用环境变量，默认值为本地开发）
-    # 生产环境：export DATABASE_URL="postgresql://postgres.xxxxx:password@..."
-    dsn: ${DATABASE_URL:-postgresql://postgres:postgres@localhost:54322/postgres?sslmode=disable&search_path=kratos_template}
+    # 运行前必须配置环境变量 DATABASE_URL
+    dsn: ""
 
     # 连接池配置
     max_open_conns: 10
     min_open_conns: 2
-    max_conn_lifetime: 3600s   # 1 小时
-    max_conn_idle_time: 1800s  # 30 分钟
-    health_check_period: 60s   # 1 分钟
+    max_conn_lifetime: 3600s # 1 小时
+    max_conn_idle_time: 1800s # 30 分钟
+    health_check_period: 60s # 1 分钟
 
     # Supabase 配置
-    schema: kratos_template
-    enable_prepared_statements: false  # Supabase Pooler 必须禁用
+    schema: catalog
+    enable_prepared_statements: false # Supabase Pooler 必须禁用
 
   # gRPC Client 配置（服务间调用，留空表示不启用）
   grpc_client:

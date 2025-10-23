@@ -303,7 +303,6 @@ func (x *Server_GRPC) GetTimeout() *durationpb.Duration {
 type Data_PostgreSQL struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// DSN 连接串（必填）
-	// 示例: postgresql://user:pass@host:5432/db?sslmode=require&search_path=myschema
 	Dsn string `protobuf:"bytes,1,opt,name=dsn,proto3" json:"dsn,omitempty"`
 	// 连接池配置
 	MaxOpenConns      int32                `protobuf:"varint,2,opt,name=max_open_conns,json=maxOpenConns,proto3" json:"max_open_conns,omitempty"`

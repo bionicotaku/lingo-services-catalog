@@ -25,11 +25,7 @@ message Data {
   // PostgreSQL 数据库配置（Supabase 专用）
   message PostgreSQL {
     // DSN 连接串（必填）
-    // 示例: postgresql://user:pass@host:5432/db?sslmode=require&search_path=myschema
-    string dsn = 1 [(validate.rules).string = {
-      min_len: 1,
-      pattern: "^postgres(ql)?://.*"
-    }];
+    string dsn = 1 [(validate.rules).string = { min_len: 1, pattern: "^postgres(ql)?://.*" }];
 
     // 连接池配置
     int32 max_open_conns = 2 [(validate.rules).int32 = {gte: 1, lte: 100}];
