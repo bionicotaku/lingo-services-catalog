@@ -1,295 +1,854 @@
-# Kratos Project Template 目录说明
+# Kratos-Template
 
-本模板基于 go-kratos 官方骨架，可配合 `make api`（protoc）生成所需代码。以下对每个目录与核心文件逐一说明，便于在现有骨架上扩展真实业务。
+> **基于 Kratos v2 的微服务模板 | DDD-lite 架构 | 类型安全的数据访问**
 
-## 根目录文件
+[![Go Version](https://img.shields.io/badge/Go-1.25.3-blue)](https://golang.org/)
+[![Kratos Version](https://img.shields.io/badge/Kratos-v2.9.1-green)](https://go-kratos.dev/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-- `README.md`：当前文档，概览整个模板结构与各层职责，可在接入真实业务前更新本说明。
-- `LICENSE`：MIT 协议文本，继承上游 go-kratos 项目的授权条款。
-- `Makefile`：集中管理常用任务。`make init` 安装开发所需工具（含 Buf/kratos/protoc 插件），`make api` 与 `make config` 通过 Buf 生成 gRPC/REST/OpenAPI/PGV 校验代码（即便当前服务仅暴露 gRPC 接口，仍保留 HTTP stub 以便后续拓展），`make build` 则输出二进制到 `bin/`。
-- `buf.gen.yaml`：Buf 生成规则，配置 `go`、`go-grpc`、`go-http`、`validate`、`openapi` 五类插件，生成 Go 代码、Proto-Gen-Validate 校验逻辑及 OpenAPI 文档。
-- `openapi.yaml`：通过 `protoc-gen-openapi` 生成的 REST 契约文件，便于前端或 API 测试工具使用。
-- `generate.go`：Kratos 约定的生成入口，可在需要时增加 `//go:generate` 指令集中刷新代码。
-- `go.mod` / `go.sum`：Go Module 与依赖锁定文件，模块名默认是 `github.com/bionicotaku/kratos-template`，落地业务时可按需修改。
-- `Dockerfile`：多阶段构建镜像示例，Stage1 使用官方 Go 镜像编译，Stage2 基于 debian slim 运行产物并暴露 8000/9000 端口。
-
-### 日志（gclog）
-
-- 通过 `github.com/bionicotaku/lingo-utils/gclog` 输出结构化 JSON，字段与 Cloud Logging 模型保持一致（`timestamp`、`severity`、`serviceContext`、`labels`、`jsonPayload` 等）。
-- `cmd/grpc/main.go` 根据 `APP_ENV` 设置 `environment`，并写入静态标签 `service.id=<hostname>`。若 `APP_ENV` 未设置则默认 `development`。
-- gRPC Server 默认启用 `logging.Server(logger)` 中间件。配合 `gclog` 的字段映射，`kind/component/operation/args/code/reason/stack/latency` 会自动落在合适的位置，Trace/Span 由 OTel SpanContext 自动注入。
-- 业务侧若需追加自定义标签或 payload，可使用 `gclog.WithLabels` / `gclog.WithAllowedLabelKeys` / `gclog.WithPayload` 等 helper。
-- 单测可调用 `gclog.NewTestLogger` 拿到内存缓冲 logger 断言输出内容。
-- 通过 `github.com/bionicotaku/lingo-utils/gclog` 的 ProviderSet，可在 Wire 中统一注入 trace-aware 的 Kratos logger，无需手动组装；`internal/infrastructure/config_loader` 会基于 `ServiceMetadata` 自动生成 gclog 所需配置。
-
-### 可观测性（OpenTelemetry）
-
-- 模板依赖 `github.com/bionicotaku/lingo-utils/observability`，通过 `github.com/bionicotaku/lingo-utils/observability` 暴露的 Wire Provider 初始化统一的 Tracer/Meter 组件，`wireApp` 返回的 cleanup 会在退出时自动刷新缓冲数据。
-- `configs/config.yaml` 下提供 `observability` 节点，可独立控制 tracing / metrics 的启用、exporter（`stdout` 或 `otlp_grpc`）、endpoint、采样率、运行时指标等；默认配置使用 `stdout` exporter 与 `required=false`，方便无 Collector 的开发环境。
-- gRPC Server/Client 中间件链包含 `observability/tracing.Server()` 与 `observability/tracing.Client()`，与 logging 中间件协同工作，自动补齐结构化日志中的 `trace_id`/`span_id` 字段；同时可选择性挂载 `otelgrpc` stats handler 以采集 RPC 指标，详见下文配置。
-- 如果暂时没有 OTLP Collector，可保持 `stdout` exporter 或直接将 `enabled` 设为 `false`；接入云端（如 Cloud Trace、Tempo）时改为 `otlp_grpc` 并设置对应 `endpoint`、`headers` 即可，无需改动业务代码。
-- 模板只负责安装全局 Provider，业务代码可按需通过 `otel.Tracer`、`otel.Meter` 打点自定义 Span/Metric；必要时可在服务层注入 Meter 统计业务指标。
-
-> **离线/受限网络环境构建提示**  
-> `make all` 默认会执行 `go generate`→`wire`，过程中需要从 `sum.golang.org` 校验 `golang.org/x/tools`。若网络无法访问该校验服务，可临时使用 `GOSUMDB=off make all` 绕过外部校验（或改用自建 sumdb 镜像），再配合私有 Proxy 分发依赖。
-
-## API 层（`api/`）
-
-- `api/helloworld/v1/*.proto`：示例 gRPC 契约，当前仅包含 `Greeter` 场景与错误枚举，展示如何声明 RPC 及 HTTP 注解。
-- `api/helloworld/v1/*_pb.go` / `*_grpc.pb.go` / `*_http.pb.go`：运行 `protoc` 或 `make api` 后生成的 Go 代码，分别用于消息结构、gRPC 服务端接口与可选的 HTTP 适配层。
-- `api/openapi.yaml`：由 `protoc-gen-openapi` 生成的 REST 契约文档，可被 Swagger UI 或工具链消费。
-
-## 入口层（`cmd/`）
-
-- `cmd/grpc/main.go`：服务启动入口，通过标准库 `flag` 注册 `-conf`，直接封装到 `Params` 交给 Wire，由 `Build` 在内部解析路径（优先 `-conf`，其次 `CONF_PATH`，否则回落到仓库根的 `configs/`），读取目录/文件并执行 PGV 校验，生成类型安全的 Bundle 后装配 Kratos 应用（HTTP 调试入口可在 `cmd/http` 按需创建）。
-- `cmd/grpc/wire.go` / `wire_gen.go`：依赖注入配置与自动生成文件。`wire.go` 中通过 `config_loader.ProviderSet` 将 ServiceMetadata、Bootstrap 子段、日志与观测配置统一暴露给后续 Provider；修改依赖后执行 `wire` 重新生成 `wire_gen.go`。
-
-## 配置（`configs/`）
-
-- `configs/config.yaml`：本地样例配置，展示 gRPC 监听地址与数据源参数。`make run` 或二进制启动时可通过 `-conf` 指定目录。
-
-## 内部实现（`internal/`）
-
-该目录下的代码不会被外部模块引用，每一层各司其职，共同完成 DDD-lite 风格的服务拆分：
-
-- `internal/infrastructure/config_loader/`  
-  配置加载与 schema 所在目录：`defaults.go` 统一声明默认路径/环境常量；`loader.go` 提供 `ResolveConfPath`（兼容 Flag/环境变量 回退）与 `Build`（依据 `Params` 读取配置、扫描 YAML/TOML/JSON，随后触发 PGV `ValidateAll` 并推导 ServiceMetadata、观测与日志配置，最终返回 Bundle）；`provider.go` 将这些结果封装成 Wire ProviderSet，后续 Provider 可以直接注入 `*configpb.Server`、`*configpb.Data`、`obswire.ObservabilityConfig` 等类型；`pb/conf.proto` 描述配置结构，执行 `buf generate --path internal/infrastructure/config_loader/pb` 会在同目录产出 `conf.pb.go` 与 PGV 校验代码，确保配置访问具备类型安全与 IDE 补全。
-
-- `internal/clients/`  
-  业务级远端客户端封装：例如 `GreeterRemote` 基于仓储层注入的 gRPC 连接调用远端服务，负责处理幂等/日志等与业务强相关的逻辑，保持与底层连接实现解耦。
-
-- `internal/infrastructure/`  
-  底层设施统一入口：`config_loader` 负责解析配置并提供 Wire Provider，`grpc_client` 根据数据配置与观测指标构建对外 gRPC 连接（`NewGRPCClient`），`grpc_server` 读取 Server 配置装配入站 Server，`logger` 封装观测日志初始化。只要有初始化逻辑，就在子目录下提供 `init.go`，通过 Wire 注册 Provider。
-
-- `internal/controllers/`  
-  传输层 Handler / Controller 实现，由 proto 生成的接口起点（现阶段仍为 gRPC，后续会扩展 REST）。负责 DTO ↔ 视图对象转换与用例编排入口，并在互调场景下维护必要元数据（例如避免远端调用递归）。PGV 校验会在请求进入 handler 前自动执行，例如 `HelloRequest.name` 为空时直接返回 `InvalidArgument`。
-
-- `internal/services/`  
-  定义领域用例 (`GreeterUsecase`)，聚合仓储与外部服务接口，是复杂业务规则与日志的归属地，不触及底层技术细节。返回值统一使用 `internal/models/vo` 下的视图对象。
-
-- `internal/repositories/`  
-  领域仓储实现层，承接数据库、缓存或远端 gRPC 等外部依赖。示例中 `greeter.go` 展示本地仓储，`internal/clients/greeter_grpc.go` 展示远端访问封装；根据业务需要可自行引入持久化连接的初始化逻辑。
-
-- `internal/models/`  
-  `po`（persistent object）用于仓储与底层存储的实体表示；`vo`（view object）面向上层展示与跨服务返回值，避免直接暴露内部结构。
-
-- `internal/views/`  
-  负责将 usecase 返回的视图对象渲染为对外响应（Problem Details、分页、ETag 等），保持 Controller 的精简。
-
-- `internal/tasks/`  
-  预留 Outbox 扫描、定时任务与后台 Worker 的放置位置。需要注入调度器时，同样通过 `init.go` 声明 Provider。
-
-> 单元测试示例存放在对应包的 `test/` 子目录（例如 `internal/controllers/test`）。测试包采用 `package xxx_test` 形式引用被测包，直接运行 `go test ./...` 即可一并覆盖。
-
-### 请求/数据流转示意
-
-```mermaid
-flowchart TD
-    A[外部调用<br/>gRPC Client] --> B[internal/infrastructure/grpc_server<br/>gRPC Server<br/>路由+中间件]
-    B --> C[internal/controllers<br/>GreeterHandler<br/>DTO→视图/编排入口]
-    C --> D[internal/services<br/>GreeterUsecase<br/>领域逻辑]
-    D --> E[internal/repositories<br/>GreeterRepo<br/>本地仓储]
-    D --> F[internal/repositories<br/>GreeterRemote<br/>远端仓储]
-    E --> I[(数据库/缓存 等本地依赖)]
-    F --> G[internal/infrastructure/grpc_client<br/>NewGRPCClient<br/>连接+中间件]
-    G --> H[远端 Greeter 微服务]
-    H --> G
-    F --> J[internal/clients<br/>GreeterRemote]
-    G --> J
-    J --> D
-    I --> D
-    D --> C
-    C --> K[internal/views<br/>渲染响应]
-    K --> B
-    B --> A
-```
-
-> 读或写外部系统（包括远端 gRPC）都经过 `internal/repositories`，由 services 层统一编排；`internal/clients` 负责通信能力复用；controllers 与 `internal/infrastructure/grpc_server` 则各自处理协议层与传输层职责。
-
-## 其它
-
-- `third_party/`：存放 gRPC/HTTP 注解等常用的第三方 proto 定义（如 `google/api`、`validate`）。编译 proto 时通过 `--proto_path=third_party` 引入这些依赖。
-
-```text
-├── Dockerfile                // 多阶段构建示例
-├── LICENSE                   // 模板沿用的 MIT 授权文本
-├── Makefile                  // 常用构建/生成命令集合（init、api、config 等）
-├── README.md                 // 本文件，记录结构与使用说明
-├── api                       // Proto 契约与生成代码
-│   └── helloworld/v1         // 示例服务命名空间 + 版本
-│       ├── error_reason.proto
-│       ├── error_reason.pb.go
-│       ├── greeter.proto
-│       ├── greeter.pb.go
-│       ├── greeter_grpc.pb.go
-│       └── greeter_http.pb.go
-├── cmd/grpc                  // 强制 gRPC 入口
-│   ├── main.go               // 程序入口：加载配置并运行 gRPC
-│   ├── wire.go               // Wire 依赖注入定义
-│   └── wire_gen.go           // Wire 自动生成装配实现（勿手动修改）
-├── cmd/http (可选)          // 如需暴露 HTTP 调试入口，可在此新增
-├── configs                   // 本地调试配置
-│   ├── config.yaml
-│   ├── config.instance-a.yaml
-│   └── config.instance-b.yaml
-├── generate.go               // 预留 go generate 钩子
-├── go.mod / go.sum           // Go Module 元数据与依赖锁定
-├── internal                  // 服务内部实现（对外不可见）
-│   ├── clients               // 外部依赖客户端封装（gRPC/HTTP 等），需注入时在 init.go 注册 Wire Provider
-│   ├── conf                  // 配置 schema 与生成代码
-│   ├── controllers           // 传输层 handler（gRPC/HTTP），仅做参数校验与调用 Service
-│   ├── infrastructure        // 底层设施（server、data、logger 等），统一在各子目录 init.go 暴露 Provider
-│   ├── models                // 领域模型：`po`（持久化对象）与 `vo`（视图对象）
-│   ├── repositories          // 数据访问层，实现 Service 所需的仓储接口
-│   ├── services              // 业务用例层（MVC 中的 Service），组合仓储与客户端
-│   ├── tasks                 // 异步任务、Outbox 扫描等后台 Worker
-│   └── views                 // 响应包装（Problem Details、分页、ETag 等）
-├── openapi.yaml              // REST OpenAPI 文档
-├── third_party               // 第三方 proto 依赖（google/api、validate 等）
-└── (bin/)                    // 执行 make build 后生成的二进制输出目录（默认忽略）
-```
-
-以上结构提供了一个最小可行的 Kratos 微服务骨架。开发真实业务时，可在此基础上扩展 proto 契约、补全 data 层与 Usecase，实现自定义领域逻辑与配套测试。*** End Patch​
-
-## gRPC 指标开关
-
-服务通过 `observability.metrics` 配置控制 gRPC 指标：
-
-```yaml
-observability:
-  metrics:
-    grpc_enabled: true
-    grpc_include_health: false
-```
-
-- `grpc_enabled`：默认 `true`，决定是否挂载 `otelgrpc` stats handler。
-- `grpc_include_health`：默认 `false`，可选地排除 `/grpc.health.v1.Health/Check` 的指标噪音。
-
-模板的 gRPC server/client 会自动读取该配置；若未提供，仍保持指标开启并过滤健康检查。其它业务服务复用模板逻辑时，应在 Wire 中传入同一份 `observability.MetricsConfig` 以保持一致。
-
-
-### Observability 依赖注入
-
-- `github.com/bionicotaku/lingo-utils/observability` _ProviderSet_ 提供 `Component` Provider，Wire 会负责初始化 OpenTelemetry Tracer/Meter，并在 `cleanup` 中执行 `Shutdown`。
-- 其它 Provider 只需依赖 `*observability.Component` 或 `ObservabilityConfig` / `MetricsConfig` 即可，共享同一套观测配置。
-
-### 配置加载 Provider
-
-- `internal/infrastructure/config_loader` 暴露 `ServiceMetadata`（服务名/版本/环境/实例 ID），以及 `ProvideLoggerConfig` / `ProvideObservabilityInfo`，用于将配置拆分给 gclog 与 observability Provider。
-- `ServiceMetadata` 默认从命令行 `-conf`、编译期注入 `Name/Version` 和 `APP_ENV` 推导：缺省值分别为 `template`、`dev`、`development`，实例 ID 取自主机名。
-- 有了这些 Provider，`wireApp` 只需传入根 context、Bootstrap 的 Server/Data 配置和 `ServiceMetadata`，即可统一完成日志与观测组件的初始化。
+本项目是一个**生产级 Kratos 微服务模板**，展示如何构建一个遵循 DDD-lite 原则的视频目录服务（Video Catalog Service），包含完整的分层架构、类型安全的数据访问、全链路可观测性和依赖注入等企业级特性。
 
 ---
 
-## ⚠️ 生产特性清单
+## 📖 目录
 
-本模板当前处于**早期骨架阶段**，以下列出已实现与待补充的生产级特性，供团队评估与规划使用。
+- [项目概览](#项目概览)
+- [核心特性](#核心特性)
+- [技术栈](#技术栈)
+- [快速开始](#快速开始)
+- [项目结构](#项目结构)
+- [架构设计](#架构设计)
+- [数据流转](#数据流转)
+- [配置说明](#配置说明)
+- [测试](#测试)
+- [部署](#部署)
+- [文档](#文档)
+- [开发指南](#开发指南)
+- [常见问题](#常见问题)
+
+---
+
+## 项目概览
+
+Kratos-Template 是一个**视频目录微服务**示例，实现了以下业务功能：
+
+- ✅ **视频元数据管理** - 完整的视频信息存储与查询
+- ✅ **状态流转控制** - 支持视频生命周期管理（pending_upload → processing → ready → published）
+- ✅ **AI 字段支持** - 包含难度评估、摘要生成、标签提取等 AI 分析字段
+- ✅ **媒体字段管理** - HLS 播放列表、缩略图、时长等媒体属性
+
+### 业务场景
+
+适用于需要构建**视频/媒体平台**的场景，如：
+- 在线教育平台（视频课程管理）
+- 短视频/UGC 平台（内容目录服务）
+- 企业培训系统（培训视频库）
+- 媒体资产管理（MAM）系统
+
+---
+
+## 核心特性
+
+### 🏗 架构特性
+
+- **DDD-lite 分层架构** - Controller → Service → Repository 清晰分离
+- **依赖倒置原则** - Service 层定义接口，Repository 层实现
+- **Wire 依赖注入** - 编译期注入，零运行时反射
+- **类型安全的数据访问** - 使用 sqlc 生成 SQL 查询代码
+- **Multi-Module 依赖管理** - 清晰的模块边界与版本控制
+
+### 🔭 可观测性
+
+- **OpenTelemetry 全链路追踪** - 自动注入 trace_id/span_id
+- **结构化日志（gclog）** - JSON 格式，兼容 Cloud Logging
+- **gRPC 指标采集** - RPC 调用次数、延迟、错误率
+- **运行时指标** - CPU、内存、goroutine 监控
+
+### 🛡 生产级特性
+
+- **超时控制** - Context 超时保护（5 秒查询超时）
+- **错误分层处理** - Repository → Service → Controller 逐层映射
+- **中间件栈** - 追踪、恢复、限流、参数校验、日志完整覆盖
+- **健康检查** - gRPC Health Check Protocol 支持
+- **优雅关闭** - Wire cleanup 机制保证资源释放顺序
+- **数据模型隔离** - DB → PO → VO → Proto 四层转换
+
+### 🧪 测试支持
+
+- **单元测试** - 覆盖 Service 层核心逻辑（≥80%）
+- **集成测试** - 连接真实数据库测试 Repository 层
+- **测试隔离** - 使用 `package xxx_test` 避免循环依赖
+
+---
+
+## 技术栈
+
+### 后端框架
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| **Go** | 1.25.3 | 编程语言 |
+| **Kratos** | v2.9.1 | 微服务框架 |
+| **gRPC** | v1.76.0 | 服务间通信 |
+| **Protocol Buffers** | v1.36.10 | 接口定义语言 |
+| **Wire** | v0.7.0 | 依赖注入 |
+
+### 数据存储
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| **PostgreSQL (Supabase)** | 15+ | 主数据库 |
+| **pgx** | v5.7.6 | PostgreSQL 驱动 |
+| **sqlc** | v1.30.0 | SQL 代码生成器 |
+
+### 可观测性
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| **OpenTelemetry** | v1.38.0 | 分布式追踪与指标 |
+| **gclog** | v0.1.0 | 结构化日志（lingo-utils） |
+| **observability** | v0.1.0 | 观测组件（lingo-utils） |
+
+### 中间件与工具
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| **gcjwt** | v0.1.0 | JWT 认证中间件（lingo-utils） |
+| **buf** | - | Protobuf 管理工具 |
+| **proto-gen-validate** | v1.2.1 | 参数校验 |
+
+---
+
+## 快速开始
+
+### 前置要求
+
+- Go 1.22+ ([安装指南](https://golang.org/dl/))
+- PostgreSQL 数据库（推荐 Supabase）
+- Buf CLI ([安装指南](https://docs.buf.build/installation))
+- Make 工具
+
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/bionicotaku/kratos-template.git
+cd kratos-template
+```
+
+### 2. 安装开发工具
+
+```bash
+make init
+```
+
+这将安装：
+- `wire` - 依赖注入代码生成
+- `sqlc` - SQL 代码生成
+- `gofumpt`, `goimports` - 代码格式化
+- `staticcheck`, `revive` - 静态检查工具
+
+### 3. 配置数据库
+
+创建 `.env` 文件（或编辑 `configs/config.yaml`）：
+
+```bash
+# 复制配置模板
+cp configs/config.yaml.example configs/config.yaml
+
+# 编辑配置
+vim configs/config.yaml
+```
+
+配置示例：
+
+```yaml
+server:
+  grpc:
+    addr: "0.0.0.0:9090"
+    timeout: "5s"
+
+data:
+  database:
+    driver: "postgres"
+    source: "postgres://user:password@db.supabase.co:5432/postgres?sslmode=require"
+```
+
+### 4. 执行数据库迁移
+
+```bash
+# 创建数据库 schema
+psql $DATABASE_URL < migrations/001_create_catalog_schema.sql
+```
+
+### 5. 生成代码
+
+```bash
+# 生成 Proto 代码
+make api
+
+# 生成 SQL 代码
+make sqlc
+
+# 生成 Wire 依赖注入代码
+make wire
+```
+
+### 6. 运行服务
+
+```bash
+# 开发模式（热重载）
+make run
+
+# 或直接运行二进制
+go run cmd/grpc/main.go -conf configs/
+```
+
+服务将在 `:9090` 端口启动 gRPC Server。
+
+### 7. 测试接口
+
+使用 grpcurl 测试：
+
+```bash
+# 查看服务列表
+grpcurl -plaintext localhost:9090 list
+
+# 调用 GetVideoDetail
+grpcurl -plaintext -d '{"video_id": "550e8400-e29b-41d4-a716-446655440000"}' \
+  localhost:9090 video.v1.VideoQueryService/GetVideoDetail
+```
+
+---
+
+## 项目结构
+
+```
+kratos-template/
+├── api/                              # gRPC 接口定义
+│   └── video/v1/
+│       ├── video.proto               # 视频服务 Proto 定义
+│       ├── video.pb.go               # 生成的 Go 代码
+│       └── video_grpc.pb.go          # 生成的 gRPC 服务端代码
+│
+├── cmd/                              # 应用入口
+│   └── grpc/
+│       ├── main.go                   # 主入口（加载配置并启动服务）
+│       ├── wire.go                   # Wire 依赖注入定义
+│       └── wire_gen.go               # Wire 生成的装配代码
+│
+├── configs/                          # 配置文件
+│   └── config.yaml                   # 服务配置（地址、数据库等）
+│
+├── internal/                         # 内部实现（不可被外部引用）
+│   ├── controllers/                  # 控制器层（HTTP/gRPC Handler）
+│   │   ├── video_handler.go          # 视频查询 Handler
+│   │   └── init.go                   # Wire ProviderSet
+│   │
+│   ├── services/                     # 服务层（业务逻辑）
+│   │   ├── video.go                  # 视频业务用例
+│   │   ├── biz.go                    # Wire ProviderSet
+│   │   └── test/                     # 单元测试
+│   │
+│   ├── repositories/                 # 仓储层（数据访问）
+│   │   ├── video_repo.go             # 视频仓储实现
+│   │   ├── sqlc/                     # sqlc 生成的代码
+│   │   │   ├── db.go
+│   │   │   ├── models.go
+│   │   │   ├── video.sql             # SQL 查询定义
+│   │   │   └── video.sql.go          # 生成的查询代码
+│   │   ├── mappers/                  # 数据模型转换
+│   │   │   └── video.go              # CatalogVideo → po.Video
+│   │   └── init.go                   # Wire ProviderSet
+│   │
+│   ├── models/                       # 数据模型
+│   │   ├── po/                       # 持久化对象（Persistent Object）
+│   │   │   └── video.go              # 视频数据库模型
+│   │   └── vo/                       # 视图对象（View Object）
+│   │       └── video.go              # 视频业务视图
+│   │
+│   ├── views/                        # 视图转换层
+│   │   └── video.go                  # VO → Proto Response
+│   │
+│   ├── infrastructure/               # 基础设施层
+│   │   ├── config_loader/            # 配置加载
+│   │   ├── database/                 # 数据库连接池
+│   │   ├── grpc_server/              # gRPC Server 配置
+│   │   └── grpc_client/              # gRPC Client 配置
+│   │
+│   ├── clients/                      # 外部服务客户端
+│   └── tasks/                        # 异步任务/定时任务
+│
+├── migrations/                       # 数据库迁移脚本
+│   └── 001_create_catalog_schema.sql # 初始化 Schema
+│
+├── test/                             # 测试
+│   ├── integration/                  # 集成测试
+│   │   └── video_integration_test.go # 视频服务集成测试
+│   └── fixtures/                     # 测试数据
+│
+├── docs/                             # 项目文档
+│   ├── ARCHITECTURE.md               # 架构设计文档（⭐推荐阅读）
+│   ├── ARCHITECTURE_PATTERNS.md      # 架构模式详解
+│   ├── WIRE_DEPENDENCY_INJECTION.md  # Wire 使用指南
+│   └── HEXAGONAL_ARCHITECTURE.md     # 六边形架构分析
+│
+├── scripts/                          # 脚本工具
+├── Makefile                          # 构建任务
+├── go.mod                            # Go 模块定义
+├── sqlc.yaml                         # sqlc 配置
+├── buf.yaml                          # Buf 配置
+└── README.md                         # 本文件
+```
+
+---
+
+## 架构设计
+
+### 分层架构（DDD-lite）
+
+```
+┌──────────────────────────────────────────┐
+│  Adapter 层 (Controllers + Views)        │  ← 协议适配（gRPC/HTTP）
+├──────────────────────────────────────────┤
+│  Application 层 (Services)               │  ← 业务用例编排
+├──────────────────────────────────────────┤
+│  Domain 层 (Models: PO/VO)               │  ← 领域模型
+├──────────────────────────────────────────┤
+│  Infrastructure 层 (Repositories)        │  ← 基础设施（数据库/缓存）
+└──────────────────────────────────────────┘
+```
+
+### 依赖方向（单向依赖）
+
+```
+Controllers  →  Services  →  Repositories  →  Database
+     ↓              ↓              ↓
+  (参数校验)    (业务逻辑)     (数据访问)
+     ↓              ↓              ↓
+  Views          VO/PO         sqlc/pgx
+```
+
+**关键规则**：
+- ✅ 上层可依赖下层
+- ❌ 下层**禁止**依赖上层
+- ✅ Service 通过**接口**依赖 Repository（依赖倒置）
+
+### Wire 依赖注入图
+
+本项目使用 **Google Wire** 进行依赖注入，以下是完整的依赖关系图：
+
+```mermaid
+graph TB
+    subgraph DependencyGraph["kratos-template 依赖图"]
+        App["*kratos.App<br/>(目标)"]
+
+        subgraph Controllers["Controller 层"]
+            VH["*VideoHandler"]
+        end
+
+        subgraph Services["Service 层"]
+            VU["*VideoUsecase"]
+        end
+
+        subgraph Repositories["Repository 层"]
+            VR["*VideoRepository"]
+        end
+
+        subgraph Infrastructure["基础设施层"]
+            DB["*pgxpool.Pool"]
+            Logger["log.Logger"]
+            Server["*grpc.Server"]
+            Obs["*observability.Component"]
+        end
+
+        subgraph Config["配置层"]
+            Bundle["*loader.Bundle"]
+            Metadata["ServiceMetadata"]
+        end
+
+        App -->|依赖| VH
+        App -->|依赖| Server
+        App -->|依赖| Logger
+        App -->|依赖| Metadata
+        App -->|依赖| Obs
+
+        VH -->|依赖| VU
+
+        VU -->|接口| VR
+        VU -->|依赖| Logger
+
+        VR -->|依赖| DB
+        VR -->|依赖| Logger
+
+        Server -->|依赖| VH
+        Server -->|依赖| Metadata
+        Server -->|依赖| Logger
+
+        DB -->|依赖| Bundle
+        Logger -->|依赖| Metadata
+        Obs -->|依赖| Metadata
+
+        Bundle -->|来自| Params["configloader.Params<br/>(输入参数)"]
+    end
+
+    style App fill:#e74c3c,color:#fff,stroke:#c0392b,stroke-width:4px
+    style Controllers fill:#f39c12,color:#fff
+    style Services fill:#3498db,color:#fff
+    style Repositories fill:#9b59b6,color:#fff
+    style Infrastructure fill:#2ecc71,color:#fff
+    style Config fill:#95a5a6,color:#fff
+```
+
+**关键说明**：
+- 🔴 **App (红色)** - Wire 装配的最终目标，聚合所有依赖
+- 🟠 **Controller 层** - 处理 gRPC 请求，依赖 Service 层
+- 🔵 **Service 层** - 业务逻辑编排，通过**接口**依赖 Repository
+- 🟣 **Repository 层** - 数据访问实现，依赖数据库连接池
+- 🟢 **Infrastructure 层** - 基础设施组件（DB、日志、服务器、可观测性）
+- ⚪ **Config 层** - 配置加载与服务元信息
+
+**依赖倒置体现**：
+```go
+// Service 层定义接口
+type VideoRepo interface {
+    FindByID(ctx context.Context, videoID uuid.UUID) (*po.Video, error)
+}
+
+// Repository 层实现接口
+type VideoRepository struct { ... }
+
+// Wire 绑定实现到接口
+wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository))
+```
+
+### 详细架构图
+
+完整的系统架构图、时序图、数据流转图请参考：
+
+📖 **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - 包含 10+ 张 mermaid 详细架构图
+
+---
+
+## 数据流转
+
+### 完整请求处理流程
+
+```
+1. gRPC Client 发送请求
+   ↓
+2. gRPC Server 中间件处理
+   - 追踪中间件（创建 Span）
+   - 日志中间件（记录请求）
+   - 参数校验（Proto-Gen-Validate）
+   ↓
+3. Controller 层 (video_handler.go)
+   - 参数校验（video_id 非空）
+   - UUID 解析（string → uuid.UUID）
+   - 设置超时（5 秒）
+   - 调用 Service 层
+   ↓
+4. Service 层 (video.go)
+   - 调用 Repository 接口
+   - 错误分类（404/504/500）
+   - 构造 VO（View Object）
+   ↓
+5. Repository 层 (video_repo.go)
+   - 调用 sqlc 生成的查询方法
+   - 处理数据库错误（pgx.ErrNoRows → ErrVideoNotFound）
+   - Mapper 转换（CatalogVideo → po.Video）
+   ↓
+6. sqlc 查询层 (video.sql.go)
+   - 执行 SQL: SELECT ... FROM catalog.videos WHERE video_id = $1
+   - 扫描结果到 CatalogVideo 结构体
+   ↓
+7. PostgreSQL 数据库
+   - 通过主键索引快速查询
+   - 返回完整记录
+   ↓
+8. 数据模型转换
+   - CatalogVideo (pgtype 类型) → po.Video (Go 原生类型)
+   - po.Video → vo.VideoDetail (精简视图)
+   - vo.VideoDetail → videov1.VideoDetail (Protobuf)
+   ↓
+9. gRPC Server 返回响应
+   - 日志记录响应
+   - 追踪记录 Span 结束
+```
+
+### 数据模型转换链
+
+```
+catalog.videos (PostgreSQL)
+    ↓ sqlc.Scan
+CatalogVideo (pgtype.Text, pgtype.Timestamptz)
+    ↓ mappers.VideoFromCatalog
+po.Video (*string, time.Time) [完整字段]
+    ↓ vo.NewVideoDetail
+vo.VideoDetail (*string, time.Time) [精简字段]
+    ↓ views.NewVideoDetail
+videov1.VideoDetail (wrapperspb.StringValue, timestamppb.Timestamp)
+```
+
+---
+
+## 配置说明
+
+### 配置文件结构
+
+`configs/config.yaml`：
+
+```yaml
+# 服务配置
+server:
+  grpc:
+    addr: "0.0.0.0:9090"       # gRPC 监听地址
+    timeout: "5s"               # 全局超时
+    network: "tcp"              # 网络协议
+
+# 数据库配置
+data:
+  database:
+    driver: "postgres"
+    source: "postgres://user:password@host:5432/dbname?sslmode=require"
+    max_idle_conns: 10
+    max_open_conns: 100
+
+# 可观测性配置
+observability:
+  # 追踪配置
+  tracing:
+    enabled: true
+    exporter: "otlp_grpc"       # stdout | otlp_grpc
+    endpoint: "localhost:4317"
+    sampling_rate: 1.0
+
+  # 指标配置
+  metrics:
+    enabled: true
+    grpc_enabled: true
+    grpc_include_health: false  # 是否采集健康检查指标
+    runtime_enabled: true        # 运行时指标（CPU/内存/goroutine）
+
+# 日志配置（gclog）
+log:
+  level: "info"                  # debug | info | warn | error
+  format: "json"                 # json | console
+```
+
+### 环境变量
+
+支持通过环境变量覆盖配置：
+
+```bash
+# 应用配置
+export APP_ENV=production
+export APP_LOG_LEVEL=info
+
+# 数据库配置
+export DATABASE_URL="postgres://..."
+
+# 配置文件路径
+export CONF_PATH=./configs/
+```
+
+---
+
+## 测试
+
+### 运行所有测试
+
+```bash
+# 运行所有测试（包含集成测试）
+make test
+
+# 仅运行单元测试
+go test ./internal/... -short
+
+# 生成覆盖率报告
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+### 测试分类
+
+| 测试类型 | 位置 | 覆盖范围 | 依赖 |
+|---------|------|---------|------|
+| **单元测试** | `internal/services/test/` | Service 层业务逻辑 | Mock Repository |
+| **集成测试** | `test/integration/` | Repository 层数据访问 | 真实数据库 |
+| **Mapper 测试** | `internal/repositories/mappers/test/` | 数据模型转换 | 无 |
+| **VO 测试** | `internal/models/vo/test/` | 视图对象构造 | 无 |
+
+### 测试约定
+
+- ✅ 测试文件放在 `test/` 子目录
+- ✅ 使用 `package xxx_test` 避免循环依赖
+- ✅ Service 层覆盖率 ≥ 80%
+- ✅ 集成测试连接真实数据库（独立 schema）
+
+---
+
+## 部署
+
+### 本地构建
+
+```bash
+# 编译二进制
+make build
+
+# 运行
+./bin/grpc -conf configs/
+```
+
+### Docker 部署
+
+```bash
+# 构建镜像
+docker build -t kratos-template:latest .
+
+# 运行容器
+docker run -d \
+  -p 9090:9090 \
+  -e DATABASE_URL="postgres://..." \
+  -v $(pwd)/configs:/app/configs \
+  kratos-template:latest
+```
+
+### 健康检查
+
+```bash
+# gRPC Health Check
+grpcurl -plaintext localhost:9090 grpc.health.v1.Health/Check
+```
+
+---
+
+## 文档
+
+### 核心文档
+
+| 文档 | 说明 | 推荐阅读顺序 |
+|------|------|-------------|
+| **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | 完整架构设计文档（⭐推荐首读） | 1 |
+| [ARCHITECTURE_PATTERNS.md](./docs/ARCHITECTURE_PATTERNS.md) | 架构模式深度分析 | 2 |
+| [WIRE_DEPENDENCY_INJECTION.md](./docs/WIRE_DEPENDENCY_INJECTION.md) | Wire 依赖注入完整指南 | 3 |
+| [HEXAGONAL_ARCHITECTURE.md](./docs/HEXAGONAL_ARCHITECTURE.md) | 六边形架构应用 | 4 |
+
+### 外部资源
+
+- [Kratos 官方文档](https://go-kratos.dev/)
+- [sqlc 官方文档](https://docs.sqlc.dev/)
+- [Wire 依赖注入指南](https://github.com/google/wire)
+- [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/)
+
+---
+
+## 开发指南
+
+### 代码风格
+
+本项目遵循以下规范：
+
+- **格式化**：`gofumpt` + `goimports`
+- **静态检查**：`staticcheck` + `revive`
+- **命名约定**：Go 官方风格指南
+- **注释规范**：所有导出函数必须有文档注释
+
+### 提交前检查清单
+
+```bash
+# 1. 格式化代码
+make fmt
+
+# 2. 静态检查
+make lint
+
+# 3. 运行测试
+make test
+
+# 4. 生成覆盖率
+go test ./... -cover
+
+# 5. 检查 Proto 契约
+buf lint
+buf breaking --against .git#branch=main
+```
+
+### 如何添加新接口
+
+1. **定义 Proto 接口**
+   ```protobuf
+   // api/video/v1/video.proto
+   rpc CreateVideo(CreateVideoRequest) returns (CreateVideoResponse);
+   ```
+
+2. **生成代码**
+   ```bash
+   make api
+   ```
+
+3. **实现 Service 层**
+   ```go
+   // internal/services/video.go
+   func (uc *VideoUsecase) CreateVideo(ctx context.Context, req *CreateVideoRequest) (*vo.Video, error) {
+       // 业务逻辑
+   }
+   ```
+
+4. **实现 Repository 层（如需）**
+   ```sql
+   -- internal/repositories/sqlc/video.sql
+   -- name: InsertVideo :one
+   INSERT INTO catalog.videos (...) VALUES (...) RETURNING *;
+   ```
+
+5. **实现 Controller 层**
+   ```go
+   // internal/controllers/video_handler.go
+   func (h *VideoHandler) CreateVideo(ctx context.Context, req *videov1.CreateVideoRequest) (*videov1.CreateVideoResponse, error) {
+       // 调用 Service 层
+   }
+   ```
+
+6. **在 Wire 中注册**（自动生成的代码无需手动修改）
+
+### 最佳实践
+
+| 场景 | 推荐做法 | 禁止做法 |
+|------|---------|---------|
+| **参数校验** | 在 Controller 层完成 | 在 Service 层校验 HTTP 参数 |
+| **业务逻辑** | 在 Service 层实现 | 在 Controller 写业务代码 |
+| **数据访问** | 在 Repository 层封装 | Service 层直接调用 SQL |
+| **错误处理** | 分层映射（404/504/500） | 统一返回 500 |
+| **超时控制** | 使用 `context.WithTimeout` | 无限等待 |
+| **数据模型** | 多层隔离（DB → PO → VO → Proto） | 直接暴露数据库模型 |
+
+详见：[docs/ARCHITECTURE.md - 第12节：最佳实践与反模式](./docs/ARCHITECTURE.md#12-最佳实践与反模式)
+
+---
+
+## 常见问题
+
+### Q1: 为什么 Service 层要定义 Repository 接口？
+
+**A**: 这是**依赖倒置原则**的体现。Service 层依赖接口而非具体实现，便于：
+- 单元测试时使用 Mock Repository
+- 切换不同的数据源实现
+- 解耦业务逻辑与基础设施
+
+详见：[docs/ARCHITECTURE.md - 第7节：依赖注入](./docs/ARCHITECTURE.md#7-依赖注入与组件装配)
+
+### Q2: 为什么需要这么多数据模型（CatalogVideo/PO/VO/Proto）？
+
+**A**: 多层数据模型隔离的目的是：
+- **CatalogVideo**: sqlc 生成的数据库模型（含 pgtype 类型）
+- **po.Video**: 领域持久化对象（Go 原生类型），不泄漏数据库细节
+- **vo.VideoDetail**: 业务视图对象（精简字段），过滤内部字段
+- **Proto**: 传输对象（Protobuf），面向 API 消费者
+
+详见：[docs/ARCHITECTURE.md - 第6节：数据模型转换](./docs/ARCHITECTURE.md#6-数据模型转换)
+
+### Q3: Controller 层应该做什么？
+
+**A**: Controller 层**仅做**：
+- ✅ 参数校验（非空、格式检查）
+- ✅ 类型转换（string → UUID）
+- ✅ 设置超时上下文
+- ✅ 调用 Service 层
+- ❌ **禁止**包含业务逻辑
+
+详见：[docs/ARCHITECTURE.md - 第4.1节：Adapter 层](./docs/ARCHITECTURE.md#41-adapter-层适配器层)
+
+### Q4: 如何调试 Wire 依赖注入问题？
+
+**A**:
+1. 查看生成的 `wire_gen.go` 文件
+2. 检查 `ProviderSet` 是否正确导出
+3. 确认接口绑定：`wire.Bind(new(ServiceInterface), new(*RepositoryImpl))`
+4. 运行 `wire` 查看错误信息
+
+详见：[docs/WIRE_DEPENDENCY_INJECTION.md](./docs/WIRE_DEPENDENCY_INJECTION.md)
+
+### Q5: 如何连接 Supabase 数据库？
+
+**A**: 在 Supabase 项目中：
+1. 进入 **Settings → Database**
+2. 复制 **Connection String (URI)**
+3. 确保包含 `?sslmode=require`
+4. 配置到 `configs/config.yaml` 的 `data.database.source`
+
+示例：
+```
+postgres://postgres.xxx:password@aws-0-us-west-1.pooler.supabase.com:5432/postgres?sslmode=require
+```
+
+### Q6: sqlc 生成代码报错怎么办？
+
+**A**:
+1. 检查 `sqlc.yaml` 配置是否正确
+2. 确保 SQL 查询语法正确（PostgreSQL 方言）
+3. 运行 `sqlc vet` 检查 SQL 质量
+4. 查看 sqlc 版本：`sqlc version`（推荐 v1.30.0+）
+
+---
+
+## 生产特性清单
 
 ### ✅ 已实现
 
-- **分层架构** - MVC 三层分离（Controllers/Services/Repositories），依赖关系清晰
-- **依赖注入** - Google Wire 全程管理，无运行时反射
-- **可观测性** - OpenTelemetry 追踪/指标 + 结构化日志（gclog）
-- **配置管理** - Proto Schema + PGV 校验，类型安全
-- **中间件栈** - 追踪、恢复、限流、参数校验、日志完整覆盖
-- **健康检查** - gRPC Health Check Protocol（通过 Kratos 内置）
-- **优雅关闭** - Wire cleanup 机制保证资源释放顺序
-- **错误处理** - 哨兵错误 + errors.Is/As 链式查询
+- ✅ **分层架构** - Controller → Service → Repository 清晰分离
+- ✅ **依赖注入** - Wire 编译期注入
+- ✅ **可观测性** - OpenTelemetry 追踪/指标 + 结构化日志
+- ✅ **类型安全的 SQL** - sqlc 生成查询代码
+- ✅ **配置管理** - Proto Schema + PGV 校验
+- ✅ **中间件栈** - 追踪、恢复、限流、参数校验、日志
+- ✅ **超时控制** - Context 超时保护
+- ✅ **错误分层处理** - 404/504/500 分类映射
+- ✅ **数据模型隔离** - DB → PO → VO → Proto 四层转换
+- ✅ **健康检查** - gRPC Health Check Protocol
+- ✅ **优雅关闭** - Wire cleanup 机制
 
 ### 🚧 待实现（生产必备）
 
-#### 1. 幂等性支持（Idempotency）
-**问题:** 当前写操作（如 `SayHello` 触发的 `CreateGreeting`）不支持幂等键，网络重试会导致重复数据。
+- ⬜ **幂等性支持** - `Idempotency-Key` header 处理
+- ⬜ **并发控制** - 乐观锁（ETag/Version）
+- ⬜ **分页限制** - 游标分页（cursor-based）
+- ⬜ **缓存层** - Redis 缓存（Cache-Aside 模式）
+- ⬜ **事务支持** - 跨 Repository 事务
+- ⬜ **API 限流** - Token Bucket 算法
+- ⬜ **监控告警** - Prometheus + Grafana
 
-**改进方向:**
-- Controller 层拦截 `Idempotency-Key` header
-- Service 层存储幂等记录（推荐用 Redis，TTL 24小时）
-- 重复请求返回缓存的响应（状态码需保持 200/201）
-
-**参考实现位置:** `internal/controllers` 添加幂等中间件
-
----
-
-#### 2. 并发控制（Optimistic Locking）
-**问题:** 读-修改-写场景无版本控制，并发更新会导致数据覆盖。
-
-**改进方向:**
-- 在 `po` 模型添加 `Version int64` 字段
-- Repository 更新时校验版本号（`UPDATE ... WHERE id = ? AND version = ?`）
-- 支持 HTTP `ETag` / `If-Match` header（gRPC 可用 metadata 传递）
-
-**参考实现位置:** `internal/repositories` 的 `Update` 方法
+详见：[TODO.md](./TODO.md)
 
 ---
 
-#### 3. 分页限制
-**问题:** `ListAll` 方法未限制返回量，大表查询可能导致 OOM。
+## 许可证
 
-**改进方向:**
-- 移除 `ListAll`，改为 `List(cursor string, limit int32)`
-- 使用游标分页（基于 `created_at` + `id` 复合排序）
-- 响应包含 `next_cursor` 字段
-
-**参考实现位置:** `internal/services` 的列表方法 + `internal/views` 分页包装
+本项目采用 [MIT License](LICENSE)。
 
 ---
 
-#### 4. 事务支持
-**问题:** 跨 Repository 操作无事务保证（如同时写 `greetings` 和 `audit_logs`）。
+## 贡献
 
-**改进方向:**
-- Service 层提供 `WithTx(ctx context.Context, fn func(txCtx context.Context) error)`
-- Repository 从 context 获取事务连接（`pgx.Tx`）
-- 注意事务边界不可跨服务调用
+欢迎提交 Issue 和 Pull Request！
 
-**参考实现位置:** `internal/infrastructure/database` 添加事务辅助函数
-
----
-
-#### 5. 数据库实现
-**当前状态:** Repository 层是 stub（直接返回输入，未实际读写数据库）。
-
-**迁移计划:** 详见 `TODO.md`，计划接入 Supabase PostgreSQL (pgx/v5)。
-
-**预计工作量:** 4-6 小时（包含连接池、迁移脚本、测试）
+在提交代码前，请确保：
+1. 通过所有测试：`make test`
+2. 通过代码检查：`make lint`
+3. 遵循代码风格：`make fmt`
+4. 更新相关文档
 
 ---
 
-#### 6. 缓存层
-**问题:** 所有查询直达数据库，高频读场景（如 `FindByID`）压力大。
+## 致谢
 
-**改进方向:**
-- Repository 前置 Redis 缓存（TTL 可配置）
-- 写操作后主动失效缓存（Cache-Aside 模式）
-- 可选引入本地缓存（如 ristretto）作为 L1
+本项目基于以下优秀开源项目构建：
 
-**参考实现位置:** `internal/repositories` 包装缓存逻辑
-
----
-
-#### 7. API 版本化策略
-**问题:** Proto 包名是 `helloworld.v1`，但未定义 breaking change 处理流程。
-
-**改进方向:**
-- 使用 `buf breaking` 强制检查兼容性
-- 新版本通过新包（如 `v2`）并行部署
-- 在 `greeter.proto` 顶部注释说明废弃政策
-
-**参考实现位置:** CI/CD 流程添加 `buf breaking --against .git#branch=main`
+- [Kratos](https://go-kratos.dev/) - 微服务框架
+- [sqlc](https://sqlc.dev/) - SQL 代码生成器
+- [Wire](https://github.com/google/wire) - 依赖注入工具
+- [OpenTelemetry](https://opentelemetry.io/) - 可观测性标准
 
 ---
 
-### 📚 补充建议
-
-- **监控告警** - 接入 Prometheus + Grafana，配置 SLO/SLI 指标
-- **压测验证** - 使用 ghz 或 k6 验证服务承载能力（目标 QPS > 1000）
-- **安全加固** - 启用 gRPC TLS + mTLS，添加 Rate Limiting 配额
-- **灰度发布** - 基于 `APP_ENV` 实现多环境配置切换（dev/staging/prod）
-
----
-
-### 🔗 相关文档
-
-- [TODO.md](./TODO.md) - Supabase 数据库对接详细计划
-- [CLAUDE.md](../CLAUDE.md) - 项目整体架构规范与编码约定
-- [Kratos 官方文档](https://go-kratos.dev/) - 框架使用指南
+**最后更新**: 2025-10-23
+**文档版本**: v2.0
