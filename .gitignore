@@ -17,9 +17,14 @@ coverage.*
 # Environment/configuration
 .env*
 !.env.example
-configs/*.yaml
+configs/*.local.yaml
+configs/*.secret.yaml
+configs/*.production.yaml
+!configs/config.yaml
+!configs/config.*.yaml
 *.cert
 *.key
+*.pem
 
 # IDE/editor
 .vscode/

@@ -178,3 +178,118 @@ observability:
 - `internal/infrastructure/config_loader` 暴露 `ServiceMetadata`（服务名/版本/环境/实例 ID），以及 `ProvideLoggerConfig` / `ProvideObservabilityInfo`，用于将配置拆分给 gclog 与 observability Provider。
 - `ServiceMetadata` 默认从命令行 `-conf`、编译期注入 `Name/Version` 和 `APP_ENV` 推导：缺省值分别为 `template`、`dev`、`development`，实例 ID 取自主机名。
 - 有了这些 Provider，`wireApp` 只需传入根 context、Bootstrap 的 Server/Data 配置和 `ServiceMetadata`，即可统一完成日志与观测组件的初始化。
+
+---
+
+## ⚠️ 生产特性清单
+
+本模板当前处于**早期骨架阶段**，以下列出已实现与待补充的生产级特性，供团队评估与规划使用。
+
+### ✅ 已实现
+
+- **分层架构** - MVC 三层分离（Controllers/Services/Repositories），依赖关系清晰
+- **依赖注入** - Google Wire 全程管理，无运行时反射
+- **可观测性** - OpenTelemetry 追踪/指标 + 结构化日志（gclog）
+- **配置管理** - Proto Schema + PGV 校验，类型安全
+- **中间件栈** - 追踪、恢复、限流、参数校验、日志完整覆盖
+- **健康检查** - gRPC Health Check Protocol（通过 Kratos 内置）
+- **优雅关闭** - Wire cleanup 机制保证资源释放顺序
+- **错误处理** - 哨兵错误 + errors.Is/As 链式查询
+
+### 🚧 待实现（生产必备）
+
+#### 1. 幂等性支持（Idempotency）
+**问题:** 当前写操作（如 `SayHello` 触发的 `CreateGreeting`）不支持幂等键，网络重试会导致重复数据。
+
+**改进方向:**
+- Controller 层拦截 `Idempotency-Key` header
+- Service 层存储幂等记录（推荐用 Redis，TTL 24小时）
+- 重复请求返回缓存的响应（状态码需保持 200/201）
+
+**参考实现位置:** `internal/controllers` 添加幂等中间件
+
+---
+
+#### 2. 并发控制（Optimistic Locking）
+**问题:** 读-修改-写场景无版本控制，并发更新会导致数据覆盖。
+
+**改进方向:**
+- 在 `po` 模型添加 `Version int64` 字段
+- Repository 更新时校验版本号（`UPDATE ... WHERE id = ? AND version = ?`）
+- 支持 HTTP `ETag` / `If-Match` header（gRPC 可用 metadata 传递）
+
+**参考实现位置:** `internal/repositories` 的 `Update` 方法
+
+---
+
+#### 3. 分页限制
+**问题:** `ListAll` 方法未限制返回量，大表查询可能导致 OOM。
+
+**改进方向:**
+- 移除 `ListAll`，改为 `List(cursor string, limit int32)`
+- 使用游标分页（基于 `created_at` + `id` 复合排序）
+- 响应包含 `next_cursor` 字段
+
+**参考实现位置:** `internal/services` 的列表方法 + `internal/views` 分页包装
+
+---
+
+#### 4. 事务支持
+**问题:** 跨 Repository 操作无事务保证（如同时写 `greetings` 和 `audit_logs`）。
+
+**改进方向:**
+- Service 层提供 `WithTx(ctx context.Context, fn func(txCtx context.Context) error)`
+- Repository 从 context 获取事务连接（`pgx.Tx`）
+- 注意事务边界不可跨服务调用
+
+**参考实现位置:** `internal/infrastructure/database` 添加事务辅助函数
+
+---
+
+#### 5. 数据库实现
+**当前状态:** Repository 层是 stub（直接返回输入，未实际读写数据库）。
+
+**迁移计划:** 详见 `TODO.md`，计划接入 Supabase PostgreSQL (pgx/v5)。
+
+**预计工作量:** 4-6 小时（包含连接池、迁移脚本、测试）
+
+---
+
+#### 6. 缓存层
+**问题:** 所有查询直达数据库，高频读场景（如 `FindByID`）压力大。
+
+**改进方向:**
+- Repository 前置 Redis 缓存（TTL 可配置）
+- 写操作后主动失效缓存（Cache-Aside 模式）
+- 可选引入本地缓存（如 ristretto）作为 L1
+
+**参考实现位置:** `internal/repositories` 包装缓存逻辑
+
+---
+
+#### 7. API 版本化策略
+**问题:** Proto 包名是 `helloworld.v1`，但未定义 breaking change 处理流程。
+
+**改进方向:**
+- 使用 `buf breaking` 强制检查兼容性
+- 新版本通过新包（如 `v2`）并行部署
+- 在 `greeter.proto` 顶部注释说明废弃政策
+
+**参考实现位置:** CI/CD 流程添加 `buf breaking --against .git#branch=main`
+
+---
+
+### 📚 补充建议
+
+- **监控告警** - 接入 Prometheus + Grafana，配置 SLO/SLI 指标
+- **压测验证** - 使用 ghz 或 k6 验证服务承载能力（目标 QPS > 1000）
+- **安全加固** - 启用 gRPC TLS + mTLS，添加 Rate Limiting 配额
+- **灰度发布** - 基于 `APP_ENV` 实现多环境配置切换（dev/staging/prod）
+
+---
+
+### 🔗 相关文档
+
+- [TODO.md](./TODO.md) - Supabase 数据库对接详细计划
+- [CLAUDE.md](../CLAUDE.md) - 项目整体架构规范与编码约定
+- [Kratos 官方文档](https://go-kratos.dev/) - 框架使用指南
