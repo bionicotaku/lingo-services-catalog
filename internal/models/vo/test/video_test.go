@@ -50,17 +50,18 @@ func TestNewVideoDetail(t *testing.T) {
 				ErrorMessage:      nil,
 			},
 			expected: &vo.VideoDetail{
-				VideoID:        videoID,
-				Title:          "测试视频",
-				Description:    stringPtr("这是描述"),
-				Status:         "published",
-				MediaStatus:    "ready",
-				AnalysisStatus: "ready",
-				ThumbnailURL:   stringPtr("https://cdn.example.com/thumb.jpg"),
-				DurationMicros: int64Ptr(180000000),
-				Tags:           []string{"go", "testing", "tutorial"},
-				CreatedAt:      now,
-				UpdatedAt:      now.Add(time.Hour),
+				VideoID:           videoID,
+				Title:             "测试视频",
+				Description:       stringPtr("这是描述"),
+				Status:            "published",
+				ThumbnailURL:      stringPtr("https://cdn.example.com/thumb.jpg"),
+				DurationMicros:    int64Ptr(180000000),
+				HLSMasterPlaylist: stringPtr("https://cdn.example.com/master.m3u8"),
+				Difficulty:        stringPtr("advanced"),
+				Summary:           stringPtr("视频摘要"),
+				Tags:              []string{"go", "testing", "tutorial"},
+				CreatedAt:         now,
+				UpdatedAt:         now.Add(time.Hour),
 			},
 		},
 		{
@@ -78,17 +79,18 @@ func TestNewVideoDetail(t *testing.T) {
 				Tags:             []string{},
 			},
 			expected: &vo.VideoDetail{
-				VideoID:        videoID,
-				Title:          "最小视频",
-				Description:    nil,
-				Status:         "pending_upload",
-				MediaStatus:    "pending",
-				AnalysisStatus: "pending",
-				ThumbnailURL:   nil,
-				DurationMicros: nil,
-				Tags:           nil, // append([]string(nil), []string{}...) 返回 nil
-				CreatedAt:      now,
-				UpdatedAt:      now,
+				VideoID:           videoID,
+				Title:             "最小视频",
+				Description:       nil,
+				Status:            "pending_upload",
+				ThumbnailURL:      nil,
+				DurationMicros:    nil,
+				HLSMasterPlaylist: nil,
+				Difficulty:        nil,
+				Summary:           nil,
+				Tags:              nil, // append([]string(nil), []string{}...) 返回 nil
+				CreatedAt:         now,
+				UpdatedAt:         now,
 			},
 		},
 		{
@@ -113,13 +115,44 @@ func TestNewVideoDetail(t *testing.T) {
 			assert.Equal(t, tt.expected.VideoID, result.VideoID)
 			assert.Equal(t, tt.expected.Title, result.Title)
 			assert.Equal(t, tt.expected.Status, result.Status)
-			assert.Equal(t, tt.expected.MediaStatus, result.MediaStatus)
-			assert.Equal(t, tt.expected.AnalysisStatus, result.AnalysisStatus)
 
-			// 比较指针字段
-			assert.Equal(t, tt.expected.Description, result.Description)
-			assert.Equal(t, tt.expected.ThumbnailURL, result.ThumbnailURL)
-			assert.Equal(t, tt.expected.DurationMicros, result.DurationMicros)
+			// 比较指针字段（使用值比较，不是地址比较）
+			if tt.expected.Description != nil {
+				require.NotNil(t, result.Description)
+				assert.Equal(t, *tt.expected.Description, *result.Description)
+			} else {
+				assert.Nil(t, result.Description)
+			}
+			if tt.expected.ThumbnailURL != nil {
+				require.NotNil(t, result.ThumbnailURL)
+				assert.Equal(t, *tt.expected.ThumbnailURL, *result.ThumbnailURL)
+			} else {
+				assert.Nil(t, result.ThumbnailURL)
+			}
+			if tt.expected.HLSMasterPlaylist != nil {
+				require.NotNil(t, result.HLSMasterPlaylist)
+				assert.Equal(t, *tt.expected.HLSMasterPlaylist, *result.HLSMasterPlaylist)
+			} else {
+				assert.Nil(t, result.HLSMasterPlaylist)
+			}
+			if tt.expected.DurationMicros != nil {
+				require.NotNil(t, result.DurationMicros)
+				assert.Equal(t, *tt.expected.DurationMicros, *result.DurationMicros)
+			} else {
+				assert.Nil(t, result.DurationMicros)
+			}
+			if tt.expected.Difficulty != nil {
+				require.NotNil(t, result.Difficulty)
+				assert.Equal(t, *tt.expected.Difficulty, *result.Difficulty)
+			} else {
+				assert.Nil(t, result.Difficulty)
+			}
+			if tt.expected.Summary != nil {
+				require.NotNil(t, result.Summary)
+				assert.Equal(t, *tt.expected.Summary, *result.Summary)
+			} else {
+				assert.Nil(t, result.Summary)
+			}
 
 			// 比较时间字段
 			assert.WithinDuration(t, tt.expected.CreatedAt, result.CreatedAt, time.Millisecond)

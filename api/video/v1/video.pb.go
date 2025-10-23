@@ -113,22 +113,26 @@ func (x *GetVideoDetailResponse) GetDetail() *VideoDetail {
 	return nil
 }
 
-// VideoDetail 对应领域模型的只读视图。
+// VideoDetail 精简视图，仅包含前端展示需要的核心字段。
 type VideoDetail struct {
-	state          protoimpl.MessageState  `protogen:"open.v1"`
-	VideoId        string                  `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
-	Title          string                  `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description    *wrapperspb.StringValue `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Status         string                  `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	MediaStatus    string                  `protobuf:"bytes,5,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`
-	AnalysisStatus string                  `protobuf:"bytes,6,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`
-	ThumbnailUrl   *wrapperspb.StringValue `protobuf:"bytes,7,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`
-	DurationMicros *wrapperspb.Int64Value  `protobuf:"bytes,8,opt,name=duration_micros,json=durationMicros,proto3" json:"duration_micros,omitempty"`
-	Tags           []string                `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags,omitempty"`
-	CreatedAt      *timestamppb.Timestamp  `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt      *timestamppb.Timestamp  `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state       protoimpl.MessageState  `protogen:"open.v1"`
+	VideoId     string                  `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"` // 视频 ID
+	Title       string                  `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`                    // 标题
+	Description *wrapperspb.StringValue `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`        // 描述
+	Status      string                  `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`                  // 状态（published/ready/processing等）
+	// 播放相关
+	ThumbnailUrl      *wrapperspb.StringValue `protobuf:"bytes,5,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`                  // 缩略图 URL
+	HlsMasterPlaylist *wrapperspb.StringValue `protobuf:"bytes,6,opt,name=hls_master_playlist,json=hlsMasterPlaylist,proto3" json:"hls_master_playlist,omitempty"` // HLS 播放地址
+	DurationMicros    *wrapperspb.Int64Value  `protobuf:"bytes,7,opt,name=duration_micros,json=durationMicros,proto3" json:"duration_micros,omitempty"`            // 时长（微秒）
+	// AI 分析结果
+	Difficulty *wrapperspb.StringValue `protobuf:"bytes,8,opt,name=difficulty,proto3" json:"difficulty,omitempty"` // 难度等级
+	Summary    *wrapperspb.StringValue `protobuf:"bytes,9,opt,name=summary,proto3" json:"summary,omitempty"`       // 内容摘要
+	Tags       []string                `protobuf:"bytes,10,rep,name=tags,proto3" json:"tags,omitempty"`            // 标签列表
+	// 时间戳
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // 创建时间
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // 更新时间
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *VideoDetail) Reset() {
@@ -189,20 +193,6 @@ func (x *VideoDetail) GetStatus() string {
 	return ""
 }
 
-func (x *VideoDetail) GetMediaStatus() string {
-	if x != nil {
-		return x.MediaStatus
-	}
-	return ""
-}
-
-func (x *VideoDetail) GetAnalysisStatus() string {
-	if x != nil {
-		return x.AnalysisStatus
-	}
-	return ""
-}
-
 func (x *VideoDetail) GetThumbnailUrl() *wrapperspb.StringValue {
 	if x != nil {
 		return x.ThumbnailUrl
@@ -210,9 +200,30 @@ func (x *VideoDetail) GetThumbnailUrl() *wrapperspb.StringValue {
 	return nil
 }
 
+func (x *VideoDetail) GetHlsMasterPlaylist() *wrapperspb.StringValue {
+	if x != nil {
+		return x.HlsMasterPlaylist
+	}
+	return nil
+}
+
 func (x *VideoDetail) GetDurationMicros() *wrapperspb.Int64Value {
 	if x != nil {
 		return x.DurationMicros
+	}
+	return nil
+}
+
+func (x *VideoDetail) GetDifficulty() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Difficulty
+	}
+	return nil
+}
+
+func (x *VideoDetail) GetSummary() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Summary
 	}
 	return nil
 }
@@ -246,22 +257,25 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\x15GetVideoDetailRequest\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\"G\n" +
 	"\x16GetVideoDetailResponse\x12-\n" +
-	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\"\xf5\x03\n" +
+	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\"\xed\x04\n" +
 	"\vVideoDetail\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12>\n" +
 	"\vdescription\x18\x03 \x01(\v2\x1c.google.protobuf.StringValueR\vdescription\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\x12!\n" +
-	"\fmedia_status\x18\x05 \x01(\tR\vmediaStatus\x12'\n" +
-	"\x0fanalysis_status\x18\x06 \x01(\tR\x0eanalysisStatus\x12A\n" +
-	"\rthumbnail_url\x18\a \x01(\v2\x1c.google.protobuf.StringValueR\fthumbnailUrl\x12D\n" +
-	"\x0fduration_micros\x18\b \x01(\v2\x1b.google.protobuf.Int64ValueR\x0edurationMicros\x12\x12\n" +
-	"\x04tags\x18\t \x03(\tR\x04tags\x129\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12A\n" +
+	"\rthumbnail_url\x18\x05 \x01(\v2\x1c.google.protobuf.StringValueR\fthumbnailUrl\x12L\n" +
+	"\x13hls_master_playlist\x18\x06 \x01(\v2\x1c.google.protobuf.StringValueR\x11hlsMasterPlaylist\x12D\n" +
+	"\x0fduration_micros\x18\a \x01(\v2\x1b.google.protobuf.Int64ValueR\x0edurationMicros\x12<\n" +
 	"\n" +
-	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"difficulty\x18\b \x01(\v2\x1c.google.protobuf.StringValueR\n" +
+	"difficulty\x126\n" +
+	"\asummary\x18\t \x01(\v2\x1c.google.protobuf.StringValueR\asummary\x12\x12\n" +
+	"\x04tags\x18\n" +
+	" \x03(\tR\x04tags\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2h\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2h\n" +
 	"\x11VideoQueryService\x12S\n" +
 	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
 
@@ -287,19 +301,22 @@ var file_api_video_v1_video_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),  // 5: google.protobuf.Timestamp
 }
 var file_api_video_v1_video_proto_depIdxs = []int32{
-	2, // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
-	3, // 1: video.v1.VideoDetail.description:type_name -> google.protobuf.StringValue
-	3, // 2: video.v1.VideoDetail.thumbnail_url:type_name -> google.protobuf.StringValue
-	4, // 3: video.v1.VideoDetail.duration_micros:type_name -> google.protobuf.Int64Value
-	5, // 4: video.v1.VideoDetail.created_at:type_name -> google.protobuf.Timestamp
-	5, // 5: video.v1.VideoDetail.updated_at:type_name -> google.protobuf.Timestamp
-	0, // 6: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
-	1, // 7: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	2,  // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
+	3,  // 1: video.v1.VideoDetail.description:type_name -> google.protobuf.StringValue
+	3,  // 2: video.v1.VideoDetail.thumbnail_url:type_name -> google.protobuf.StringValue
+	3,  // 3: video.v1.VideoDetail.hls_master_playlist:type_name -> google.protobuf.StringValue
+	4,  // 4: video.v1.VideoDetail.duration_micros:type_name -> google.protobuf.Int64Value
+	3,  // 5: video.v1.VideoDetail.difficulty:type_name -> google.protobuf.StringValue
+	3,  // 6: video.v1.VideoDetail.summary:type_name -> google.protobuf.StringValue
+	5,  // 7: video.v1.VideoDetail.created_at:type_name -> google.protobuf.Timestamp
+	5,  // 8: video.v1.VideoDetail.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 9: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
+	1,  // 10: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
+	10, // [10:11] is the sub-list for method output_type
+	9,  // [9:10] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_api_video_v1_video_proto_init() }

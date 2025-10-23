@@ -23,17 +23,24 @@ message GetVideoDetailResponse {
   VideoDetail detail = 1;
 }
 
-// VideoDetail 对应领域模型的只读视图。
+// VideoDetail 精简视图，仅包含前端展示需要的核心字段。
 message VideoDetail {
-  string video_id = 1;
-  string title = 2;
-  google.protobuf.StringValue description = 3;
-  string status = 4;
-  string media_status = 5;
-  string analysis_status = 6;
-  google.protobuf.StringValue thumbnail_url = 7;
-  google.protobuf.Int64Value duration_micros = 8;
-  repeated string tags = 9;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
+  string video_id = 1;                                         // 视频 ID
+  string title = 2;                                            // 标题
+  google.protobuf.StringValue description = 3;                 // 描述
+  string status = 4;                                           // 状态（published/ready/processing等）
+
+  // 播放相关
+  google.protobuf.StringValue thumbnail_url = 5;               // 缩略图 URL
+  google.protobuf.StringValue hls_master_playlist = 6;         // HLS 播放地址
+  google.protobuf.Int64Value duration_micros = 7;              // 时长（微秒）
+
+  // AI 分析结果
+  google.protobuf.StringValue difficulty = 8;                  // 难度等级
+  google.protobuf.StringValue summary = 9;                     // 内容摘要
+  repeated string tags = 10;                                   // 标签列表
+
+  // 时间戳
+  google.protobuf.Timestamp created_at = 11;                   // 创建时间
+  google.protobuf.Timestamp updated_at = 12;                   // 更新时间
 }

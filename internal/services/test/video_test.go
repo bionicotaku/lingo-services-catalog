@@ -78,8 +78,6 @@ func TestVideoUsecase_GetVideoDetail(t *testing.T) {
 				assert.Equal(t, "测试视频", detail.Title)
 				assert.Equal(t, stringPtr("视频描述"), detail.Description)
 				assert.Equal(t, "published", detail.Status)
-				assert.Equal(t, "ready", detail.MediaStatus)
-				assert.Equal(t, "ready", detail.AnalysisStatus)
 				assert.Equal(t, []string{"golang", "tutorial"}, detail.Tags)
 			},
 		},

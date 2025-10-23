@@ -327,10 +327,6 @@ func (m *VideoDetail) validate(all bool) error {
 
 	// no validation rules for Status
 
-	// no validation rules for MediaStatus
-
-	// no validation rules for AnalysisStatus
-
 	if all {
 		switch v := interface{}(m.GetThumbnailUrl()).(type) {
 		case interface{ ValidateAll() error }:
@@ -361,6 +357,35 @@ func (m *VideoDetail) validate(all bool) error {
 	}
 
 	if all {
+		switch v := interface{}(m.GetHlsMasterPlaylist()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, VideoDetailValidationError{
+					field:  "HlsMasterPlaylist",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, VideoDetailValidationError{
+					field:  "HlsMasterPlaylist",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetHlsMasterPlaylist()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return VideoDetailValidationError{
+				field:  "HlsMasterPlaylist",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
 		switch v := interface{}(m.GetDurationMicros()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
@@ -383,6 +408,64 @@ func (m *VideoDetail) validate(all bool) error {
 		if err := v.Validate(); err != nil {
 			return VideoDetailValidationError{
 				field:  "DurationMicros",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetDifficulty()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, VideoDetailValidationError{
+					field:  "Difficulty",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, VideoDetailValidationError{
+					field:  "Difficulty",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetDifficulty()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return VideoDetailValidationError{
+				field:  "Difficulty",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetSummary()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, VideoDetailValidationError{
+					field:  "Summary",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, VideoDetailValidationError{
+					field:  "Summary",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetSummary()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return VideoDetailValidationError{
+				field:  "Summary",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
