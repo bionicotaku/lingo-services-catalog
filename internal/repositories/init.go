@@ -6,5 +6,5 @@ import "github.com/google/wire"
 // 包含所有 Repository 的构造器（GreeterRepo, VideoRepo 等）。
 var ProviderSet = wire.NewSet(
 	NewGreeterRepo,
-	NewVideoRepo, // ← 新增：Video 仓储
+	NewVideoRepository, // ← Video 仓储（基于 sqlc）
 )

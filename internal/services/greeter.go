@@ -18,11 +18,11 @@ var ErrUserNotFound = errors.NotFound(v1.ErrorReason_USER_NOT_FOUND.String(), "u
 // GreeterRepo 定义 Greeter 实体的持久化行为接口。
 // 由 Repository 层实现，Service 层通过接口调用以保持解耦。
 type GreeterRepo interface {
-	Save(context.Context, *po.Greeter) (*po.Greeter, error)       // 保存新的 Greeter 实体
-	Update(context.Context, *po.Greeter) (*po.Greeter, error)     // 更新已有实体
-	FindByID(context.Context, int64) (*po.Greeter, error)         // 根据 ID 查询
-	ListByHello(context.Context, string) ([]*po.Greeter, error)   // 根据 Hello 字段查询列表
-	ListAll(context.Context) ([]*po.Greeter, error)               // 查询所有实体
+	Save(context.Context, *po.Greeter) (*po.Greeter, error)     // 保存新的 Greeter 实体
+	Update(context.Context, *po.Greeter) (*po.Greeter, error)   // 更新已有实体
+	FindByID(context.Context, int64) (*po.Greeter, error)       // 根据 ID 查询
+	ListByHello(context.Context, string) ([]*po.Greeter, error) // 根据 Hello 字段查询列表
+	ListAll(context.Context) ([]*po.Greeter, error)             // 查询所有实体
 }
 
 // GreeterRemote 抽象远程 Greeter 服务的交互接口。

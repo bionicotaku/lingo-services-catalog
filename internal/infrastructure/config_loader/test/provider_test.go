@@ -75,7 +75,7 @@ server:
   grpc:
     addr: 0.0.0.0:8080
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -112,7 +112,7 @@ server:
     addr: 0.0.0.0:9000
     timeout: 2s
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -158,7 +158,7 @@ data:
   grpc_client:
     target: "dns:///remote:9000"
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -202,7 +202,7 @@ observability:
     enabled: true
     exporter: stdout
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -282,5 +282,5 @@ func TestProvideLoggerConfig(t *testing.T) {
 func writeConfigFile(t *testing.T, dir, content string) error {
 	t.Helper()
 	configFile := filepath.Join(dir, "config.yaml")
-	return os.WriteFile(configFile, []byte(content), 0644)
+	return os.WriteFile(configFile, []byte(content), 0o644)
 }

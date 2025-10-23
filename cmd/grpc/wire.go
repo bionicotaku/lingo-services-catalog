@@ -66,7 +66,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		configloader.ProviderSet,
 		gclog.ProviderSet,
 		obswire.ProviderSet,
-		database.ProviderSet,        // ← 新增：数据库连接池
+		database.ProviderSet, // ← 新增：数据库连接池
 		grpcserver.ProviderSet,
 		grpcclient.ProviderSet,
 		clients.ProviderSet,

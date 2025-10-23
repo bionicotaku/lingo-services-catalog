@@ -46,7 +46,6 @@ go.work.sum
 /vendor/
 
 # Generated code
-sqlc/
 *.gw.go
 
 # Build profiles

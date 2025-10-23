@@ -31,7 +31,8 @@ func NewGreeterRepo(pool *pgxpool.Pool, logger log.Logger) services.GreeterRepo 
 // Save 保存 Greeter 实体到持久化存储。
 // 当前为桩实现，直接返回传入的实体。
 // TODO: 实现真实的数据库插入逻辑，如：
-//   return r.queries.InsertGreeter(ctx, params)
+//
+//	return r.queries.InsertGreeter(ctx, params)
 func (r *greeterRepo) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
 	return g, nil
 }

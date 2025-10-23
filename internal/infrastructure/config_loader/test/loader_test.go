@@ -78,7 +78,7 @@ observability:
     exporter: stdout
     interval: 60s
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -139,7 +139,7 @@ server:
   grpc:
     addr: ""
 `
-	if err := os.WriteFile(configFile, []byte(emptyContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(emptyContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -177,7 +177,7 @@ server:
   grpc:
     addr: [invalid yaml structure
 `
-	if err := os.WriteFile(configFile, []byte(malformedContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(malformedContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -293,7 +293,7 @@ server:
   grpc:
     addr: 0.0.0.0:9000
 `
-	if err := os.WriteFile(configFile, []byte(minimalConfig), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(minimalConfig), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -322,7 +322,7 @@ server:
   grpc:
     addr: 0.0.0.0:9000
 `
-	if err := os.WriteFile(configFile, []byte(minimalConfig), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(minimalConfig), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -359,7 +359,7 @@ observability:
     exporter: stdout
     interval: 30s
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -397,7 +397,7 @@ observability:
     grpc_enabled: false
     grpc_include_health: true
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -458,7 +458,7 @@ observability:
     attributes:
       attr1: val1
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -538,7 +538,7 @@ server:
   grpc:
     addr: 0.0.0.0:9000
 `
-	if err := os.WriteFile(configFile, []byte(minimalConfig), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(minimalConfig), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -578,7 +578,7 @@ data:
   grpc_client:
     target: "dns:///remote:9000"
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -650,7 +650,7 @@ observability:
     enabled: true
     interval: 30s
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("create config file: %v", err)
 	}
 
@@ -695,7 +695,7 @@ observability:
     enabled: true
     exporter: stdout
 `
-	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		b.Fatalf("create config file: %v", err)
 	}
 
