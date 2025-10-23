@@ -18,7 +18,14 @@ message Server {
     string addr = 2;
     google.protobuf.Duration timeout = 3;
   }
+  message JWT {
+    string expected_audience = 1;
+    bool skip_validate = 2;
+    bool required = 3;
+    string header_key = 4;
+  }
   GRPC grpc = 1;
+  JWT jwt = 2;
 }
 
 message Data {
@@ -42,6 +49,12 @@ message Data {
   // gRPC Client 配置（可选，用于服务间调用）
   message Client {
     string target = 1;  // 目标地址，留空则不创建 client
+    message JWT {
+      string audience = 1;
+      bool disabled = 2;
+      string header_key = 3;
+    }
+    JWT jwt = 2;
   }
 
   PostgreSQL postgres = 1 [(validate.rules).message.required = true];

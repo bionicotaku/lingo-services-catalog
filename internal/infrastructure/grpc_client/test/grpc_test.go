@@ -38,7 +38,7 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 	videoSvc := controllers.NewVideoHandler(services.NewVideoUsecase(videoRepoStub{}, logger))
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, videoSvc, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {
@@ -79,7 +79,7 @@ func waitForServer(t *testing.T, addr string) {
 func TestNewGRPCClient_NoTarget(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	conn, cleanup, err := clientinfra.NewGRPCClient(&configpb.Data{}, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(&configpb.Data{}, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestNewGRPCClient_CallVideo(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestNewGRPCClient_VideoInvalidID(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}

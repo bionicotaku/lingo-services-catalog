@@ -21,7 +21,7 @@ func TestNewGRPCClient_CleanupFunction(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestNewGRPCClient_MetricsDisabled(t *testing.T) {
 	}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestNewGRPCClient_NilMetricsConfig(t *testing.T) {
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
 	// 传入 nil metricsCfg，应使用默认值（metrics enabled）
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, nil, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, nil, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestNewGRPCClient_MetricsIncludeHealth(t *testing.T) {
 	}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestNewGRPCClient_InvalidTarget(t *testing.T) {
 	// 使用显然无效的目标地址
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "invalid://bad_scheme"}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	// Kratos 可能不会立即报错，而是延迟到实际连接时
 	if err != nil {
 		t.Logf("NewGRPCClient returned expected error: %v", err)
@@ -130,7 +130,7 @@ func TestNewGRPCClient_EmptyTarget(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: ""}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestNewGRPCClient_NilData(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(nil, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(nil, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestNewGRPCClient_NilGrpcClient(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
 	cfg := &configpb.Data{GrpcClient: nil}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestNewGRPCClient_CleanupMultipleTimes(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: false}
 	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
 
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestNewGRPCClient_ContextCancellation(t *testing.T) {
 	cancel()
 
 	// NewGRPCClient 不受外部 context 影响（内部使用 Background）
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}

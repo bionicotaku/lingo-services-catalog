@@ -2,6 +2,11 @@ server:
   grpc:
     addr: 0.0.0.0:9000
     timeout: 5s
+  jwt:
+    expected_audience: ""
+    skip_validate: true
+    required: true
+    header_key: authorization
 data:
   postgres:
     # 运行前必须配置环境变量 DATABASE_URL
@@ -21,6 +26,10 @@ data:
   # gRPC Client 配置（服务间调用，留空表示不启用）
   grpc_client:
     target: ""
+    jwt:
+      audience: ""
+      disabled: true
+      header_key: authorization
 observability:
   global_attributes:
     service.group: template

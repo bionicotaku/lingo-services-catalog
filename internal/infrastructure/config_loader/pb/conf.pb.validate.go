@@ -271,6 +271,35 @@ func (m *Server) validate(all bool) error {
 		}
 	}
 
+	if all {
+		switch v := interface{}(m.GetJwt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ServerValidationError{
+					field:  "Jwt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ServerValidationError{
+					field:  "Jwt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetJwt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ServerValidationError{
+				field:  "Jwt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return ServerMultiError(errors)
 	}
@@ -807,6 +836,113 @@ var _ interface {
 	ErrorName() string
 } = Server_GRPCValidationError{}
 
+// Validate checks the field values on Server_JWT with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *Server_JWT) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on Server_JWT with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in Server_JWTMultiError, or
+// nil if none found.
+func (m *Server_JWT) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *Server_JWT) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ExpectedAudience
+
+	// no validation rules for SkipValidate
+
+	// no validation rules for Required
+
+	// no validation rules for HeaderKey
+
+	if len(errors) > 0 {
+		return Server_JWTMultiError(errors)
+	}
+
+	return nil
+}
+
+// Server_JWTMultiError is an error wrapping multiple validation errors
+// returned by Server_JWT.ValidateAll() if the designated constraints aren't met.
+type Server_JWTMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m Server_JWTMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m Server_JWTMultiError) AllErrors() []error { return m }
+
+// Server_JWTValidationError is the validation error returned by
+// Server_JWT.Validate if the designated constraints aren't met.
+type Server_JWTValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e Server_JWTValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e Server_JWTValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e Server_JWTValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e Server_JWTValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e Server_JWTValidationError) ErrorName() string { return "Server_JWTValidationError" }
+
+// Error satisfies the builtin error interface
+func (e Server_JWTValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sServer_JWT.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = Server_JWTValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = Server_JWTValidationError{}
+
 // Validate checks the field values on Data_PostgreSQL with the rules defined
 // in the proto definition for this message. If any rules are violated, the
 // first error encountered is returned, or nil if there are no violations.
@@ -1068,6 +1204,35 @@ func (m *Data_Client) validate(all bool) error {
 
 	// no validation rules for Target
 
+	if all {
+		switch v := interface{}(m.GetJwt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, Data_ClientValidationError{
+					field:  "Jwt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, Data_ClientValidationError{
+					field:  "Jwt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetJwt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return Data_ClientValidationError{
+				field:  "Jwt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return Data_ClientMultiError(errors)
 	}
@@ -1144,6 +1309,112 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = Data_ClientValidationError{}
+
+// Validate checks the field values on Data_Client_JWT with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *Data_Client_JWT) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on Data_Client_JWT with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// Data_Client_JWTMultiError, or nil if none found.
+func (m *Data_Client_JWT) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *Data_Client_JWT) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Audience
+
+	// no validation rules for Disabled
+
+	// no validation rules for HeaderKey
+
+	if len(errors) > 0 {
+		return Data_Client_JWTMultiError(errors)
+	}
+
+	return nil
+}
+
+// Data_Client_JWTMultiError is an error wrapping multiple validation errors
+// returned by Data_Client_JWT.ValidateAll() if the designated constraints
+// aren't met.
+type Data_Client_JWTMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m Data_Client_JWTMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m Data_Client_JWTMultiError) AllErrors() []error { return m }
+
+// Data_Client_JWTValidationError is the validation error returned by
+// Data_Client_JWT.Validate if the designated constraints aren't met.
+type Data_Client_JWTValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e Data_Client_JWTValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e Data_Client_JWTValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e Data_Client_JWTValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e Data_Client_JWTValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e Data_Client_JWTValidationError) ErrorName() string { return "Data_Client_JWTValidationError" }
+
+// Error satisfies the builtin error interface
+func (e Data_Client_JWTValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sData_Client_JWT.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = Data_Client_JWTValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = Data_Client_JWTValidationError{}
 
 // Validate checks the field values on Observability_Tracing with the rules
 // defined in the proto definition for this message. If any rules are

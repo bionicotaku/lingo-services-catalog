@@ -15,6 +15,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
 
+	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
@@ -36,6 +37,8 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 	// Providers and their dependencies:
 	//   - configloader.ProvideLoggerConfig(configloader.ServiceMetadata) gclog.Config
 	//       由服务元信息（名称/版本/环境/实例 ID）生成 gclog 所需的 Config。
+	//   - configloader.ProvideJWTConfig(*configpb.Server, *configpb.Data) gcjwt.Config
+	//       提供 JWT 客户端/服务端配置，供 gcjwt 组件使用。
 	//   - gclog.NewComponent(gclog.Config) (*gclog.Component, func(), error)
 	//       初始化结构化日志组件，返回可选的 cleanup。
 	//   - gclog.ProvideLogger(*gclog.Component) log.Logger
@@ -46,9 +49,15 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 	//       初始化 Tracer/Meter Provider，绑定 Service/Logger，并返回 cleanup。
 	//   - observability.ProvideMetricsConfig(observability.ObservabilityConfig) *observability.MetricsConfig
 	//       提供 gRPC 指标配置（含默认值）。
-	//   - grpc_server.NewGRPCServer(*configpb.Server, *observability.MetricsConfig, *controllers.VideoHandler, log.Logger) *grpc.Server
+	//   - gcjwt.NewComponent(gcjwt.Config, log.Logger) (*gcjwt.Component, func(), error)
+	//       构建客户端/服务端 JWT 中间件。
+	//   - gcjwt.ProvideServerMiddleware(*gcjwt.Component) (gcjwt.ServerMiddleware, error)
+	//       暴露服务端中间件供 gRPC Server 注入。
+	//   - gcjwt.ProvideClientMiddleware(*gcjwt.Component) (gcjwt.ClientMiddleware, error)
+	//       暴露客户端中间件供 gRPC Client 注入。
+	//   - grpc_server.NewGRPCServer(*configpb.Server, *observability.MetricsConfig, nil, gcjwt.ServerMiddleware, *controllers.VideoHandler, log.Logger) *grpc.Server
 	//       构建 gRPC Server，注入指标、日志等中间件。
-	//   - grpc_client.NewGRPCClient(*configpb.Data, *observability.MetricsConfig, log.Logger) (*grpc.ClientConn, func(), error)
+	//   - grpc_client.NewGRPCClient(*configpb.Data, *observability.MetricsConfig, gcjwt.ClientMiddleware, log.Logger) (*grpc.ClientConn, func(), error)
 	//       构建 gRPC Client 连接（用于跨服务调用），并返回 cleanup。
 	//   - repositories.NewVideoRepository(*pgxpool.Pool, log.Logger) *repositories.VideoRepository
 	//       构造视频仓储层，使用 sqlc 生成的查询方法。
@@ -61,6 +70,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 	panic(wire.Build(
 		configloader.ProviderSet,
 		gclog.ProviderSet,
+		gcjwt.ProviderSet,
 		obswire.ProviderSet,
 		database.ProviderSet,
 		grpcserver.ProviderSet,

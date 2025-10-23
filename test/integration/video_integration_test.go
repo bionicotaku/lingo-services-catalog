@@ -93,7 +93,7 @@ func newTestServer(t *testing.T) *testServer {
 		GRPCIncludeHealth: false,
 	}
 
-	grpcSrv := grpcserver.NewGRPCServer(serverConfig, metricsCfg, videoController, logger)
+	grpcSrv := grpcserver.NewGRPCServer(serverConfig, metricsCfg, nil, videoController, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {

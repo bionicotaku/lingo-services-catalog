@@ -46,7 +46,7 @@ func startServer(t *testing.T) (string, func()) {
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()

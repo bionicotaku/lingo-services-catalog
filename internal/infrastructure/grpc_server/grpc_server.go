@@ -7,9 +7,11 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
+	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
 	obsTrace "github.com/bionicotaku/lingo-utils/observability/tracing"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware"
 	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/middleware/metadata"
 	"github.com/go-kratos/kratos/v2/middleware/ratelimit"
@@ -36,7 +38,7 @@ import (
 // 可选指标采集：
 // - 根据 metricsCfg.GRPCEnabled 决定是否启用 otelgrpc.StatsHandler
 // - 可通过 metricsCfg.GRPCIncludeHealth 控制是否采集健康检查指标
-func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, video *controllers.VideoHandler, logger log.Logger) *grpc.Server {
+func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, jwt gcjwt.ServerMiddleware, video *controllers.VideoHandler, logger log.Logger) *grpc.Server {
 	// metricsCfg 为可选参数，默认启用指标采集以保持向后兼容。
 	// 调用方可通过配置显式控制指标行为。
 	metricsEnabled := true
@@ -46,17 +48,27 @@ func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, 
 		includeHealth = metricsCfg.GRPCIncludeHealth
 	}
 
-	opts := []grpc.ServerOption{
-		grpc.Middleware(
-			obsTrace.Server(),
-			recovery.Recovery(),
-			metadata.Server(
-				metadata.WithPropagatedPrefix("x-template-"),
-			),
-			ratelimit.Server(),
-			validate.Validator(),
-			logging.Server(logger),
+	// 构造基础中间件链：追踪、panic 恢复与 metadata 传播。
+	mws := []middleware.Middleware{
+		obsTrace.Server(),
+		recovery.Recovery(),
+		metadata.Server(
+			metadata.WithPropagatedPrefix("x-template-"),
 		),
+	}
+	// 根据配置决定是否挂载 JWT 校验，默认置于限流之前。
+	if jwt != nil {
+		mws = append(mws, middleware.Middleware(jwt))
+	}
+	// 其余中间件保持原有顺序，保护限流、参数校验与结构化日志逻辑。
+	mws = append(mws,
+		ratelimit.Server(),
+		validate.Validator(),
+		logging.Server(logger),
+	)
+
+	opts := []grpc.ServerOption{
+		grpc.Middleware(mws...),
 	}
 	if metricsEnabled {
 		handler := newServerHandler(includeHealth)

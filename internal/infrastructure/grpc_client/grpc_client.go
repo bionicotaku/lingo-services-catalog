@@ -7,9 +7,11 @@ import (
 
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 
+	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
 	obsTrace "github.com/bionicotaku/lingo-utils/observability/tracing"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware"
 	"github.com/go-kratos/kratos/v2/middleware/circuitbreaker"
 	"github.com/go-kratos/kratos/v2/middleware/metadata"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
@@ -39,7 +41,7 @@ import (
 //
 // 特殊处理：
 // - 如果未配置 target，返回 nil conn（不报错），允许服务在无下游依赖时启动
-func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, logger log.Logger) (*grpc.ClientConn, func(), error) {
+func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, jwt gcjwt.ClientMiddleware, logger log.Logger) (*grpc.ClientConn, func(), error) {
 	helper := log.NewHelper(logger)
 
 	// 如果未配置目标地址，返回 nil 连接（不报错）
@@ -57,14 +59,24 @@ func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, lo
 		includeHealth = metricsCfg.GRPCIncludeHealth
 	}
 
+	// 基础中间件链：panic 恢复 + metadata 传播，确保下游能收到必要头信息。
+	mws := []middleware.Middleware{
+		recovery.Recovery(),
+		metadata.Client(),
+	}
+	// 按需注入 JWT，中间件只在配置启用时生效。
+	if jwt != nil {
+		mws = append(mws, middleware.Middleware(jwt))
+	}
+	// 追踪与熔断保留原顺序，保证链路观测与保护能力。
+	mws = append(mws,
+		obsTrace.Client(),
+		circuitbreaker.Client(),
+	)
+
 	opts := []kgrpc.ClientOption{
 		kgrpc.WithEndpoint(c.GrpcClient.Target),
-		kgrpc.WithMiddleware(
-			recovery.Recovery(),
-			metadata.Client(),
-			obsTrace.Client(),
-			circuitbreaker.Client(),
-		),
+		kgrpc.WithMiddleware(mws...),
 	}
 	if metricsEnabled {
 		opts = append(opts, kgrpc.WithOptions(grpc.WithStatsHandler(newClientHandler(includeHealth))))

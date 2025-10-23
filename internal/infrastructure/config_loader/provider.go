@@ -2,6 +2,7 @@ package loader
 
 import (
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/google/wire"
@@ -17,6 +18,7 @@ var ProviderSet = wire.NewSet(
 	ProvideObservabilityConfig,
 	ProvideObservabilityInfo,
 	ProvideLoggerConfig,
+	ProvideJWTConfig,
 )
 
 // ProvideBundle constructs a Bundle from runtime parameters.
@@ -72,4 +74,32 @@ func ProvideObservabilityInfo(meta ServiceMetadata) obswire.ServiceInfo {
 // ProvideLoggerConfig exposes service metadata to logging Provider.
 func ProvideLoggerConfig(meta ServiceMetadata) gclog.Config {
 	return meta.LoggerConfig()
+}
+
+// ProvideJWTConfig 构造 gcjwt.Config，便于统一注入。
+func ProvideJWTConfig(server *configpb.Server, data *configpb.Data) gcjwt.Config {
+	var cfg gcjwt.Config
+
+	if server != nil {
+		if jwt := server.GetJwt(); jwt != nil {
+			cfg.Server = &gcjwt.ServerConfig{
+				ExpectedAudience: jwt.GetExpectedAudience(),
+				SkipValidate:     jwt.GetSkipValidate(),
+				Required:         jwt.GetRequired(),
+				HeaderKey:        jwt.GetHeaderKey(),
+			}
+		}
+	}
+
+	if data != nil && data.GetGrpcClient() != nil {
+		if jwt := data.GetGrpcClient().GetJwt(); jwt != nil {
+			cfg.Client = &gcjwt.ClientConfig{
+				Audience:  jwt.GetAudience(),
+				Disabled:  jwt.GetDisabled(),
+				HeaderKey: jwt.GetHeaderKey(),
+			}
+		}
+	}
+
+	return cfg
 }

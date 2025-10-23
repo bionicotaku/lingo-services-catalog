@@ -14,6 +14,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
+	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
@@ -59,8 +60,23 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	server := loader.ProvideServerConfig(bootstrap)
 	metricsConfig := observability.ProvideMetricsConfig(observabilityConfig)
 	data := loader.ProvideDataConfig(bootstrap)
-	pool, cleanup3, err := database.NewPgxPool(contextContext, data, logger)
+	gcjwtConfig := loader.ProvideJWTConfig(server, data)
+	gcjwtComponent, cleanup3, err := gcjwt.NewComponent(gcjwtConfig, logger)
 	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	serverMiddleware, err := gcjwt.ProvideServerMiddleware(gcjwtComponent)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	pool, cleanup4, err := database.NewPgxPool(contextContext, data, logger)
+	if err != nil {
+		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
@@ -68,9 +84,10 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	videoRepository := repositories.NewVideoRepository(pool, logger)
 	videoUsecase := services.NewVideoUsecase(videoRepository, logger)
 	videoHandler := controllers.NewVideoHandler(videoUsecase)
-	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, videoHandler, logger)
+	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
 	return app, func() {
+		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()
