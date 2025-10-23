@@ -5,6 +5,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -168,16 +169,19 @@ func healthCheck(ctx context.Context, pool *pgxpool.Pool, logger log.Logger) err
 //	输入: postgresql://user:secret@host:5432/db
 //	输出: postgresql://user:***@host:5432/db
 func sanitizeDSN(dsn string) string {
-	// 简单实现：替换 :password@ 为 :***@
-	if idx := strings.Index(dsn, "://"); idx != -1 {
-		rest := dsn[idx+3:]
-		if passStart := strings.Index(rest, ":"); passStart != -1 {
-			if passEnd := strings.Index(rest[passStart:], "@"); passEnd != -1 {
-				return dsn[:idx+3+passStart+1] + "***" + rest[passStart+passEnd:]
-			}
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		return dsn
+	}
+
+	if parsed.User != nil {
+		username := parsed.User.Username()
+		if _, hasPassword := parsed.User.Password(); hasPassword {
+			parsed.User = url.UserPassword(username, "***")
 		}
 	}
-	return dsn
+
+	return parsed.String()
 }
 
 // truncateVersion 截断 PostgreSQL 版本字符串（避免日志过长）。
