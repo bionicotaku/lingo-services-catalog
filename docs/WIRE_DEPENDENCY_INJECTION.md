@@ -477,17 +477,14 @@ graph TB
 
         subgraph Controllers["Controller 层"]
             VH["*VideoHandler"]
-            GH["*GreeterHandler"]
         end
 
         subgraph Services["Service 层"]
             VU["*VideoUsecase"]
-            GU["*GreeterUsecase"]
         end
 
         subgraph Repositories["Repository 层"]
             VR["*VideoRepository"]
-            GR["*GreeterRepository"]
         end
 
         subgraph Infrastructure["基础设施层"]
@@ -502,22 +499,16 @@ graph TB
         end
 
         App -->|依赖| VH
-        App -->|依赖| GH
         App -->|依赖| Server
         App -->|依赖| Logger
 
         VH -->|依赖| VU
-        GH -->|依赖| GU
 
         VU -->|依赖| VR
         VU -->|依赖| Logger
-        GU -->|依赖| GR
-        GU -->|依赖| Logger
 
         VR -->|依赖| DB
         VR -->|依赖| Logger
-        GR -->|依赖| DB
-        GR -->|依赖| Logger
 
         DB -->|依赖| Bundle
         Server -->|依赖| Metadata
@@ -614,19 +605,13 @@ graph LR
     subgraph Bindings["接口绑定映射"]
         subgraph Interfaces["接口（定义在 Service 层）"]
             I1["services.VideoRepo"]
-            I2["services.GreeterRepo"]
-            I3["services.GreeterRemote"]
         end
 
         subgraph Implementations["实现（来自各层）"]
             C1["*repositories.VideoRepository"]
-            C2["*repositories.GreeterRepository"]
-            C3["*clients.GreeterRemote"]
         end
 
         I1 -.->|wire.Bind| C1
-        I2 -.->|wire.Bind| C2
-        I3 -.->|wire.Bind| C3
     end
 
     style Interfaces fill:#9b59b6,color:#fff
@@ -639,22 +624,10 @@ graph LR
 wire.Build(
     // ...
 
-    // 绑定 1：Repository 接口
+    // 绑定：Repository 接口
     wire.Bind(
         new(services.VideoRepo),           // ← Service 层定义的接口
         new(*repositories.VideoRepository), // ← Repository 层的实现
-    ),
-
-    // 绑定 2：另一个 Repository 接口
-    wire.Bind(
-        new(services.GreeterRepo),
-        new(*repositories.GreeterRepository),
-    ),
-
-    // 绑定 3：gRPC Client 接口
-    wire.Bind(
-        new(services.GreeterRemote),
-        new(*clients.GreeterRemote),
     ),
 
     // ...
@@ -713,26 +686,22 @@ sequenceDiagram
 ```mermaid
 graph TB
     subgraph Resolution["依赖解析流程"]
-        Start["目标：*kratos.App"] -->|需要| Deps1["*VideoHandler<br/>*GreeterHandler<br/>log.Logger<br/>*grpc.Server"]
+        Start["目标：*kratos.App"] -->|需要| Deps1["*VideoHandler<br/>log.Logger<br/>*grpc.Server"]
 
         Deps1 -->|VideoHandler 需要| Deps2A["*VideoUsecase"]
-        Deps1 -->|GreeterHandler 需要| Deps2B["*GreeterUsecase"]
 
         Deps2A -->|VideoUsecase 需要| Deps3A["VideoRepo (接口)<br/>log.Logger"]
-        Deps2B -->|GreeterUsecase 需要| Deps3B["GreeterRepo (接口)<br/>log.Logger"]
 
         Deps3A -->|接口绑定| Deps4A["*VideoRepository"]
-        Deps3B -->|接口绑定| Deps4B["*GreeterRepository"]
 
         Deps4A -->|Repository 需要| Deps5["*pgxpool.Pool<br/>log.Logger"]
-        Deps4B -->|Repository 需要| Deps5
 
         Deps5 -->|Pool 需要| Deps6["*loader.Bundle"]
         Deps5 -->|Logger 需要| Deps6
 
         Deps6 -->|Bundle 来自| Leaf["configloader.Params<br/>(输入参数)"]
 
-        Leaf -.->|倒序构造| Construct["构造顺序：<br/>1. Bundle<br/>2. Pool + Logger<br/>3. Repositories<br/>4. Usecases<br/>5. Handlers<br/>6. App"]
+        Leaf -.->|倒序构造| Construct["构造顺序：<br/>1. Bundle<br/>2. Pool + Logger<br/>3. VideoRepository<br/>4. VideoUsecase<br/>5. VideoHandler<br/>6. App"]
     end
 
     style Start fill:#e74c3c,color:#fff
@@ -763,18 +732,15 @@ graph TB
 
         subgraph Phase3["阶段 3：业务层构造"]
             B1["videoRepo := repositories.NewVideoRepository(pool, logger)"]
-            B2["greeterRepo := repositories.NewGreeterRepository(pool, logger)"]
             B3["videoUsecase := services.NewVideoUsecase(videoRepo, logger)"]
-            B4["greeterUsecase := services.NewGreeterUsecase(greeterRepo, logger)"]
         end
 
         subgraph Phase4["阶段 4：表示层构造"]
             P1["videoHandler := controllers.NewVideoHandler(videoUsecase)"]
-            P2["greeterHandler := controllers.NewGreeterHandler(greeterUsecase)"]
         end
 
         subgraph Phase5["阶段 5：应用创建"]
-            A1["app := newApp(videoHandler, greeterHandler, server, logger)"]
+            A1["app := newApp(videoHandler, server, logger)"]
         end
 
         subgraph Cleanup["清理函数"]
@@ -1205,8 +1171,6 @@ wire.Build(
 
     // 所有接口绑定集中在这里
     wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository)),
-    wire.Bind(new(services.UserRepo), new(*repositories.UserRepository)),
-    wire.Bind(new(services.GreeterRemote), new(*clients.GreeterRemote)),
 )
 ```
 

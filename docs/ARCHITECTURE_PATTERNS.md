@@ -597,21 +597,21 @@ graph TB
         direction TB
 
         subgraph Layer1["第 1 层：表示层"]
-            Controllers["internal/controllers/<br/>- VideoHandler<br/>- GreeterHandler"]
+            Controllers["internal/controllers/<br/>- VideoHandler"]
         end
 
         subgraph Layer2["第 2 层：应用层"]
-            Services["internal/services/<br/>- VideoUsecase<br/>- GreeterUsecase"]
+            Services["internal/services/<br/>- VideoUsecase"]
             VO["internal/models/vo/<br/>- VideoDetail"]
         end
 
         subgraph Layer3["第 3 层：领域层"]
             PO["internal/models/po/<br/>- Video (Entity)<br/>- VideoStatus (VO)"]
-            Interfaces["Service 层定义的接口<br/>- VideoRepo<br/>- GreeterRepo"]
+            Interfaces["Service 层定义的接口<br/>- VideoRepo"]
         end
 
         subgraph Layer4["第 4 层：基础设施层"]
-            Repos["internal/repositories/<br/>- VideoRepository<br/>- GreeterRepository"]
+            Repos["internal/repositories/<br/>- VideoRepository"]
             Mappers["internal/repositories/mappers/<br/>- VideoFromCatalog()"]
             SQLC["internal/repositories/sqlc/<br/>- Queries<br/>- Models"]
             Infra["internal/infrastructure/<br/>- Database<br/>- gRPC Server/Client"]

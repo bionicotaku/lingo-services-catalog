@@ -1,49 +1,89 @@
+# 顶层 server 配置：入站 gRPC 服务与 JWT 校验
 server:
+  # gRPC 网络相关配置
   grpc:
+    # 监听地址，0.0.0.0 表示绑定所有网卡
     addr: 0.0.0.0:9000
+    # 单次请求的超时时间
     timeout: 5s
+  # Cloud Run JWT 权限验证（入站）
   jwt:
+    # 预期的 audience，生产环境填写 Cloud Run URL，本地可留空
     expected_audience: ""
+    # 是否跳过验证，本地开发可设为 true，生产必须 false；为 true 时下方 required 不再生效
     skip_validate: true
+    # 是否强制要求携带 Token（仅在 skip_validate=false 时生效）；允许匿名路由但希望解析 Token 时可设为 false
     required: true
+    # 从哪个 Header 读取 Token，默认 authorization
     header_key: authorization
+
+# data 节点：数据库与出站 gRPC 客户端配置
 data:
+  # PostgreSQL / Supabase 配置
   postgres:
-    # 运行前必须配置环境变量 DATABASE_URL
+    # DSN 占位（运行时需通过 DATABASE_URL 环境变量覆盖）
     dsn: ""
 
-    # 连接池配置
+    # 最大打开连接数
     max_open_conns: 10
+    # 最小空闲连接数
     min_open_conns: 2
-    max_conn_lifetime: 3600s # 1 小时
-    max_conn_idle_time: 1800s # 30 分钟
-    health_check_period: 60s # 1 分钟
+    # 连接最大生命周期
+    max_conn_lifetime: 3600s
+    # 空闲连接最大保留时长
+    max_conn_idle_time: 1800s
+    # 健康检查周期
+    health_check_period: 60s
 
-    # Supabase 配置
+    # 默认 schema（Supabase 推荐使用 catalog）
     schema: catalog
-    enable_prepared_statements: false # Supabase Pooler 必须禁用
+    # Supabase Pooler 模式要求禁用 prepared statements
+    enable_prepared_statements: false
 
-  # gRPC Client 配置（服务间调用，留空表示不启用）
+  # 出站 gRPC 客户端配置，target 留空表示禁用
   grpc_client:
+    # 目标服务地址，例如 dns:///service.run.app:443
     target: ""
+    # Cloud Run JWT 注入（出站）
     jwt:
+      # 目标服务的 audience，启用时需填写 Cloud Run URL
       audience: ""
+      # 是否禁用中间件，默认为 true 便于本地开发
       disabled: true
+      # 注入 Token 的 Header 名称
       header_key: authorization
+
+# 可观测性配置：追踪与指标
 observability:
+  # 全局标签，附加到指标/追踪/日志
   global_attributes:
+    # 服务所属分组标签
     service.group: template
+    # 部署区域标签
     region: local
+  # OpenTelemetry 追踪配置
   tracing:
+    # 是否启用追踪
     enabled: true
+    # 追踪导出方式
     exporter: stdout
+    # 采样比例，1.0 表示全采样
     sampling_ratio: 1.0
+    # 是否要求追踪初始化成功
     required: false
+  # OpenTelemetry 指标配置
   metrics:
+    # 是否启用指标
     enabled: true
+    # 指标导出方式
     exporter: stdout
+    # 指标导出间隔
     interval: 60s
+    # 是否关闭 Go runtime 指标
     disable_runtime_stats: false
+    # 是否要求指标初始化成功
     required: false
+    # 是否启用 gRPC 指标采集
     grpc_enabled: true
+    # 是否包含健康检查 RPC 指标
     grpc_include_health: false
