@@ -246,7 +246,7 @@ kratos-template/
 │   │
 │   ├── services/                     # 服务层（业务逻辑）
 │   │   ├── video.go                  # 视频业务用例
-│   │   ├── biz.go                    # Wire ProviderSet
+│   │   ├── init.go                   # Wire ProviderSet
 │   │   └── test/                     # 单元测试
 │   │
 │   ├── repositories/                 # 仓储层（数据访问）
