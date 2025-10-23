@@ -14,11 +14,10 @@ func TestProvideBundle(t *testing.T) {
 	tmpDir := t.TempDir()
 	writeMinimalConfig(t, tmpDir)
 
-	params := loader.Params{
-		ConfPath:       tmpDir,
-		ServiceName:    "test-svc",
-		ServiceVersion: "v1.0",
-	}
+	t.Setenv("SERVICE_NAME", "test-svc")
+	t.Setenv("SERVICE_VERSION", "v1.0")
+
+	params := loader.Params{ConfPath: tmpDir}
 
 	bundle, err := loader.ProvideBundle(params)
 	if err != nil {

@@ -7,6 +7,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.8.0
 	github.com/google/wire v0.7.0
 	github.com/jackc/pgx/v5 v5.7.6
+	github.com/joho/godotenv v1.5.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.53.0
 	go.uber.org/automaxprocs v1.5.1
 	google.golang.org/grpc v1.75.0

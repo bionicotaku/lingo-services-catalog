@@ -15,15 +15,6 @@ import (
 	_ "go.uber.org/automaxprocs" // 自动设置 GOMAXPROCS 为容器 CPU 配额
 )
 
-// 编译时注入版本信息：
-// go build -ldflags "-X main.Name=my-service -X main.Version=v1.2.3"
-var (
-	// Name 是编译后的软件名称，默认为空（由 config_loader 设置默认值 "template"）。
-	Name string
-	// Version 是编译后的软件版本，默认为空（由 config_loader 设置默认值 "dev"）。
-	Version string
-)
-
 // newApp 负责组装 Kratos 应用：注入观测组件、日志器、服务元信息以及 gRPC Server。
 //
 // 参数：
@@ -53,9 +44,7 @@ func main() {
 
 	// 2. 构造配置加载参数
 	params := loader.Params{
-		ConfPath:       *confFlag,     // 配置路径（可为空，使用默认值或环境变量）
-		ServiceName:    Name,          // 服务名称（编译期注入或使用默认值）
-		ServiceVersion: Version,       // 服务版本（编译期注入或使用默认值）
+		ConfPath: *confFlag, // 配置路径（可为空，使用默认值或环境变量）
 	}
 
 	// 3. 通过 Wire 装配所有依赖（logger、servers、repositories 等）并创建 Kratos App

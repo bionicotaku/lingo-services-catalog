@@ -11,9 +11,9 @@ data:
     # 连接池配置
     max_open_conns: 10
     min_open_conns: 2
-    max_conn_lifetime: 1h
-    max_conn_idle_time: 30m
-    health_check_period: 1m
+    max_conn_lifetime: 3600s   # 1 小时
+    max_conn_idle_time: 1800s  # 30 分钟
+    health_check_period: 60s   # 1 分钟
 
     # Supabase 配置
     schema: kratos_template

@@ -55,13 +55,17 @@ server:
     addr: 0.0.0.0:9000
     timeout: 1s
 data:
-  database:
-    driver: postgres
-    source: "host=localhost"
-  redis:
-    addr: "localhost:6379"
-    read_timeout: 0.2s
-    write_timeout: 0.2s
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable&search_path=public"
+    max_open_conns: 10
+    min_open_conns: 2
+    max_conn_lifetime: 3600s
+    max_conn_idle_time: 1800s
+    health_check_period: 60s
+    schema: test_schema
+    enable_prepared_statements: false
+  grpc_client:
+    target: "dns:///127.0.0.1:9000"
 observability:
   global_attributes:
     env: test
@@ -78,12 +82,12 @@ observability:
 		t.Fatalf("create config file: %v", err)
 	}
 
+	// 设置服务元信息环境变量
+	t.Setenv("SERVICE_NAME", "test-service")
+	t.Setenv("SERVICE_VERSION", "v1.0.0")
+
 	// 测试 Build
-	params := loader.Params{
-		ConfPath:       tmpDir,
-		ServiceName:    "test-service",
-		ServiceVersion: "v1.0.0",
-	}
+	params := loader.Params{ConfPath: tmpDir}
 
 	bundle, err := loader.Build(params)
 	if err != nil {
@@ -566,9 +570,9 @@ data:
     dsn: "postgresql://user:pass@db:5432/testdb?sslmode=require"
     max_open_conns: 10
     min_open_conns: 2
-    max_conn_lifetime: 1h
-    max_conn_idle_time: 30m
-    health_check_period: 1m
+    max_conn_lifetime: 3600s
+    max_conn_idle_time: 1800s
+    health_check_period: 60s
     schema: "kratos_template"
     enable_prepared_statements: false
   grpc_client:
@@ -681,9 +685,8 @@ server:
     addr: 0.0.0.0:9000
     timeout: 1s
 data:
-  database:
-    driver: postgres
-    source: "host=localhost"
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
 observability:
   tracing:
     enabled: true

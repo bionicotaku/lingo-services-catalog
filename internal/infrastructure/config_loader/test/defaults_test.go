@@ -34,10 +34,13 @@ func TestResolveServiceName(t *testing.T) {
 			tmpDir := t.TempDir()
 			writeMinimalConfig(t, tmpDir)
 
-			params := loader.Params{
-				ConfPath:    tmpDir,
-				ServiceName: tt.input,
+			if tt.input != "" {
+				t.Setenv("SERVICE_NAME", tt.input)
+			} else {
+				t.Setenv("SERVICE_NAME", "")
 			}
+
+			params := loader.Params{ConfPath: tmpDir}
 			bundle, err := loader.Build(params)
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
@@ -73,10 +76,13 @@ func TestResolveServiceVersion(t *testing.T) {
 			tmpDir := t.TempDir()
 			writeMinimalConfig(t, tmpDir)
 
-			params := loader.Params{
-				ConfPath:       tmpDir,
-				ServiceVersion: tt.input,
+			if tt.input != "" {
+				t.Setenv("SERVICE_VERSION", tt.input)
+			} else {
+				t.Setenv("SERVICE_VERSION", "")
 			}
+
+			params := loader.Params{ConfPath: tmpDir}
 			bundle, err := loader.Build(params)
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
@@ -203,6 +209,11 @@ func writeMinimalConfig(t *testing.T, dir string) {
 server:
   grpc:
     addr: 0.0.0.0:9000
+data:
+  postgres:
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 1
+    min_open_conns: 0
 `
 	if err := writeConfigFile(t, dir, content); err != nil {
 		t.Fatalf("write minimal config: %v", err)

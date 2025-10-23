@@ -1,3 +1,4 @@
+// Package loader 的默认值定义，提供配置解析所需的兜底常量。
 package loader
 
 import (
@@ -7,13 +8,11 @@ import (
 const (
 	// defaultConfPath is the fallback configuration directory when no overrides are provided.
 	defaultConfPath = "configs"
-	// envConfPath is the env var name that overrides configuration directory when flag is absent.
-	envConfPath = "CONF_PATH"
 	// defaultEnvironment is used when APP_ENV is missing.
 	defaultEnvironment = "development"
-	// defaultServiceName is applied when build inputs omit service name.
+	// defaultServiceName is applied when service name metadata is absent.
 	defaultServiceName = "template"
-	// defaultServiceVersion is applied when build inputs omit version.
+	// defaultServiceVersion is applied when service version metadata is absent.
 	defaultServiceVersion = "dev"
 	// defaultGRPCMetricsEnabled toggles otelgrpc instrumentation when config omits explicit values.
 	defaultGRPCMetricsEnabled = true
