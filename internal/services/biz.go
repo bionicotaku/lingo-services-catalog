@@ -5,10 +5,7 @@ package services
 import "github.com/google/wire"
 
 // ProviderSet 暴露 Services 层的构造函数供 Wire 依赖注入使用。
-// 包含所有 Usecase 的构造器（GreeterUsecase, VideoUsecase 等）。
+// 包含所有 Usecase 的构造器。
 var ProviderSet = wire.NewSet(
-	NewGreeterUsecase,
+	NewVideoUsecase, // Video 业务用例
 )
-
-// VideoProviderSet 暴露视频相关用例，后续接入 Catalog 控制层时引用。
-var VideoProviderSet = wire.NewSet(NewVideoUsecase)

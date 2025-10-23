@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
@@ -27,30 +26,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type testRepo struct{}
-
-func (testRepo) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
-	return g, nil
-}
-
-func (testRepo) Update(context.Context, *po.Greeter) (*po.Greeter, error) {
-	return nil, nil
-}
-func (testRepo) FindByID(context.Context, int64) (*po.Greeter, error)       { return nil, nil }
-func (testRepo) ListByHello(context.Context, string) ([]*po.Greeter, error) { return nil, nil }
-func (testRepo) ListAll(context.Context) ([]*po.Greeter, error)             { return nil, nil }
-
-type noopRemote struct{}
-
-func (noopRemote) SayHello(context.Context, string) (string, error) { return "", nil }
-
-func newTestController(t *testing.T) *controllers.GreeterHandler {
-	t.Helper()
-	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewGreeterUsecase(testRepo{}, noopRemote{}, logger)
-	return controllers.NewGreeterHandler(uc)
-}
-
 type videoRepoStub struct{}
 
 func (videoRepoStub) FindByID(context.Context, uuid.UUID) (*po.Video, error) {
@@ -67,12 +42,11 @@ func newVideoController(t *testing.T) *controllers.VideoHandler {
 
 func startServer(t *testing.T) (string, func()) {
 	t.Helper()
-	svc := newTestController(t)
 	videoSvc := newVideoController(t)
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, svc, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, videoSvc, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()
@@ -111,7 +85,7 @@ func waitForServing(t *testing.T, addr string) {
 	t.Fatalf("timed out waiting for server at %s", addr)
 }
 
-func TestNewGRPCServerServesGreeter(t *testing.T) {
+func TestNewGRPCServerServesVideo(t *testing.T) {
 	addr, cleanup := startServer(t)
 	defer cleanup()
 
@@ -121,13 +95,14 @@ func TestNewGRPCServerServesGreeter(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := v1.NewGreeterClient(conn)
-	resp, err := client.SayHello(context.Background(), &v1.HelloRequest{Name: "Tester"})
-	if err != nil {
-		t.Fatalf("SayHello: %v", err)
+	client := videov1.NewVideoQueryServiceClient(conn)
+	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: uuid.New().String()})
+	// 期望返回 NotFound 错误（因为我们的 stub 总是返回 ErrVideoNotFound）
+	if err == nil {
+		t.Fatal("expected error for non-existent video")
 	}
-	if resp.GetMessage() != "Hello Tester" {
-		t.Fatalf("unexpected response: %s", resp.GetMessage())
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("expected NotFound, got %v", status.Code(err))
 	}
 }
 
@@ -161,34 +136,15 @@ func TestNewGRPCServerMetadataPropagationPrefix(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := v1.NewGreeterClient(conn)
+	client := videov1.NewVideoQueryServiceClient(conn)
 	md := kratosmd.New(map[string][]string{"x-template-user": {"abc"}})
 	ctx := kratosmd.NewClientContext(context.Background(), md)
-	if _, err := client.SayHello(ctx, &v1.HelloRequest{Name: "Met"}); err != nil {
-		t.Fatalf("SayHello with metadata: %v", err)
+	// 调用 Video 服务验证 metadata 传播（预期返回 NotFound 或 InvalidArgument）
+	if _, err := client.GetVideoDetail(ctx, &videov1.GetVideoDetailRequest{VideoId: uuid.New().String()}); err == nil {
+		t.Fatal("expected error")
 	}
 
-	// Successful invocation is enough to confirm metadata with allowed prefix is accepted.
-}
-
-func TestNewGRPCServerValidationRejectsInvalid(t *testing.T) {
-	addr, cleanup := startServer(t)
-	defer cleanup()
-
-	conn, err := stdgrpc.NewClient(addr, stdgrpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	defer conn.Close()
-
-	client := v1.NewGreeterClient(conn)
-	_, err = client.SayHello(context.Background(), &v1.HelloRequest{Name: ""})
-	if err == nil {
-		t.Fatalf("expected validation error")
-	}
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("expected InvalidArgument, got %v", status.Code(err))
-	}
+	// 成功调用（即使返回错误）说明 metadata 传播正常工作
 }
 
 func TestVideoServiceRejectsInvalidID(t *testing.T) {

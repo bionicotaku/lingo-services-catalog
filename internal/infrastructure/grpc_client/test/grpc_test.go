@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/bionicotaku/kratos-template/api/helloworld/v1"
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
@@ -25,38 +24,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type repoStub struct{}
-
-func (repoStub) Save(_ context.Context, g *po.Greeter) (*po.Greeter, error) {
-	return g, nil
-}
-
-func (repoStub) Update(context.Context, *po.Greeter) (*po.Greeter, error)   { return nil, nil }
-func (repoStub) FindByID(context.Context, int64) (*po.Greeter, error)       { return nil, nil }
-func (repoStub) ListByHello(context.Context, string) ([]*po.Greeter, error) { return nil, nil }
-func (repoStub) ListAll(context.Context) ([]*po.Greeter, error)             { return nil, nil }
-
-type remoteStub struct{}
-
-func (remoteStub) SayHello(context.Context, string) (string, error) { return "", nil }
-
 type videoRepoStub struct{}
 
 func (videoRepoStub) FindByID(context.Context, uuid.UUID) (*po.Video, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 
-func startGreeterServer(t *testing.T) (addr string, stop func()) {
+func startVideoServer(t *testing.T) (addr string, stop func()) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewGreeterUsecase(repoStub{}, remoteStub{}, logger)
-	svc := controllers.NewGreeterHandler(uc)
 	videoSvc := controllers.NewVideoHandler(services.NewVideoUsecase(videoRepoStub{}, logger))
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, svc, videoSvc, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, videoSvc, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {
@@ -110,35 +92,8 @@ func TestNewGRPCClient_NoTarget(t *testing.T) {
 	cleanup()
 }
 
-func TestNewGRPCClient_CallGreeter(t *testing.T) {
-	addr, stop := startGreeterServer(t)
-	defer stop()
-
-	logger := log.NewStdLogger(io.Discard)
-	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
-
-	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
-	if err != nil {
-		t.Fatalf("NewGRPCClient error: %v", err)
-	}
-	if conn == nil {
-		t.Fatalf("expected connection")
-	}
-	defer cleanup()
-
-	client := v1.NewGreeterClient(conn)
-	resp, err := client.SayHello(context.Background(), &v1.HelloRequest{Name: "Client"})
-	if err != nil {
-		t.Fatalf("SayHello failed: %v", err)
-	}
-	if resp.GetMessage() != "Hello Client" {
-		t.Fatalf("unexpected response: %s", resp.GetMessage())
-	}
-}
-
-func TestNewGRPCClient_VideoNotFound(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+func TestNewGRPCClient_CallVideo(t *testing.T) {
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
@@ -156,7 +111,33 @@ func TestNewGRPCClient_VideoNotFound(t *testing.T) {
 
 	client := videov1.NewVideoQueryServiceClient(conn)
 	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: uuid.NewString()})
+	// 期望返回 NotFound（因为 stub 总是返回 ErrVideoNotFound）
 	if status.Code(err) != codes.NotFound {
 		t.Fatalf("expected NotFound, got %v", status.Code(err))
+	}
+}
+
+func TestNewGRPCClient_VideoInvalidID(t *testing.T) {
+	addr, stop := startVideoServer(t)
+	defer stop()
+
+	logger := log.NewStdLogger(io.Discard)
+	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
+	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
+
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, logger)
+	if err != nil {
+		t.Fatalf("NewGRPCClient error: %v", err)
+	}
+	if conn == nil {
+		t.Fatalf("expected connection")
+	}
+	defer cleanup()
+
+	client := videov1.NewVideoQueryServiceClient(conn)
+	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: ""})
+	// 期望返回 InvalidArgument（空 video_id）
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", status.Code(err))
 	}
 }

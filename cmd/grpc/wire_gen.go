@@ -8,11 +8,9 @@ package main
 
 import (
 	"context"
-	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
@@ -67,24 +65,12 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		cleanup()
 		return nil, nil, err
 	}
-	greeterRepository := repositories.NewGreeterRepo(pool, logger)
-	clientConn, cleanup4, err := grpcclient.NewGRPCClient(data, metricsConfig, logger)
-	if err != nil {
-		cleanup3()
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
-	greeterRemote := clients.NewGreeterRemote(clientConn, logger)
-	greeterUsecase := services.NewGreeterUsecase(greeterRepository, greeterRemote, logger)
-	greeterHandler := controllers.NewGreeterHandler(greeterUsecase)
 	videoRepository := repositories.NewVideoRepository(pool, logger)
 	videoUsecase := services.NewVideoUsecase(videoRepository, logger)
 	videoHandler := controllers.NewVideoHandler(videoUsecase)
-	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, greeterHandler, videoHandler, logger)
+	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, videoHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
 	return app, func() {
-		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()

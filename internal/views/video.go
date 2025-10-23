@@ -1,3 +1,5 @@
+// Package views 负责将内部 VO 对象转换为 gRPC 响应。
+// 该层作为传输层的序列化适配器，隔离业务逻辑与协议细节。
 package views
 
 import (

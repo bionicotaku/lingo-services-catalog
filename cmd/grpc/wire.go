@@ -8,11 +8,9 @@ package main
 import (
 	"context"
 
-	"github.com/bionicotaku/kratos-template/internal/clients"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
-	grpcclient "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
@@ -48,18 +46,16 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 	//       初始化 Tracer/Meter Provider，绑定 Service/Logger，并返回 cleanup。
 	//   - observability.ProvideMetricsConfig(observability.ObservabilityConfig) *observability.MetricsConfig
 	//       提供 gRPC 指标配置（含默认值）。
-	//   - grpc_server.NewGRPCServer(*configpb.Server, *observability.MetricsConfig, *controllers.GreeterHandler, log.Logger) *grpc.Server
+	//   - grpc_server.NewGRPCServer(*configpb.Server, *observability.MetricsConfig, *controllers.VideoHandler, log.Logger) *grpc.Server
 	//       构建 gRPC Server，注入指标、日志等中间件。
 	//   - grpc_client.NewGRPCClient(*configpb.Data, *observability.MetricsConfig, log.Logger) (*grpc.ClientConn, func(), error)
 	//       构建 gRPC Client 连接（用于跨服务调用），并返回 cleanup。
-	//   - clients.NewGreeterRemote(*grpc.ClientConn, log.Logger) services.GreeterRemote
-	//       基于 clientConn 封装远程 Greeter 客户端。
-	//   - repositories.NewGreeterRepo(*data.Data, log.Logger) services.GreeterRepo
-	//       构造仓储层，处理数据访问。
-	//   - services.NewGreeterUsecase(repositories.GreeterRepo, services.GreeterRemote, log.Logger) *services.GreeterUsecase
-	//       组装业务用例，协调仓储与远程客户端。
-	//   - controllers.NewGreeterHandler(*services.GreeterUsecase) *controllers.GreeterHandler
-	//       构造控制层，为 gRPC handler 提供入口。
+	//   - repositories.NewVideoRepository(*pgxpool.Pool, log.Logger) *repositories.VideoRepository
+	//       构造视频仓储层，使用 sqlc 生成的查询方法。
+	//   - services.NewVideoUsecase(services.VideoRepo, log.Logger) *services.VideoUsecase
+	//       组装视频业务用例，协调仓储访问。
+	//   - controllers.NewVideoHandler(*services.VideoUsecase) *controllers.VideoHandler
+	//       构造视频控制层，为 gRPC handler 提供入口。
 	//   - newApp(*observability.Component, log.Logger, *grpc.Server, configloader.ServiceMetadata) *kratos.App
 	//       将日志、观测组件、服务元信息和 gRPC Server 装配成 Kratos 应用。
 	panic(wire.Build(
@@ -68,13 +64,11 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		obswire.ProviderSet,
 		database.ProviderSet,
 		grpcserver.ProviderSet,
-		grpcclient.ProviderSet,
-		clients.ProviderSet,
+		// grpcclient.ProviderSet 和 clients.ProviderSet 暂时不使用
+		// 未来需要调用外部 gRPC 服务时再启用
 		repositories.ProviderSet,
-		wire.Bind(new(services.GreeterRepo), new(*repositories.GreeterRepository)),
 		wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository)),
 		services.ProviderSet,
-		services.VideoProviderSet,
 		controllers.ProviderSet,
 		newApp,
 	))

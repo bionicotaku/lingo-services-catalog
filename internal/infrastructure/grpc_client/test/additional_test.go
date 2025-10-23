@@ -14,7 +14,7 @@ import (
 
 // TestNewGRPCClient_CleanupFunction 验证 cleanup 函数正常执行。
 func TestNewGRPCClient_CleanupFunction(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
@@ -38,7 +38,7 @@ func TestNewGRPCClient_CleanupFunction(t *testing.T) {
 
 // TestNewGRPCClient_MetricsDisabled 验证禁用 gRPC metrics。
 func TestNewGRPCClient_MetricsDisabled(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
@@ -66,7 +66,7 @@ func TestNewGRPCClient_MetricsDisabled(t *testing.T) {
 
 // TestNewGRPCClient_NilMetricsConfig 验证 nil metricsCfg 时的默认行为。
 func TestNewGRPCClient_NilMetricsConfig(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
@@ -85,7 +85,7 @@ func TestNewGRPCClient_NilMetricsConfig(t *testing.T) {
 
 // TestNewGRPCClient_MetricsIncludeHealth 验证 GRPCIncludeHealth=true。
 func TestNewGRPCClient_MetricsIncludeHealth(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
@@ -182,7 +182,7 @@ func TestNewGRPCClient_NilGrpcClient(t *testing.T) {
 
 // TestNewGRPCClient_CleanupMultipleTimes 验证多次调用 cleanup 不崩溃。
 func TestNewGRPCClient_CleanupMultipleTimes(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
@@ -205,7 +205,7 @@ func TestNewGRPCClient_CleanupMultipleTimes(t *testing.T) {
 // TestNewGRPCClient_ContextCancellation 验证连接创建时的上下文处理。
 // 注意：DialInsecure 内部使用 background context，此测试仅验证构造不受外部 ctx 影响。
 func TestNewGRPCClient_ContextCancellation(t *testing.T) {
-	addr, stop := startGreeterServer(t)
+	addr, stop := startVideoServer(t)
 	defer stop()
 
 	logger := log.NewStdLogger(io.Discard)
