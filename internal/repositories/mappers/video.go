@@ -39,6 +39,19 @@ func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
 	}
 }
 
+// VideoReadyViewFromCatalog 将 sqlc 生成的 CatalogVideosReadyView 转换为 po.VideoReadyView。
+func VideoReadyViewFromCatalog(v catalogsql.CatalogVideosReadyView) *po.VideoReadyView {
+	return &po.VideoReadyView{
+		VideoID:        v.VideoID,
+		Title:          v.Title,
+		Status:         po.VideoStatus(v.Status),
+		MediaStatus:    po.StageStatus(v.MediaStatus),
+		AnalysisStatus: po.StageStatus(v.AnalysisStatus),
+		CreatedAt:      mustTimestamp(v.CreatedAt),
+		UpdatedAt:      mustTimestamp(v.UpdatedAt),
+	}
+}
+
 func mustTimestamp(ts pgtype.Timestamptz) time.Time {
 	if !ts.Valid {
 		return time.Time{}

@@ -9,52 +9,55 @@ import (
 	"github.com/google/uuid"
 )
 
-// VideoDetail 封装视频精简视图，仅包含前端展示需要的核心字段。
-// 用于 GetVideoDetail RPC 响应。
-type VideoDetail struct {
-	VideoID     uuid.UUID `json:"video_id"`
-	Title       string    `json:"title"`
-	Description *string   `json:"description"`
-	Status      string    `json:"status"`
-
-	// 播放相关
-	ThumbnailURL      *string `json:"thumbnail_url"`
-	HLSMasterPlaylist *string `json:"hls_master_playlist"`
-	DurationMicros    *int64  `json:"duration_micros"`
-
-	// AI 分析结果
-	Difficulty *string  `json:"difficulty"`
-	Summary    *string  `json:"summary"`
-	Tags       []string `json:"tags"`
-
-	// 时间戳
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+// VideoCreated 封装视频创建响应，包含创建后的核心信息。
+// 用于 CreateVideo RPC 响应。
+type VideoCreated struct {
+	VideoID        uuid.UUID `json:"video_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	Status         string    `json:"status"`
+	MediaStatus    string    `json:"media_status"`
+	AnalysisStatus string    `json:"analysis_status"`
 }
 
-// NewVideoDetail 从领域实体构造精简 VO，只包含前端需要的核心字段。
-func NewVideoDetail(video *po.Video) *VideoDetail {
+// NewVideoCreated 从领域实体构造创建响应 VO。
+func NewVideoCreated(video *po.Video) *VideoCreated {
+	if video == nil {
+		return nil
+	}
+	return &VideoCreated{
+		VideoID:        video.VideoID,
+		CreatedAt:      video.CreatedAt,
+		Status:         string(video.Status),
+		MediaStatus:    string(video.MediaStatus),
+		AnalysisStatus: string(video.AnalysisStatus),
+	}
+}
+
+// VideoDetail 封装视频只读视图，仅包含 ready/published 状态视频的核心信息。
+// 用于 GetVideoDetail RPC 响应。
+// 数据来源：catalog.videos_ready_view 视图
+type VideoDetail struct {
+	VideoID        uuid.UUID `json:"video_id"`
+	Title          string    `json:"title"`
+	Status         string    `json:"status"`
+	MediaStatus    string    `json:"media_status"`
+	AnalysisStatus string    `json:"analysis_status"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// NewVideoDetail 从只读视图实体构造 VO。
+func NewVideoDetail(video *po.VideoReadyView) *VideoDetail {
 	if video == nil {
 		return nil
 	}
 	return &VideoDetail{
-		VideoID:     video.VideoID,
-		Title:       video.Title,
-		Description: video.Description,
-		Status:      string(video.Status),
-
-		// 播放相关
-		ThumbnailURL:      video.ThumbnailURL,
-		HLSMasterPlaylist: video.HLSMasterPlaylist,
-		DurationMicros:    video.DurationMicros,
-
-		// AI 分析结果
-		Difficulty: video.Difficulty,
-		Summary:    video.Summary,
-		Tags:       append([]string(nil), video.Tags...), // 防御性拷贝
-
-		// 时间戳
-		CreatedAt: video.CreatedAt,
-		UpdatedAt: video.UpdatedAt,
+		VideoID:        video.VideoID,
+		Title:          video.Title,
+		Status:         string(video.Status),
+		MediaStatus:    string(video.MediaStatus),
+		AnalysisStatus: string(video.AnalysisStatus),
+		CreatedAt:      video.CreatedAt,
+		UpdatedAt:      video.UpdatedAt,
 	}
 }

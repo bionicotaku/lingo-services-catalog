@@ -35,8 +35,40 @@ func NewVideoRepository(db *pgxpool.Pool, logger log.Logger) *VideoRepository {
 	}
 }
 
-// FindByID 根据 video_id 查询视频详情。
-func (r *VideoRepository) FindByID(ctx context.Context, videoID uuid.UUID) (*po.Video, error) {
+// CreateVideoInput 表示创建视频的输入参数。
+type CreateVideoInput struct {
+	UploadUserID     uuid.UUID
+	Title            string
+	Description      *string
+	RawFileReference string
+}
+
+// Create 创建新视频记录，video_id 由数据库自动生成。
+func (r *VideoRepository) Create(ctx context.Context, input CreateVideoInput) (*po.Video, error) {
+	params := catalogsql.CreateVideoParams{
+		UploadUserID:     input.UploadUserID,
+		Title:            input.Title,
+		RawFileReference: input.RawFileReference,
+	}
+
+	// 处理可选的 description 字段
+	if input.Description != nil {
+		params.Description.String = *input.Description
+		params.Description.Valid = true
+	}
+
+	record, err := r.queries.CreateVideo(ctx, params)
+	if err != nil {
+		r.log.WithContext(ctx).Errorf("create video failed: title=%s err=%v", input.Title, err)
+		return nil, fmt.Errorf("create video: %w", err)
+	}
+
+	r.log.WithContext(ctx).Infof("video created: video_id=%s title=%s", record.VideoID, record.Title)
+	return mappers.VideoFromCatalog(record), nil
+}
+
+// FindByID 根据 video_id 从只读视图查询视频详情（仅返回 ready/published 状态的视频）。
+func (r *VideoRepository) FindByID(ctx context.Context, videoID uuid.UUID) (*po.VideoReadyView, error) {
 	record, err := r.queries.FindVideoByID(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -45,5 +77,5 @@ func (r *VideoRepository) FindByID(ctx context.Context, videoID uuid.UUID) (*po.
 		r.log.WithContext(ctx).Errorf("find video by id failed: video_id=%s err=%v", videoID, err)
 		return nil, fmt.Errorf("find video by id: %w", err)
 	}
-	return mappers.VideoFromCatalog(record), nil
+	return mappers.VideoReadyViewFromCatalog(record), nil
 }

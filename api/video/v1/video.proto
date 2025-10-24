@@ -13,6 +13,12 @@ service VideoQueryService {
   rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
 }
 
+// VideoCommandService 提供视频写操作能力。
+service VideoCommandService {
+  // CreateVideo 创建新视频记录
+  rpc CreateVideo(CreateVideoRequest) returns (CreateVideoResponse);
+}
+
 // GetVideoDetailRequest 表示查询参数。
 message GetVideoDetailRequest {
   string video_id = 1; // UUID 字符串
@@ -23,24 +29,32 @@ message GetVideoDetailResponse {
   VideoDetail detail = 1;
 }
 
-// VideoDetail 精简视图，仅包含前端展示需要的核心字段。
+// VideoDetail 只读视图，仅包含 ready/published 状态视频的核心字段。
+// 数据来源：catalog.videos_ready_view 视图
 message VideoDetail {
   string video_id = 1;                                         // 视频 ID
   string title = 2;                                            // 标题
-  google.protobuf.StringValue description = 3;                 // 描述
-  string status = 4;                                           // 状态（published/ready/processing等）
+  string status = 3;                                           // 状态（ready/published）
+  string media_status = 4;                                     // 媒体处理状态
+  string analysis_status = 5;                                  // AI 分析状态
+  google.protobuf.Timestamp created_at = 6;                    // 创建时间
+  google.protobuf.Timestamp updated_at = 7;                    // 更新时间
+}
 
-  // 播放相关
-  google.protobuf.StringValue thumbnail_url = 5;               // 缩略图 URL
-  google.protobuf.StringValue hls_master_playlist = 6;         // HLS 播放地址
-  google.protobuf.Int64Value duration_micros = 7;              // 时长（微秒）
+// CreateVideoRequest 表示创建视频的请求参数。
+// video_id 由数据库自动生成，不允许客户端指定
+message CreateVideoRequest {
+  string upload_user_id = 1;                                   // 上传者 ID (UUID)
+  string title = 2;                                            // 标题
+  google.protobuf.StringValue description = 3;                 // 描述 (可选)
+  string raw_file_reference = 4;                               // 原始文件引用 (GCS 路径)
+}
 
-  // AI 分析结果
-  google.protobuf.StringValue difficulty = 8;                  // 难度等级
-  google.protobuf.StringValue summary = 9;                     // 内容摘要
-  repeated string tags = 10;                                   // 标签列表
-
-  // 时间戳
-  google.protobuf.Timestamp created_at = 11;                   // 创建时间
-  google.protobuf.Timestamp updated_at = 12;                   // 更新时间
+// CreateVideoResponse 表示创建视频的响应。
+message CreateVideoResponse {
+  string video_id = 1;                                         // 创建的视频 ID
+  google.protobuf.Timestamp created_at = 2;                    // 创建时间
+  string status = 3;                                           // 视频状态
+  string media_status = 4;                                     // 媒体处理状态
+  string analysis_status = 5;                                  // 分析状态
 }

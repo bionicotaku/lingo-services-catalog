@@ -28,7 +28,11 @@ import (
 
 type videoRepoStub struct{}
 
-func (videoRepoStub) FindByID(context.Context, uuid.UUID) (*po.Video, error) {
+func (videoRepoStub) Create(context.Context, repositories.CreateVideoInput) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
+func (videoRepoStub) FindByID(context.Context, uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 

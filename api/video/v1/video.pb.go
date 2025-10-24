@@ -113,26 +113,19 @@ func (x *GetVideoDetailResponse) GetDetail() *VideoDetail {
 	return nil
 }
 
-// VideoDetail 精简视图，仅包含前端展示需要的核心字段。
+// VideoDetail 只读视图，仅包含 ready/published 状态视频的核心字段。
+// 数据来源：catalog.videos_ready_view 视图
 type VideoDetail struct {
-	state       protoimpl.MessageState  `protogen:"open.v1"`
-	VideoId     string                  `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"` // 视频 ID
-	Title       string                  `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`                    // 标题
-	Description *wrapperspb.StringValue `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`        // 描述
-	Status      string                  `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`                  // 状态（published/ready/processing等）
-	// 播放相关
-	ThumbnailUrl      *wrapperspb.StringValue `protobuf:"bytes,5,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`                  // 缩略图 URL
-	HlsMasterPlaylist *wrapperspb.StringValue `protobuf:"bytes,6,opt,name=hls_master_playlist,json=hlsMasterPlaylist,proto3" json:"hls_master_playlist,omitempty"` // HLS 播放地址
-	DurationMicros    *wrapperspb.Int64Value  `protobuf:"bytes,7,opt,name=duration_micros,json=durationMicros,proto3" json:"duration_micros,omitempty"`            // 时长（微秒）
-	// AI 分析结果
-	Difficulty *wrapperspb.StringValue `protobuf:"bytes,8,opt,name=difficulty,proto3" json:"difficulty,omitempty"` // 难度等级
-	Summary    *wrapperspb.StringValue `protobuf:"bytes,9,opt,name=summary,proto3" json:"summary,omitempty"`       // 内容摘要
-	Tags       []string                `protobuf:"bytes,10,rep,name=tags,proto3" json:"tags,omitempty"`            // 标签列表
-	// 时间戳
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // 创建时间
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // 更新时间
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`                      // 视频 ID
+	Title          string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`                                         // 标题
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`                                       // 状态（ready/published）
+	MediaStatus    string                 `protobuf:"bytes,4,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`          // 媒体处理状态
+	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"` // AI 分析状态
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`                // 创建时间
+	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                // 更新时间
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *VideoDetail) Reset() {
@@ -179,13 +172,6 @@ func (x *VideoDetail) GetTitle() string {
 	return ""
 }
 
-func (x *VideoDetail) GetDescription() *wrapperspb.StringValue {
-	if x != nil {
-		return x.Description
-	}
-	return nil
-}
-
 func (x *VideoDetail) GetStatus() string {
 	if x != nil {
 		return x.Status
@@ -193,46 +179,18 @@ func (x *VideoDetail) GetStatus() string {
 	return ""
 }
 
-func (x *VideoDetail) GetThumbnailUrl() *wrapperspb.StringValue {
+func (x *VideoDetail) GetMediaStatus() string {
 	if x != nil {
-		return x.ThumbnailUrl
+		return x.MediaStatus
 	}
-	return nil
+	return ""
 }
 
-func (x *VideoDetail) GetHlsMasterPlaylist() *wrapperspb.StringValue {
+func (x *VideoDetail) GetAnalysisStatus() string {
 	if x != nil {
-		return x.HlsMasterPlaylist
+		return x.AnalysisStatus
 	}
-	return nil
-}
-
-func (x *VideoDetail) GetDurationMicros() *wrapperspb.Int64Value {
-	if x != nil {
-		return x.DurationMicros
-	}
-	return nil
-}
-
-func (x *VideoDetail) GetDifficulty() *wrapperspb.StringValue {
-	if x != nil {
-		return x.Difficulty
-	}
-	return nil
-}
-
-func (x *VideoDetail) GetSummary() *wrapperspb.StringValue {
-	if x != nil {
-		return x.Summary
-	}
-	return nil
-}
-
-func (x *VideoDetail) GetTags() []string {
-	if x != nil {
-		return x.Tags
-	}
-	return nil
+	return ""
 }
 
 func (x *VideoDetail) GetCreatedAt() *timestamppb.Timestamp {
@@ -249,6 +207,153 @@ func (x *VideoDetail) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// CreateVideoRequest 表示创建视频的请求参数。
+// video_id 由数据库自动生成，不允许客户端指定
+type CreateVideoRequest struct {
+	state            protoimpl.MessageState  `protogen:"open.v1"`
+	UploadUserId     string                  `protobuf:"bytes,1,opt,name=upload_user_id,json=uploadUserId,proto3" json:"upload_user_id,omitempty"`             // 上传者 ID (UUID)
+	Title            string                  `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`                                                 // 标题
+	Description      *wrapperspb.StringValue `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`                                     // 描述 (可选)
+	RawFileReference string                  `protobuf:"bytes,4,opt,name=raw_file_reference,json=rawFileReference,proto3" json:"raw_file_reference,omitempty"` // 原始文件引用 (GCS 路径)
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CreateVideoRequest) Reset() {
+	*x = CreateVideoRequest{}
+	mi := &file_api_video_v1_video_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVideoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVideoRequest) ProtoMessage() {}
+
+func (x *CreateVideoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVideoRequest.ProtoReflect.Descriptor instead.
+func (*CreateVideoRequest) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CreateVideoRequest) GetUploadUserId() string {
+	if x != nil {
+		return x.UploadUserId
+	}
+	return ""
+}
+
+func (x *CreateVideoRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CreateVideoRequest) GetDescription() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Description
+	}
+	return nil
+}
+
+func (x *CreateVideoRequest) GetRawFileReference() string {
+	if x != nil {
+		return x.RawFileReference
+	}
+	return ""
+}
+
+// CreateVideoResponse 表示创建视频的响应。
+type CreateVideoResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`                      // 创建的视频 ID
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`                // 创建时间
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`                                       // 视频状态
+	MediaStatus    string                 `protobuf:"bytes,4,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`          // 媒体处理状态
+	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"` // 分析状态
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateVideoResponse) Reset() {
+	*x = CreateVideoResponse{}
+	mi := &file_api_video_v1_video_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVideoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVideoResponse) ProtoMessage() {}
+
+func (x *CreateVideoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVideoResponse.ProtoReflect.Descriptor instead.
+func (*CreateVideoResponse) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateVideoResponse) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *CreateVideoResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *CreateVideoResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CreateVideoResponse) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+func (x *CreateVideoResponse) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
 var File_api_video_v1_video_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_video_proto_rawDesc = "" +
@@ -257,27 +362,33 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\x15GetVideoDetailRequest\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\"G\n" +
 	"\x16GetVideoDetailResponse\x12-\n" +
-	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\"\xed\x04\n" +
+	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\"\x98\x02\n" +
 	"\vVideoDetail\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\x04 \x01(\tR\vmediaStatus\x12'\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xbe\x01\n" +
+	"\x12CreateVideoRequest\x12$\n" +
+	"\x0eupload_user_id\x18\x01 \x01(\tR\fuploadUserId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12>\n" +
-	"\vdescription\x18\x03 \x01(\v2\x1c.google.protobuf.StringValueR\vdescription\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\x12A\n" +
-	"\rthumbnail_url\x18\x05 \x01(\v2\x1c.google.protobuf.StringValueR\fthumbnailUrl\x12L\n" +
-	"\x13hls_master_playlist\x18\x06 \x01(\v2\x1c.google.protobuf.StringValueR\x11hlsMasterPlaylist\x12D\n" +
-	"\x0fduration_micros\x18\a \x01(\v2\x1b.google.protobuf.Int64ValueR\x0edurationMicros\x12<\n" +
+	"\vdescription\x18\x03 \x01(\v2\x1c.google.protobuf.StringValueR\vdescription\x12,\n" +
+	"\x12raw_file_reference\x18\x04 \x01(\tR\x10rawFileReference\"\xcf\x01\n" +
+	"\x13CreateVideoResponse\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x129\n" +
 	"\n" +
-	"difficulty\x18\b \x01(\v2\x1c.google.protobuf.StringValueR\n" +
-	"difficulty\x126\n" +
-	"\asummary\x18\t \x01(\v2\x1c.google.protobuf.StringValueR\asummary\x12\x12\n" +
-	"\x04tags\x18\n" +
-	" \x03(\tR\x04tags\x129\n" +
-	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2h\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\x04 \x01(\tR\vmediaStatus\x12'\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus2h\n" +
 	"\x11VideoQueryService\x12S\n" +
-	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponse2a\n" +
+	"\x13VideoCommandService\x12J\n" +
+	"\vCreateVideo\x12\x1c.video.v1.CreateVideoRequest\x1a\x1d.video.v1.CreateVideoResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_video_proto_rawDescOnce sync.Once
@@ -291,32 +402,31 @@ func file_api_video_v1_video_proto_rawDescGZIP() []byte {
 	return file_api_video_v1_video_proto_rawDescData
 }
 
-var file_api_video_v1_video_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_api_video_v1_video_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_api_video_v1_video_proto_goTypes = []any{
 	(*GetVideoDetailRequest)(nil),  // 0: video.v1.GetVideoDetailRequest
 	(*GetVideoDetailResponse)(nil), // 1: video.v1.GetVideoDetailResponse
 	(*VideoDetail)(nil),            // 2: video.v1.VideoDetail
-	(*wrapperspb.StringValue)(nil), // 3: google.protobuf.StringValue
-	(*wrapperspb.Int64Value)(nil),  // 4: google.protobuf.Int64Value
+	(*CreateVideoRequest)(nil),     // 3: video.v1.CreateVideoRequest
+	(*CreateVideoResponse)(nil),    // 4: video.v1.CreateVideoResponse
 	(*timestamppb.Timestamp)(nil),  // 5: google.protobuf.Timestamp
+	(*wrapperspb.StringValue)(nil), // 6: google.protobuf.StringValue
 }
 var file_api_video_v1_video_proto_depIdxs = []int32{
-	2,  // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
-	3,  // 1: video.v1.VideoDetail.description:type_name -> google.protobuf.StringValue
-	3,  // 2: video.v1.VideoDetail.thumbnail_url:type_name -> google.protobuf.StringValue
-	3,  // 3: video.v1.VideoDetail.hls_master_playlist:type_name -> google.protobuf.StringValue
-	4,  // 4: video.v1.VideoDetail.duration_micros:type_name -> google.protobuf.Int64Value
-	3,  // 5: video.v1.VideoDetail.difficulty:type_name -> google.protobuf.StringValue
-	3,  // 6: video.v1.VideoDetail.summary:type_name -> google.protobuf.StringValue
-	5,  // 7: video.v1.VideoDetail.created_at:type_name -> google.protobuf.Timestamp
-	5,  // 8: video.v1.VideoDetail.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
-	1,  // 10: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	2, // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
+	5, // 1: video.v1.VideoDetail.created_at:type_name -> google.protobuf.Timestamp
+	5, // 2: video.v1.VideoDetail.updated_at:type_name -> google.protobuf.Timestamp
+	6, // 3: video.v1.CreateVideoRequest.description:type_name -> google.protobuf.StringValue
+	5, // 4: video.v1.CreateVideoResponse.created_at:type_name -> google.protobuf.Timestamp
+	0, // 5: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
+	3, // 6: video.v1.VideoCommandService.CreateVideo:input_type -> video.v1.CreateVideoRequest
+	1, // 7: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
+	4, // 8: video.v1.VideoCommandService.CreateVideo:output_type -> video.v1.CreateVideoResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_api_video_v1_video_proto_init() }
@@ -330,9 +440,9 @@ func file_api_video_v1_video_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_video_v1_video_proto_rawDesc), len(file_api_video_v1_video_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_api_video_v1_video_proto_goTypes,
 		DependencyIndexes: file_api_video_v1_video_proto_depIdxs,

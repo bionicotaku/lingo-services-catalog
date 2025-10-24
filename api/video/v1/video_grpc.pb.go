@@ -125,3 +125,111 @@ var VideoQueryService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "api/video/v1/video.proto",
 }
+
+const (
+	VideoCommandService_CreateVideo_FullMethodName = "/video.v1.VideoCommandService/CreateVideo"
+)
+
+// VideoCommandServiceClient is the client API for VideoCommandService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// VideoCommandService 提供视频写操作能力。
+type VideoCommandServiceClient interface {
+	// CreateVideo 创建新视频记录
+	CreateVideo(ctx context.Context, in *CreateVideoRequest, opts ...grpc.CallOption) (*CreateVideoResponse, error)
+}
+
+type videoCommandServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewVideoCommandServiceClient(cc grpc.ClientConnInterface) VideoCommandServiceClient {
+	return &videoCommandServiceClient{cc}
+}
+
+func (c *videoCommandServiceClient) CreateVideo(ctx context.Context, in *CreateVideoRequest, opts ...grpc.CallOption) (*CreateVideoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateVideoResponse)
+	err := c.cc.Invoke(ctx, VideoCommandService_CreateVideo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// VideoCommandServiceServer is the server API for VideoCommandService service.
+// All implementations must embed UnimplementedVideoCommandServiceServer
+// for forward compatibility.
+//
+// VideoCommandService 提供视频写操作能力。
+type VideoCommandServiceServer interface {
+	// CreateVideo 创建新视频记录
+	CreateVideo(context.Context, *CreateVideoRequest) (*CreateVideoResponse, error)
+	mustEmbedUnimplementedVideoCommandServiceServer()
+}
+
+// UnimplementedVideoCommandServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedVideoCommandServiceServer struct{}
+
+func (UnimplementedVideoCommandServiceServer) CreateVideo(context.Context, *CreateVideoRequest) (*CreateVideoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateVideo not implemented")
+}
+func (UnimplementedVideoCommandServiceServer) mustEmbedUnimplementedVideoCommandServiceServer() {}
+func (UnimplementedVideoCommandServiceServer) testEmbeddedByValue()                             {}
+
+// UnsafeVideoCommandServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to VideoCommandServiceServer will
+// result in compilation errors.
+type UnsafeVideoCommandServiceServer interface {
+	mustEmbedUnimplementedVideoCommandServiceServer()
+}
+
+func RegisterVideoCommandServiceServer(s grpc.ServiceRegistrar, srv VideoCommandServiceServer) {
+	// If the following call pancis, it indicates UnimplementedVideoCommandServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&VideoCommandService_ServiceDesc, srv)
+}
+
+func _VideoCommandService_CreateVideo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateVideoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VideoCommandServiceServer).CreateVideo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VideoCommandService_CreateVideo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VideoCommandServiceServer).CreateVideo(ctx, req.(*CreateVideoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// VideoCommandService_ServiceDesc is the grpc.ServiceDesc for VideoCommandService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var VideoCommandService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "video.v1.VideoCommandService",
+	HandlerType: (*VideoCommandServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateVideo",
+			Handler:    _VideoCommandService_CreateVideo_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "api/video/v1/video.proto",
+}

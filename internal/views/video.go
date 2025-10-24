@@ -7,48 +7,41 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/vo"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+// NewCreateVideoResponse 将 VideoCreated 视图对象转换为 gRPC 响应。
+func NewCreateVideoResponse(created *vo.VideoCreated) *videov1.CreateVideoResponse {
+	if created == nil {
+		return &videov1.CreateVideoResponse{}
+	}
+	return &videov1.CreateVideoResponse{
+		VideoId:        created.VideoID.String(),
+		CreatedAt:      timestamppb.New(created.CreatedAt),
+		Status:         created.Status,
+		MediaStatus:    created.MediaStatus,
+		AnalysisStatus: created.AnalysisStatus,
+	}
+}
 
 // NewGetVideoDetailResponse 将 VideoDetail 视图对象转换为 gRPC 响应。
 func NewGetVideoDetailResponse(detail *vo.VideoDetail) *videov1.GetVideoDetailResponse {
 	return &videov1.GetVideoDetailResponse{Detail: NewVideoDetail(detail)}
 }
 
-// NewVideoDetail 将 VideoDetail 视图对象转换为 gRPC DTO（精简视图）。
+// NewVideoDetail 将 VideoDetail 视图对象转换为 gRPC DTO。
+// 只包含只读视图中的字段（ready/published 状态视频的核心信息）。
 func NewVideoDetail(detail *vo.VideoDetail) *videov1.VideoDetail {
 	if detail == nil {
 		return &videov1.VideoDetail{}
 	}
 
-	resp := &videov1.VideoDetail{
-		VideoId:   detail.VideoID.String(),
-		Title:     detail.Title,
-		Status:    detail.Status,
-		Tags:      append([]string(nil), detail.Tags...), // 防御性拷贝
-		CreatedAt: timestamppb.New(detail.CreatedAt),
-		UpdatedAt: timestamppb.New(detail.UpdatedAt),
+	return &videov1.VideoDetail{
+		VideoId:        detail.VideoID.String(),
+		Title:          detail.Title,
+		Status:         detail.Status,
+		MediaStatus:    detail.MediaStatus,
+		AnalysisStatus: detail.AnalysisStatus,
+		CreatedAt:      timestamppb.New(detail.CreatedAt),
+		UpdatedAt:      timestamppb.New(detail.UpdatedAt),
 	}
-
-	// 可选字段（使用 google.protobuf.Wrappers）
-	if detail.Description != nil {
-		resp.Description = wrapperspb.String(*detail.Description)
-	}
-	if detail.ThumbnailURL != nil {
-		resp.ThumbnailUrl = wrapperspb.String(*detail.ThumbnailURL)
-	}
-	if detail.HLSMasterPlaylist != nil {
-		resp.HlsMasterPlaylist = wrapperspb.String(*detail.HLSMasterPlaylist)
-	}
-	if detail.DurationMicros != nil {
-		resp.DurationMicros = wrapperspb.Int64(*detail.DurationMicros)
-	}
-	if detail.Difficulty != nil {
-		resp.Difficulty = wrapperspb.String(*detail.Difficulty)
-	}
-	if detail.Summary != nil {
-		resp.Summary = wrapperspb.String(*detail.Summary)
-	}
-
-	return resp
 }

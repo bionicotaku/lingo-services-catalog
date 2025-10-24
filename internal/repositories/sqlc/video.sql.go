@@ -70,9 +70,30 @@ func (q *Queries) ClaimPendingOutboxEvents(ctx context.Context, arg ClaimPending
 	return items, nil
 }
 
-const findVideoByID = `-- name: FindVideoByID :one
+const createVideo = `-- name: CreateVideo :one
 
-SELECT
+INSERT INTO catalog.videos (
+    upload_user_id,
+    created_at,
+    updated_at,
+    title,
+    description,
+    raw_file_reference,
+    status,
+    media_status,
+    analysis_status
+) VALUES (
+    $1,
+    now(),
+    now(),
+    $2,
+    $4,
+    $3,
+    'pending_upload',
+    'pending',
+    'pending'
+)
+RETURNING
     video_id,
     upload_user_id,
     created_at,
@@ -96,15 +117,25 @@ SELECT
     tags,
     raw_subtitle_url,
     error_message
-FROM catalog.videos
-WHERE video_id = $1
 `
+
+type CreateVideoParams struct {
+	UploadUserID     uuid.UUID   `json:"upload_user_id"`
+	Title            string      `json:"title"`
+	RawFileReference string      `json:"raw_file_reference"`
+	Description      pgtype.Text `json:"description"`
+}
 
 // Video 业务相关的 SQL 查询定义
 // 由 sqlc 生成类型安全的 Go 代码
-// 根据 video_id 查询视频详情
-func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (CatalogVideo, error) {
-	row := q.db.QueryRow(ctx, findVideoByID, videoID)
+// 创建新视频记录，video_id 由数据库自动生成
+func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (CatalogVideo, error) {
+	row := q.db.QueryRow(ctx, createVideo,
+		arg.UploadUserID,
+		arg.Title,
+		arg.RawFileReference,
+		arg.Description,
+	)
 	var i CatalogVideo
 	err := row.Scan(
 		&i.VideoID,
@@ -130,6 +161,35 @@ func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (Catalog
 		&i.Tags,
 		&i.RawSubtitleUrl,
 		&i.ErrorMessage,
+	)
+	return i, err
+}
+
+const findVideoByID = `-- name: FindVideoByID :one
+SELECT
+    video_id,
+    title,
+    status,
+    media_status,
+    analysis_status,
+    created_at,
+    updated_at
+FROM catalog.videos_ready_view
+WHERE video_id = $1
+`
+
+// 根据 video_id 从只读视图查询视频详情（仅返回 ready/published 状态的视频）
+func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (CatalogVideosReadyView, error) {
+	row := q.db.QueryRow(ctx, findVideoByID, videoID)
+	var i CatalogVideosReadyView
+	err := row.Scan(
+		&i.VideoID,
+		&i.Title,
+		&i.Status,
+		&i.MediaStatus,
+		&i.AnalysisStatus,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

@@ -310,7 +310,11 @@ func TestE2E_JWT_NoToken_Optional(t *testing.T) {
 // mockVideoRepo 实现 services.VideoRepo 接口用于测试。
 type mockVideoRepo struct{}
 
-func (m *mockVideoRepo) FindByID(_ context.Context, _ uuid.UUID) (*po.Video, error) {
+func (m *mockVideoRepo) Create(_ context.Context, _ repositories.CreateVideoInput) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
+func (m *mockVideoRepo) FindByID(_ context.Context, _ uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 

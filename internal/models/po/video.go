@@ -65,3 +65,15 @@ type Video struct {
 	RawSubtitleURL    *string     // 原始字幕/ASR 输出
 	ErrorMessage      *string     // 最近一次失败/拒绝原因
 }
+
+// VideoReadyView 表示 catalog.videos_ready_view 视图的数据实体。
+// 只包含状态为 ready/published 的视频的核心字段。
+type VideoReadyView struct {
+	VideoID        uuid.UUID   // 主键
+	Title          string      // 标题
+	Status         VideoStatus // 总体状态
+	MediaStatus    StageStatus // 媒体阶段状态
+	AnalysisStatus StageStatus // AI 阶段状态
+	CreatedAt      time.Time   // 创建时间
+	UpdatedAt      time.Time   // 最近更新时间
+}

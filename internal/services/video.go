@@ -20,7 +20,8 @@ var ErrVideoNotFound = errors.NotFound(videov1.ErrorReason_ERROR_REASON_VIDEO_NO
 // VideoRepo 定义 Video 实体的持久化行为接口。
 // 由 Repository 层实现，使用 sqlc 生成的查询方法。
 type VideoRepo interface {
-	FindByID(ctx context.Context, videoID uuid.UUID) (*po.Video, error)
+	Create(ctx context.Context, input repositories.CreateVideoInput) (*po.Video, error)
+	FindByID(ctx context.Context, videoID uuid.UUID) (*po.VideoReadyView, error)
 }
 
 // VideoUsecase 封装 Video 相关的业务用例逻辑。
@@ -39,12 +40,51 @@ func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
 	}
 }
 
+// CreateVideoInput 表示创建视频的输入参数。
+type CreateVideoInput struct {
+	UploadUserID     uuid.UUID
+	Title            string
+	Description      *string
+	RawFileReference string
+}
+
+// CreateVideo 创建新视频记录（对应 VideoCommandService.CreateVideo RPC）。
+//
+// video_id 由数据库自动生成，返回创建后的视频元数据。
+// 初始状态：status=pending_upload, media_status=pending, analysis_status=pending。
+func (uc *VideoUsecase) CreateVideo(ctx context.Context, input CreateVideoInput) (*vo.VideoCreated, error) {
+	// 构造 Repository 输入参数
+	repoInput := repositories.CreateVideoInput{
+		UploadUserID:     input.UploadUserID,
+		Title:            input.Title,
+		Description:      input.Description,
+		RawFileReference: input.RawFileReference,
+	}
+
+	video, err := uc.repo.Create(ctx, repoInput)
+	if err != nil {
+		// 检查是否为超时错误
+		if errors.Is(err, context.DeadlineExceeded) {
+			uc.log.WithContext(ctx).Warnf("create video timeout: title=%s", input.Title)
+			return nil, errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "create timeout")
+		}
+
+		// 其他内部错误
+		uc.log.WithContext(ctx).Errorf("create video failed: title=%s err=%v", input.Title, err)
+		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to create video").WithCause(fmt.Errorf("create video: %w", err))
+	}
+
+	uc.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s status=%s", video.VideoID, video.Title, video.Status)
+
+	return vo.NewVideoCreated(video), nil
+}
+
 // GetVideoDetail 查询视频详情（对应 CatalogQueryService.GetVideoMetadata RPC）。
 //
-// 返回与用户无关的客观元数据（媒体、AI 字段等）。
+// 从只读视图 videos_ready_view 查询，仅返回 ready/published 状态的视频核心信息。
 // 数据转换由 VO 层负责（NewVideoDetail 构造函数）。
 func (uc *VideoUsecase) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (*vo.VideoDetail, error) {
-	video, err := uc.repo.FindByID(ctx, videoID)
+	videoView, err := uc.repo.FindByID(ctx, videoID)
 	if err != nil {
 		// 检查是否为视频未找到错误
 		if errors.Is(err, repositories.ErrVideoNotFound) {
@@ -62,7 +102,7 @@ func (uc *VideoUsecase) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (
 		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to query video").WithCause(fmt.Errorf("find video by id: %w", err))
 	}
 
-	uc.log.WithContext(ctx).Debugf("GetVideoDetail: video_id=%s, status=%s", video.VideoID, video.Status)
+	uc.log.WithContext(ctx).Debugf("GetVideoDetail: video_id=%s, status=%s", videoView.VideoID, videoView.Status)
 
-	return vo.NewVideoDetail(video), nil
+	return vo.NewVideoDetail(videoView), nil
 }
