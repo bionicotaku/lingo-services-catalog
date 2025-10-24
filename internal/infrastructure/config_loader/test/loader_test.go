@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	loader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader"
 )
 
 // TestResolveConfPath_ExplicitPath 验证显式路径优先级最高。

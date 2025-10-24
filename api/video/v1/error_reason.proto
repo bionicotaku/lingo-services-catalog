@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package video.v1;
 
-option go_package = "github.com/bionicotaku/kratos-template/api/video/v1;videov1";
+option go_package = "github.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1";
 option java_multiple_files = true;
 option java_package = "video.v1";
 option objc_class_prefix = "APIVideoV1";

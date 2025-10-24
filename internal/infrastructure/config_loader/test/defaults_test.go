@@ -4,7 +4,7 @@ package loader_test
 import (
 	"testing"
 
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	loader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader"
 )
 
 // TestResolveServiceName 验证服务名称解析逻辑。

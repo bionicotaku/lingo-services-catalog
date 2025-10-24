@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
-	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
+	configpb "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader/pb"
+	clientinfra "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_client"
 
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"

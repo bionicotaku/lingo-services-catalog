@@ -6,7 +6,7 @@ import (
 	"context"
 	"flag"
 
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	loader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"

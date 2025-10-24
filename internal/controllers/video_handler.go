@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/services"
-	"github.com/bionicotaku/kratos-template/internal/views"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/services"
+	"github.com/bionicotaku/lingo-services-catalog/internal/views"
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/google/uuid"

@@ -1,4 +1,4 @@
-module github.com/bionicotaku/kratos-template
+module github.com/bionicotaku/lingo-services-catalog
 
 go 1.25.3
 
@@ -56,7 +56,6 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.6 // indirect
 	github.com/shoenig/go-m1cpu v0.1.7 // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect

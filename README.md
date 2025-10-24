@@ -133,7 +133,7 @@ Kratos-Template 是一个**视频目录微服务**示例，实现了以下业务
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/bionicotaku/kratos-template.git
+git clone https://github.com/bionicotaku/lingo-services-catalog.git
 cd kratos-template
 ```
 

@@ -92,8 +92,8 @@ const file_api_video_v1_error_reason_proto_rawDesc = "" +
 	"\x0fVIDEO_NOT_FOUND\x10\x01\x12\x14\n" +
 	"\x10VIDEO_ID_INVALID\x10\x02\x12\x16\n" +
 	"\x12QUERY_VIDEO_FAILED\x10\x03\x12\x11\n" +
-	"\rQUERY_TIMEOUT\x10\x04BV\n" +
-	"\bvideo.v1P\x01Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1\xa2\x02\n" +
+	"\rQUERY_TIMEOUT\x10\x04B]\n" +
+	"\bvideo.v1P\x01ZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1\xa2\x02\n" +
 	"APIVideoV1b\x06proto3"
 
 var (

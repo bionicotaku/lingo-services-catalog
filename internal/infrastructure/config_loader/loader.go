@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configpb "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/bufbuild/protovalidate-go"

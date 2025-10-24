@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"testing"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
-	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	configpb "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader/pb"
+	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"

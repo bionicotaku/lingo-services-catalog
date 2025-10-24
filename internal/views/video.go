@@ -3,8 +3,8 @@
 package views
 
 import (
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/models/vo"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"

@@ -969,7 +969,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x14_grpc_include_health\x1aC\n" +
 	"\x15GlobalAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BaZ_github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
 
 var (
 	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce sync.Once

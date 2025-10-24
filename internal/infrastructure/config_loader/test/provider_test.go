@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	loader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader"
 )
 
 // TestProvideBundle 验证 ProvideBundle 函数。

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configpb "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/config_loader/pb"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

@@ -277,7 +277,7 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2h\n" +
 	"\x11VideoQueryService\x12S\n" +
-	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponseBDZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_video_proto_rawDescOnce sync.Once

@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
-	"github.com/bionicotaku/kratos-template/internal/repositories/mappers"
-	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories/mappers"
+	catalogsql "github.com/bionicotaku/lingo-services-catalog/internal/repositories/sqlc"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"

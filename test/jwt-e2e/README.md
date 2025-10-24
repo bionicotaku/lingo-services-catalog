@@ -89,7 +89,7 @@ go test -tags=integration -v ./test/jwt-e2e -run TestE2E_JWT_RealEnv_SkipValidat
 #### 1. 生成 Mock Token
 
 ```go
-import "github.com/bionicotaku/kratos-template/test/jwt-e2e/test_utils"
+import "github.com/bionicotaku/lingo-services-catalog/test/jwt-e2e/test_utils"
 
 // 生成自签名 JWT Token
 token := test_utils.GenerateValidCloudRunToken(t,
