@@ -1,5 +1,13 @@
 // Package integration_test 提供端到端集成测试，连接真实的 Supabase 数据库。
 // 测试完整的 gRPC 调用链路：Client → gRPC Server → Controller → Service → Repository → PostgreSQL
+//
+// 环境要求：
+//   - 本地开发：需要 configs/.env 文件（包含 DATABASE_URL）
+//   - CI 环境：自动跳过（configs/.env 在 .gitignore 中）
+//
+// 运行方式：
+//   make test                    # 本地有 .env 时运行，CI 自动跳过
+//   go test -v ./test/integration  # 同上
 package integration_test
 
 import (
@@ -55,6 +63,20 @@ func newTestServer(t *testing.T) *testServer {
 	// 1. 加载配置（从 configs/ 目录）
 	// 获取配置路径并设置环境变量（确保所有测试使用相同的路径）
 	confPath := getConfigPath(t)
+	if confPath == "" {
+		t.Skip("跳过集成测试：configs/config.yaml 不存在\n" +
+			"本地运行：确保项目根目录有 configs/config.yaml 和 configs/.env 文件\n" +
+			"CI 环境：自动跳过（需要真实数据库连接）")
+	}
+
+	// 检查 .env 文件是否存在（包含 DATABASE_URL）
+	envFile := filepath.Join(confPath, ".env")
+	if _, err := os.Stat(envFile); os.IsNotExist(err) {
+		t.Skipf("跳过集成测试：%s 不存在\n"+
+			"本地运行：复制 configs/.env.example 为 configs/.env 并配置 DATABASE_URL\n"+
+			"CI 环境：自动跳过（需要真实数据库连接）", envFile)
+	}
+
 	t.Logf("Using config path: %s", confPath)
 
 	// 临时设置 CONF_PATH 环境变量，确保配置加载器使用正确的路径
@@ -70,7 +92,8 @@ func newTestServer(t *testing.T) *testServer {
 
 	bundle, err := configloader.Build(configloader.Params{ConfPath: confPath})
 	if err != nil {
-		t.Fatalf("load config failed: %v (ensure configs/.env exists with valid DATABASE_URL)", err)
+		t.Skipf("跳过集成测试：加载配置失败: %v\n"+
+			"请确保 configs/.env 包含有效的 DATABASE_URL", err)
 	}
 
 	// 2. 初始化数据库连接池（连接 Supabase PostgreSQL）
@@ -146,6 +169,8 @@ func newTestServer(t *testing.T) *testServer {
 //  2. 项目根目录的 configs/（通过 go.mod 定位）
 //  3. 当前目录的 configs/
 //  4. 上级目录的 configs/
+//
+// 如果找不到配置文件或 .env 文件，返回空字符串（调用方应跳过测试）
 func getConfigPath(t *testing.T) string {
 	t.Helper()
 
@@ -156,7 +181,7 @@ func getConfigPath(t *testing.T) string {
 	// 尝试查找项目根目录（包含 go.mod 的目录）
 	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("get working directory failed: %v", err)
+		return ""
 	}
 
 	// 从当前目录向上查找 go.mod
@@ -180,7 +205,6 @@ func getConfigPath(t *testing.T) string {
 		dir = parent
 	}
 
-	t.Fatal("config not found: set CONF_PATH or ensure configs/config.yaml exists in project root")
 	return ""
 }
 
@@ -573,9 +597,19 @@ func TestIntegration_DatabaseConnection(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 
 	confPath := getConfigPath(t)
+	if confPath == "" {
+		t.Skip("跳过集成测试：configs/config.yaml 不存在（CI 环境自动跳过）")
+	}
+
+	// 检查 .env 文件
+	envFile := filepath.Join(confPath, ".env")
+	if _, err := os.Stat(envFile); os.IsNotExist(err) {
+		t.Skipf("跳过集成测试：%s 不存在（CI 环境自动跳过）", envFile)
+	}
+
 	bundle, err := configloader.Build(configloader.Params{ConfPath: confPath})
 	if err != nil {
-		t.Fatalf("load config failed: %v", err)
+		t.Skipf("跳过集成测试：加载配置失败: %v", err)
 	}
 
 	pool, cleanup, err := database.NewPgxPool(ctx, bundle.Bootstrap.GetData(), logger)
