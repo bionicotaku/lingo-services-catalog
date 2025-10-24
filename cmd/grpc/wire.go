@@ -3,6 +3,8 @@
 
 // The build tag makes sure the stub is not built in the final build.
 
+//go:generate go run github.com/google/wire/cmd/wire
+
 package main
 
 import (
@@ -18,6 +20,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/google/wire"
 )
@@ -59,9 +62,13 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 	//       构建 gRPC Server，注入指标、日志等中间件。
 	//   - grpc_client.NewGRPCClient(*configpb.Data, *observability.MetricsConfig, gcjwt.ClientMiddleware, log.Logger) (*grpc.ClientConn, func(), error)
 	//       构建 gRPC Client 连接（用于跨服务调用），并返回 cleanup。
+	//   - txmanager.NewComponent(txmanager.Config, *pgxpool.Pool, log.Logger) (*txmanager.Component, func(), error)
+	//       组装事务管理器，复用日志与连接池。
+	//   - txmanager.ProvideManager(*txmanager.Component) txmanager.Manager
+	//       暴露事务管理接口供 Service 依赖。
 	//   - repositories.NewVideoRepository(*pgxpool.Pool, log.Logger) *repositories.VideoRepository
 	//       构造视频仓储层，使用 sqlc 生成的查询方法。
-	//   - services.NewVideoUsecase(services.VideoRepo, log.Logger) *services.VideoUsecase
+	//   - services.NewVideoUsecase(services.VideoRepo, txmanager.Manager, log.Logger) *services.VideoUsecase
 	//       组装视频业务用例，协调仓储访问。
 	//   - controllers.NewVideoHandler(*services.VideoUsecase) *controllers.VideoHandler
 	//       构造视频控制层，为 gRPC handler 提供入口。
@@ -73,6 +80,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		gcjwt.ProviderSet,
 		obswire.ProviderSet,
 		database.ProviderSet,
+		txmanager.ProviderSet,
 		grpcserver.ProviderSet,
 		// grpcclient.ProviderSet 和 clients.ProviderSet 暂时不使用
 		// 未来需要调用外部 gRPC 服务时再启用

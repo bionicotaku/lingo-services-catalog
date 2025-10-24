@@ -42,10 +42,19 @@
 - [x] 更新 `buf.yaml` / 模块依赖并运行 `make api`，通过 `buf lint`、`buf breaking`。✅ 2025-10-24
   - 成功生成 `api/video/v1/events.pb.go`（757 行代码）
   - 所有代码编译通过 `go build ./...`
-- [ ] 约定 Pub/Sub topic/ordering key/attributes（event_id, aggregate_id, version, schema_version, occurred_at）并在文档/配置中记录。
+- [x] 约定 Pub/Sub topic/ordering key/attributes（event_id, aggregate_id, version, schema_version, occurred_at）并在文档/配置中记录。✅ 2025-10-24
+  - 创建了详细的 `docs/pubsub-conventions.md` 规范文档，包含：
+    - Topic/Subscription 命名规范（catalog.video.events）
+    - Message Attributes 必需/可选字段定义
+    - Ordering Key 策略（使用 aggregate_id）
+    - Message 格式（Protobuf Envelope）
+    - 版本管理策略（schema_version）
+    - 幂等性保证（Outbox/Inbox 模式）
+    - 错误处理和重试策略（指数退避、DLQ）
+    - 配置示例和监控告警规范
 
 ## 阶段 3｜写路径改造（Outbox）
-- [ ] 为 Service 添加事务边界：在写操作用例中引入 `TxManager`/Unit of Work，确保业务写 + Outbox INSERT 同事务提交。
+- [x] 为 Service 添加事务边界：在写操作用例中引入 `TxManager`/Unit of Work，确保业务写 + Outbox INSERT 同事务提交。（2025-10-24，本次迭代已完成基础 Wiring，后续 Outbox 写入落地仍需跟进）
 - [ ] 抽象 `OutboxWriter` 接口与实现（`internal/repositories/outbox_repository.go`），复用 sqlc 查询并接受上下文。
 - [ ] 设计事件构造器（`internal/models/events`）：从 PO/领域对象生成 protobuf/JSON payload，封装 version 递增策略。
 - [ ] Service 层在关键状态变更（创建、更新、删除）后写入 Outbox，返回幂等响应（保留 event metadata 用于客户端一致性 token）。
@@ -106,4 +115,3 @@
 - [ ] 更新 `docs/只读投影方案.md`（新增具体落地路径/命令示例）与 `投影一致性问题解决方案.md`（勾选完成项、补充经验）。
 - [ ] 在服务 README 中添加“只读投影”章节：数据流图、配置示例、演练指南。
 - [ ] 输出运维 Runbook（可链接至 wiki）：常见故障、DLQ 处理、回放步骤。
-

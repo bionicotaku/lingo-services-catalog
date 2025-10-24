@@ -40,7 +40,8 @@ func main() {
     userRepo := repositories.NewUserRepository(db, logger)
     cacheRepo := repositories.NewCacheRepository(redis, logger)
 
-    videoUsecase := services.NewVideoUsecase(videoRepo, userRepo, cacheRepo, logger)
+    txManager := txmanager.NewManager(db, cfg, txmanager.Dependencies{Logger: logger})
+    videoUsecase := services.NewVideoUsecase(videoRepo, txManager, logger)
     userUsecase := services.NewUserUsecase(userRepo, logger)
 
     videoHandler := controllers.NewVideoHandler(videoUsecase, userUsecase, logger)
@@ -166,7 +167,7 @@ func NewVideoRepository(db *pgxpool.Pool, logger log.Logger) *VideoRepository {
 
 // services/video.go
 // Provider: 提供 *VideoUsecase
-func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
+func NewVideoUsecase(repo VideoRepo, tx txmanager.Manager, logger log.Logger) *VideoUsecase {
     return &VideoUsecase{
         repo: repo,
         log:  log.NewHelper(logger),
@@ -363,7 +364,7 @@ type VideoUsecase struct {
     repo VideoRepo  // ← 依赖接口
 }
 
-func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
+func NewVideoUsecase(repo VideoRepo, tx txmanager.Manager, logger log.Logger) *VideoUsecase {
     return &VideoUsecase{repo: repo, ...}
 }
 
@@ -732,7 +733,7 @@ graph TB
 
         subgraph Phase3["阶段 3：业务层构造"]
             B1["videoRepo := repositories.NewVideoRepository(pool, logger)"]
-            B3["videoUsecase := services.NewVideoUsecase(videoRepo, logger)"]
+            B3["videoUsecase := services.NewVideoUsecase(videoRepo, txManager, logger)"]
         end
 
         subgraph Phase4["阶段 4：表示层构造"]

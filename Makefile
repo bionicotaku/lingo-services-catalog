@@ -41,7 +41,7 @@ test:
 .PHONY: generate
 # generate
 generate:
-	go generate ./...
+	GOWORK=off go generate ./...
 	go mod tidy
 
 .PHONY: all

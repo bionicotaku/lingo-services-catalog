@@ -9,6 +9,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/vo"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 
+	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
@@ -20,23 +21,25 @@ var ErrVideoNotFound = errors.NotFound(videov1.ErrorReason_ERROR_REASON_VIDEO_NO
 // VideoRepo 定义 Video 实体的持久化行为接口。
 // 由 Repository 层实现，使用 sqlc 生成的查询方法。
 type VideoRepo interface {
-	Create(ctx context.Context, input repositories.CreateVideoInput) (*po.Video, error)
-	FindByID(ctx context.Context, videoID uuid.UUID) (*po.VideoReadyView, error)
+	Create(ctx context.Context, sess txmanager.Session, input repositories.CreateVideoInput) (*po.Video, error)
+	FindByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error)
 }
 
 // VideoUsecase 封装 Video 相关的业务用例逻辑。
 // 基于 Catalog Service ARCHITECTURE.md 设计。
 type VideoUsecase struct {
-	repo VideoRepo   // 数据访问接口（基于 sqlc）
-	log  *log.Helper // 结构化日志辅助器
+	repo      VideoRepo // 数据访问接口（基于 sqlc）
+	txManager txmanager.Manager
+	log       *log.Helper // 结构化日志辅助器
 }
 
 // NewVideoUsecase 构造一个 Video 业务用例实例。
 // 通过 Wire 注入 repo 和 logger，实现依赖倒置。
-func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
+func NewVideoUsecase(repo VideoRepo, tx txmanager.Manager, logger log.Logger) *VideoUsecase {
 	return &VideoUsecase{
-		repo: repo,
-		log:  log.NewHelper(logger),
+		repo:      repo,
+		txManager: tx,
+		log:       log.NewHelper(logger),
 	}
 }
 
@@ -61,7 +64,12 @@ func (uc *VideoUsecase) CreateVideo(ctx context.Context, input CreateVideoInput)
 		RawFileReference: input.RawFileReference,
 	}
 
-	video, err := uc.repo.Create(ctx, repoInput)
+	var created *po.Video
+	err := uc.txManager.WithinTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
+		var repoErr error
+		created, repoErr = uc.repo.Create(txCtx, sess, repoInput)
+		return repoErr
+	})
 	if err != nil {
 		// 检查是否为超时错误
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -74,9 +82,9 @@ func (uc *VideoUsecase) CreateVideo(ctx context.Context, input CreateVideoInput)
 		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to create video").WithCause(fmt.Errorf("create video: %w", err))
 	}
 
-	uc.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s status=%s", video.VideoID, video.Title, video.Status)
+	uc.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s status=%s", created.VideoID, created.Title, created.Status)
 
-	return vo.NewVideoCreated(video), nil
+	return vo.NewVideoCreated(created), nil
 }
 
 // GetVideoDetail 查询视频详情（对应 CatalogQueryService.GetVideoMetadata RPC）。
@@ -84,7 +92,12 @@ func (uc *VideoUsecase) CreateVideo(ctx context.Context, input CreateVideoInput)
 // 从只读视图 videos_ready_view 查询，仅返回 ready/published 状态的视频核心信息。
 // 数据转换由 VO 层负责（NewVideoDetail 构造函数）。
 func (uc *VideoUsecase) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (*vo.VideoDetail, error) {
-	videoView, err := uc.repo.FindByID(ctx, videoID)
+	var videoView *po.VideoReadyView
+	err := uc.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
+		var repoErr error
+		videoView, repoErr = uc.repo.FindByID(txCtx, sess, videoID)
+		return repoErr
+	})
 	if err != nil {
 		// 检查是否为视频未找到错误
 		if errors.Is(err, repositories.ErrVideoNotFound) {

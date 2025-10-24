@@ -16,6 +16,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/services"
 
 	"github.com/bionicotaku/lingo-utils/observability"
+	txmanager "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	kratosmd "github.com/go-kratos/kratos/v2/metadata"
 	"github.com/google/uuid"
@@ -28,19 +29,29 @@ import (
 
 type videoRepoStub struct{}
 
-func (videoRepoStub) Create(context.Context, repositories.CreateVideoInput) (*po.Video, error) {
+func (videoRepoStub) Create(context.Context, txmanager.Session, repositories.CreateVideoInput) (*po.Video, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 
-func (videoRepoStub) FindByID(context.Context, uuid.UUID) (*po.VideoReadyView, error) {
+func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
+}
+
+type noopTxManager struct{}
+
+func (noopTxManager) WithinTx(ctx context.Context, _ txmanager.TxOptions, fn func(context.Context, txmanager.Session) error) error {
+	return fn(ctx, nil)
+}
+
+func (noopTxManager) WithinReadOnlyTx(ctx context.Context, _ txmanager.TxOptions, fn func(context.Context, txmanager.Session) error) error {
+	return fn(ctx, nil)
 }
 
 func newVideoController(t *testing.T) *controllers.VideoHandler {
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
 	repo := videoRepoStub{}
-	uc := services.NewVideoUsecase(repo, logger)
+	uc := services.NewVideoUsecase(repo, noopTxManager{}, logger)
 	return controllers.NewVideoHandler(uc)
 }
 

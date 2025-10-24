@@ -39,6 +39,18 @@ data:
     schema: catalog
     # Supabase Pooler 模式要求禁用 prepared statements
     enable_prepared_statements: false
+    # 事务管理默认参数（TxManager 使用）
+    transaction:
+      # 默认隔离级别：read_committed / serializable / repeatable_read / read_uncommitted
+      default_isolation: read_committed
+      # 单次事务超时时间
+      default_timeout: 3s
+      # 锁等待超时，避免长时间阻塞
+      lock_timeout: 1s
+      # 建议最大重试次数（遇到 ErrRetryableTx 时由业务决定是否重试）
+      max_retries: 3
+      # 是否启用 TxManager 指标
+      metrics_enabled: true
 
   # 出站 gRPC 客户端配置，target 留空表示禁用
   grpc_client:

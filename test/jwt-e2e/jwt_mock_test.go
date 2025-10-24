@@ -19,6 +19,7 @@ import (
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
+	txmanager "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
@@ -60,7 +61,7 @@ func TestE2E_JWT_MockToken_SkipValidate(t *testing.T) {
 
 	// 创建 Video 服务
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, logger)
+	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	// 启动 gRPC Server
@@ -178,7 +179,7 @@ func TestE2E_JWT_NoToken_Required(t *testing.T) {
 	}
 
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, logger)
+	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	serverCfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
@@ -255,7 +256,7 @@ func TestE2E_JWT_NoToken_Optional(t *testing.T) {
 	}
 
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, logger)
+	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	serverCfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
@@ -310,12 +311,22 @@ func TestE2E_JWT_NoToken_Optional(t *testing.T) {
 // mockVideoRepo 实现 services.VideoRepo 接口用于测试。
 type mockVideoRepo struct{}
 
-func (m *mockVideoRepo) Create(_ context.Context, _ repositories.CreateVideoInput) (*po.Video, error) {
+func (m *mockVideoRepo) Create(_ context.Context, _ txmanager.Session, _ repositories.CreateVideoInput) (*po.Video, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 
-func (m *mockVideoRepo) FindByID(_ context.Context, _ uuid.UUID) (*po.VideoReadyView, error) {
+func (m *mockVideoRepo) FindByID(_ context.Context, _ txmanager.Session, _ uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
+}
+
+type noopTxManager struct{}
+
+func (noopTxManager) WithinTx(ctx context.Context, _ txmanager.TxOptions, fn func(context.Context, txmanager.Session) error) error {
+	return fn(ctx, nil)
+}
+
+func (noopTxManager) WithinReadOnlyTx(ctx context.Context, _ txmanager.TxOptions, fn func(context.Context, txmanager.Session) error) error {
+	return fn(ctx, nil)
 }
 
 // waitForServer 等待 gRPC Server 启动。

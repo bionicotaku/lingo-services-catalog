@@ -17,6 +17,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
 )
 
@@ -82,11 +83,22 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		return nil, nil, err
 	}
 	videoRepository := repositories.NewVideoRepository(pool, logger)
-	videoUsecase := services.NewVideoUsecase(videoRepository, logger)
+	txmanagerConfig := loader.ProvideTxManagerConfig(bundle)
+	txmanagerComponent, cleanup5, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	manager := txmanager.ProvideManager(txmanagerComponent)
+	videoUsecase := services.NewVideoUsecase(videoRepository, manager, logger)
 	videoHandler := controllers.NewVideoHandler(videoUsecase)
 	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
 	return app, func() {
+		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()

@@ -99,7 +99,7 @@ func TestE2E_JWT_RealEnv_SkipValidate(t *testing.T) {
 
 	// 创建 Video 服务
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, logger)
+	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	// 启动 gRPC Server
@@ -240,7 +240,7 @@ func TestE2E_JWT_RealEnv_FullValidation(t *testing.T) {
 	}
 
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, logger)
+	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	serverCfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}

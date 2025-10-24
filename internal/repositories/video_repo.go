@@ -10,6 +10,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/repositories/mappers"
 	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
 
+	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -44,7 +45,7 @@ type CreateVideoInput struct {
 }
 
 // Create 创建新视频记录，video_id 由数据库自动生成。
-func (r *VideoRepository) Create(ctx context.Context, input CreateVideoInput) (*po.Video, error) {
+func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, input CreateVideoInput) (*po.Video, error) {
 	params := catalogsql.CreateVideoParams{
 		UploadUserID:     input.UploadUserID,
 		Title:            input.Title,
@@ -57,7 +58,12 @@ func (r *VideoRepository) Create(ctx context.Context, input CreateVideoInput) (*
 		params.Description.Valid = true
 	}
 
-	record, err := r.queries.CreateVideo(ctx, params)
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	record, err := queries.CreateVideo(ctx, params)
 	if err != nil {
 		r.log.WithContext(ctx).Errorf("create video failed: title=%s err=%v", input.Title, err)
 		return nil, fmt.Errorf("create video: %w", err)
@@ -68,8 +74,13 @@ func (r *VideoRepository) Create(ctx context.Context, input CreateVideoInput) (*
 }
 
 // FindByID 根据 video_id 从只读视图查询视频详情（仅返回 ready/published 状态的视频）。
-func (r *VideoRepository) FindByID(ctx context.Context, videoID uuid.UUID) (*po.VideoReadyView, error) {
-	record, err := r.queries.FindVideoByID(ctx, videoID)
+func (r *VideoRepository) FindByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error) {
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	record, err := queries.FindVideoByID(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrVideoNotFound

@@ -10,6 +10,7 @@ import (
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
@@ -46,6 +47,7 @@ type Bundle struct {
 	Bootstrap *configpb.Bootstrap
 	ObsConfig obswire.ObservabilityConfig
 	Service   ServiceMetadata
+	TxConfig  txconfig.Config
 }
 
 // BuildError 捕获配置构建过程中的上下文错误信息。
@@ -114,11 +116,13 @@ func Build(params Params) (*Bundle, error) {
 
 	meta := buildServiceMetadata()
 	obsCfg := toObservabilityConfig(bootstrap.GetObservability())
+	txCfg := toTxManagerConfig(bootstrap.GetData().GetPostgres())
 
 	return &Bundle{
 		Bootstrap: bootstrap,
 		ObsConfig: obsCfg,
 		Service:   meta,
+		TxConfig:  txCfg,
 	}, nil
 }
 
@@ -186,6 +190,7 @@ func loadBootstrap(confPath string) (*configpb.Bootstrap, error) {
 //   - 支持不同环境（开发/测试/生产）无需修改配置文件
 //
 // 支持的环境变量：
+//
 //   - DATABASE_URL: 覆盖 data.postgres.dsn（数据库连接字符串）
 //     示例: postgresql://user:pass@host:5432/db?sslmode=require
 //
@@ -486,4 +491,30 @@ func replacePort(addr, newPort string) string {
 
 	// 重新组合 host:port
 	return net.JoinHostPort(host, newPort)
+}
+
+func toTxManagerConfig(pg *configpb.Data_PostgreSQL) txconfig.Config {
+	if pg == nil {
+		return txconfig.Config{}
+	}
+	tx := pg.GetTransaction()
+	if tx == nil {
+		return txconfig.Config{}
+	}
+
+	cfg := txconfig.Config{
+		DefaultIsolation: tx.GetDefaultIsolation(),
+		MaxRetries:       int(tx.GetMaxRetries()),
+	}
+	if d := tx.GetDefaultTimeout(); d != nil {
+		cfg.DefaultTimeout = d.AsDuration()
+	}
+	if d := tx.GetLockTimeout(); d != nil {
+		cfg.LockTimeout = d.AsDuration()
+	}
+	if tx.MetricsEnabled != nil {
+		v := tx.GetMetricsEnabled()
+		cfg.MetricsEnabled = &v
+	}
+	return cfg
 }

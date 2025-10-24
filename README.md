@@ -429,7 +429,7 @@ graph LR
 3. **业务层** (蓝色)
 
    - `DB + Logger` → `VideoRepository`
-   - `VideoRepository + Logger` → `VideoUsecase` (通过接口)
+   - `VideoRepository + TxManager + Logger` → `VideoUsecase` (通过接口)
    - `VideoUsecase` → `VideoHandler`
 
 4. **服务器层** (橙色/红色)
@@ -451,9 +451,13 @@ func (r *VideoRepository) FindByID(...) (*po.Video, error) { ... }
 // 3. Wire 绑定（接口 ← 实现）
 wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository))
 
-// 4. Service 依赖接口，运行时注入实现
-func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
-    return &VideoUsecase{repo: repo, log: log.NewHelper(logger)}
+// 4. Service 依赖接口 + TxManager，运行时注入实现
+func NewVideoUsecase(repo VideoRepo, tx txmanager.Manager, logger log.Logger) *VideoUsecase {
+    return &VideoUsecase{
+        repo:      repo,
+        txManager: tx,
+        log:       log.NewHelper(logger),
+    }
 }
 ```
 

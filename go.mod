@@ -7,6 +7,7 @@ require (
 	github.com/bionicotaku/lingo-utils/gcjwt v0.1.0
 	github.com/bionicotaku/lingo-utils/gclog v0.1.0
 	github.com/bionicotaku/lingo-utils/observability v0.1.0
+	github.com/bionicotaku/lingo-utils/txmanager v0.1.0
 	github.com/bufbuild/protovalidate-go v0.8.2
 	github.com/go-kratos-ecosystem/components/v2 v2.27.0
 	github.com/go-kratos/kratos/v2 v2.9.1
@@ -33,7 +34,7 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-kratos/aegis v0.2.0 // indirect
@@ -51,7 +52,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/shirou/gopsutil/v3 v3.23.6 // indirect
 	github.com/shoenig/go-m1cpu v0.1.7 // indirect

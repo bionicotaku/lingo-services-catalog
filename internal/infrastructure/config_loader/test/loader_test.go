@@ -717,7 +717,7 @@ func TestBuild_PORTEnvironmentVariable(t *testing.T) {
 		// 清除 PORT 环境变量
 		t.Setenv("PORT", "")
 
-		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		bundle, err := loader.Build(loader.Params{ConfPath: rootConfigsPath(t)})
 		if err != nil {
 			t.Fatalf("Build() error = %v", err)
 		}
@@ -732,7 +732,7 @@ func TestBuild_PORTEnvironmentVariable(t *testing.T) {
 	t.Run("设置 PORT=8080 - 覆盖端口保留 host", func(t *testing.T) {
 		t.Setenv("PORT", "8080")
 
-		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		bundle, err := loader.Build(loader.Params{ConfPath: rootConfigsPath(t)})
 		if err != nil {
 			t.Fatalf("Build() error = %v", err)
 		}
@@ -747,7 +747,7 @@ func TestBuild_PORTEnvironmentVariable(t *testing.T) {
 	t.Run("设置 PORT=3000 - 验证动态端口", func(t *testing.T) {
 		t.Setenv("PORT", "3000")
 
-		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		bundle, err := loader.Build(loader.Params{ConfPath: rootConfigsPath(t)})
 		if err != nil {
 			t.Fatalf("Build() error = %v", err)
 		}
@@ -764,7 +764,7 @@ func TestBuild_PORTEnvironmentVariable(t *testing.T) {
 		t.Setenv("PORT", "8080")
 		t.Setenv("DATABASE_URL", testDSN)
 
-		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		bundle, err := loader.Build(loader.Params{ConfPath: rootConfigsPath(t)})
 		if err != nil {
 			t.Fatalf("Build() error = %v", err)
 		}
@@ -795,7 +795,15 @@ server:
     timeout: 5s
 data:
   postgres:
-    dsn: ""
+    dsn: "postgresql://postgres:postgres@localhost:5432/test?sslmode=disable"
+    max_open_conns: 10
+    min_open_conns: 1
+    transaction:
+      default_isolation: read_committed
+      default_timeout: 3s
+      lock_timeout: 1s
+      max_retries: 3
+      metrics_enabled: true
 `, addr)
 		if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
 			t.Fatalf("create config file: %v", err)
@@ -856,4 +864,13 @@ data:
 			}
 		})
 	}
+}
+func rootConfigsPath(t testing.TB) string {
+	t.Helper()
+	path := filepath.Join("..", "..", "..", "..", "configs")
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatalf("abs config path: %v", err)
+	}
+	return abs
 }

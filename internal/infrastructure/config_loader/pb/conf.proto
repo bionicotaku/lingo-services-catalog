@@ -31,6 +31,14 @@ message Server {
 message Data {
   // PostgreSQL 数据库配置（Supabase 专用）
   message PostgreSQL {
+    message Transaction {
+      string default_isolation = 1;
+      google.protobuf.Duration default_timeout = 2;
+      google.protobuf.Duration lock_timeout = 3;
+      int32 max_retries = 4;
+      optional bool metrics_enabled = 5;
+    }
+
     // DSN 连接串（必填）
     string dsn = 1 [(buf.validate.field).string = { min_len: 1, pattern: "^postgres(ql)?://.*" }];
 
@@ -44,6 +52,7 @@ message Data {
     // Supabase 特定配置
     string schema = 7;  // 默认 schema (如 "kratos_template")
     bool enable_prepared_statements = 8;  // Pooler 模式建议设为 false
+    Transaction transaction = 9;
   }
 
   // gRPC Client 配置（可选，用于服务间调用）

@@ -5,6 +5,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/google/wire"
 )
 
@@ -39,6 +40,7 @@ var ProviderSet = wire.NewSet(
 	ProvideObservabilityInfo,
 	ProvideLoggerConfig,
 	ProvideJWTConfig,
+	ProvideTxManagerConfig,
 )
 
 // ProvideBundle 从运行时参数构造配置 Bundle。
@@ -280,4 +282,12 @@ func ProvideJWTConfig(server *configpb.Server, data *configpb.Data) gcjwt.Config
 	}
 
 	return cfg
+}
+
+// ProvideTxManagerConfig 暴露 TxManager 组件所需的配置。
+func ProvideTxManagerConfig(b *Bundle) txconfig.Config {
+	if b == nil {
+		return txconfig.Config{}
+	}
+	return b.TxConfig
 }

@@ -142,6 +142,8 @@ func TestProvideServerConfig_Nil(t *testing.T) {
 
 // TestProvideDataConfig 验证提取 Data 配置段。
 func TestProvideDataConfig(t *testing.T) {
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("PORT", "")
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "config.yaml")
 	configContent := `
