@@ -40,6 +40,7 @@ Kratos-Template 是一个**视频目录微服务**示例，实现了以下业务
 ### 业务场景
 
 适用于需要构建**视频/媒体平台**的场景，如：
+
 - 在线教育平台（视频课程管理）
 - 短视频/UGC 平台（内容目录服务）
 - 企业培训系统（培训视频库）
@@ -85,38 +86,38 @@ Kratos-Template 是一个**视频目录微服务**示例，实现了以下业务
 
 ### 后端框架
 
-| 组件 | 版本 | 用途 |
-|------|------|------|
-| **Go** | 1.25.3 | 编程语言 |
-| **Kratos** | v2.9.1 | 微服务框架 |
-| **gRPC** | v1.76.0 | 服务间通信 |
+| 组件                 | 版本     | 用途         |
+| -------------------- | -------- | ------------ |
+| **Go**               | 1.25.3   | 编程语言     |
+| **Kratos**           | v2.9.1   | 微服务框架   |
+| **gRPC**             | v1.76.0  | 服务间通信   |
 | **Protocol Buffers** | v1.36.10 | 接口定义语言 |
-| **Wire** | v0.7.0 | 依赖注入 |
+| **Wire**             | v0.7.0   | 依赖注入     |
 
 ### 数据存储
 
-| 组件 | 版本 | 用途 |
-|------|------|------|
-| **PostgreSQL (Supabase)** | 15+ | 主数据库 |
-| **pgx** | v5.7.6 | PostgreSQL 驱动 |
-| **sqlc** | v1.30.0 | SQL 代码生成器 |
+| 组件                      | 版本    | 用途            |
+| ------------------------- | ------- | --------------- |
+| **PostgreSQL (Supabase)** | 15+     | 主数据库        |
+| **pgx**                   | v5.7.6  | PostgreSQL 驱动 |
+| **sqlc**                  | v1.30.0 | SQL 代码生成器  |
 
 ### 可观测性
 
-| 组件 | 版本 | 用途 |
-|------|------|------|
-| **OpenTelemetry** | v1.38.0 | 分布式追踪与指标 |
-| **gclog** | v0.1.0 | 结构化日志（lingo-utils） |
-| **observability** | v0.1.0 | 观测组件（lingo-utils） |
+| 组件              | 版本    | 用途                      |
+| ----------------- | ------- | ------------------------- |
+| **OpenTelemetry** | v1.38.0 | 分布式追踪与指标          |
+| **gclog**         | v0.1.0  | 结构化日志（lingo-utils） |
+| **observability** | v0.1.0  | 观测组件（lingo-utils）   |
 
 ### 中间件与工具
 
-| 组件 | 版本 | 用途 |
-|------|------|------|
-| **gcjwt** | v0.1.0 | JWT 认证中间件（lingo-utils） |
-| **buf** | - | Protobuf 管理工具 |
-| **protovalidate** | v1.0.0 | 参数校验（运行时反射验证） |
-| **protovalidate middleware** | v2.27.0 | Kratos protovalidate 中间件 |
+| 组件                         | 版本    | 用途                          |
+| ---------------------------- | ------- | ----------------------------- |
+| **gcjwt**                    | v0.1.0  | JWT 认证中间件（lingo-utils） |
+| **buf**                      | -       | Protobuf 管理工具             |
+| **protovalidate**            | v1.0.0  | 参数校验（运行时反射验证）    |
+| **protovalidate middleware** | v2.27.0 | Kratos protovalidate 中间件   |
 
 ---
 
@@ -143,6 +144,7 @@ make init
 ```
 
 这将安装：
+
 - `wire` - 依赖注入代码生成
 - `sqlc` - SQL 代码生成
 - `gofumpt`, `goimports` - 代码格式化
@@ -330,6 +332,7 @@ Controllers  →  Services  →  Repositories  →  Database
 ```
 
 **关键规则**：
+
 - ✅ 上层可依赖下层
 - ❌ 下层**禁止**依赖上层
 - ✅ Service 通过**接口**依赖 Repository（依赖倒置）
@@ -412,16 +415,19 @@ graph LR
 **依赖流向说明**（自底向上构建）：
 
 1. **配置层** (灰色)
+
    - `Params` (输入) → `Bundle` (配置包)
    - `Bundle` → `ServiceMetadata` + `Server/Data Config`
 
 2. **基础组件层** (绿色)
+
    - `ServiceMetadata` → `Logger` (gclog)
    - `ServiceMetadata` → `Obs` (observability)
    - `Server/Data Config` → `JWT` (gcjwt)
    - `Data Config` → `DB` (pgxpool)
 
 3. **业务层** (蓝色)
+
    - `DB + Logger` → `VideoRepository`
    - `VideoRepository + Logger` → `VideoUsecase` (通过接口)
    - `VideoUsecase` → `VideoHandler`
@@ -431,6 +437,7 @@ graph LR
    - `gRPC Server + Logger + Metadata + Obs` → `kratos.App` (最终目标)
 
 **依赖倒置体现**：
+
 ```go
 // 1. Service 层定义接口
 type VideoRepo interface {
@@ -530,9 +537,9 @@ videov1.VideoDetail (wrapperspb.StringValue, timestamppb.Timestamp)
 # 服务配置
 server:
   grpc:
-    addr: "0.0.0.0:9090"       # gRPC 监听地址
-    timeout: "5s"               # 全局超时
-    network: "tcp"              # 网络协议
+    addr: "0.0.0.0:9090" # gRPC 监听地址
+    timeout: "5s" # 全局超时
+    network: "tcp" # 网络协议
 
 # 数据库配置
 data:
@@ -547,7 +554,7 @@ observability:
   # 追踪配置
   tracing:
     enabled: true
-    exporter: "otlp_grpc"       # stdout | otlp_grpc
+    exporter: "otlp_grpc" # stdout | otlp_grpc
     endpoint: "localhost:4317"
     sampling_rate: 1.0
 
@@ -555,13 +562,13 @@ observability:
   metrics:
     enabled: true
     grpc_enabled: true
-    grpc_include_health: false  # 是否采集健康检查指标
-    runtime_enabled: true        # 运行时指标（CPU/内存/goroutine）
+    grpc_include_health: false # 是否采集健康检查指标
+    runtime_enabled: true # 运行时指标（CPU/内存/goroutine）
 
 # 日志配置（gclog）
 log:
-  level: "info"                  # debug | info | warn | error
-  format: "json"                 # json | console
+  level: "info" # debug | info | warn | error
+  format: "json" # json | console
 ```
 
 ### 环境变量
@@ -600,12 +607,12 @@ go tool cover -html=coverage.out
 
 ### 测试分类
 
-| 测试类型 | 位置 | 覆盖范围 | 依赖 |
-|---------|------|---------|------|
-| **单元测试** | `internal/services/test/` | Service 层业务逻辑 | Mock Repository |
-| **集成测试** | `test/integration/` | Repository 层数据访问 | 真实数据库 |
-| **Mapper 测试** | `internal/repositories/mappers/test/` | 数据模型转换 | 无 |
-| **VO 测试** | `internal/models/vo/test/` | 视图对象构造 | 无 |
+| 测试类型        | 位置                                  | 覆盖范围              | 依赖            |
+| --------------- | ------------------------------------- | --------------------- | --------------- |
+| **单元测试**    | `internal/services/test/`             | Service 层业务逻辑    | Mock Repository |
+| **集成测试**    | `test/integration/`                   | Repository 层数据访问 | 真实数据库      |
+| **Mapper 测试** | `internal/repositories/mappers/test/` | 数据模型转换          | 无              |
+| **VO 测试**     | `internal/models/vo/test/`            | 视图对象构造          | 无              |
 
 ### 测试约定
 
@@ -655,12 +662,12 @@ grpcurl -plaintext localhost:9090 grpc.health.v1.Health/Check
 
 ### 核心文档
 
-| 文档 | 说明 | 推荐阅读顺序 |
-|------|------|-------------|
-| **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | 完整架构设计文档（⭐推荐首读） | 1 |
-| [ARCHITECTURE_PATTERNS.md](./docs/ARCHITECTURE_PATTERNS.md) | 架构模式深度分析 | 2 |
-| [WIRE_DEPENDENCY_INJECTION.md](./docs/WIRE_DEPENDENCY_INJECTION.md) | Wire 依赖注入完整指南 | 3 |
-| [HEXAGONAL_ARCHITECTURE.md](./docs/HEXAGONAL_ARCHITECTURE.md) | 六边形架构应用 | 4 |
+| 文档                                                                | 说明                            | 推荐阅读顺序 |
+| ------------------------------------------------------------------- | ------------------------------- | ------------ |
+| **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**                       | 完整架构设计文档（⭐ 推荐首读） | 1            |
+| [ARCHITECTURE_PATTERNS.md](./docs/ARCHITECTURE_PATTERNS.md)         | 架构模式深度分析                | 2            |
+| [WIRE_DEPENDENCY_INJECTION.md](./docs/WIRE_DEPENDENCY_INJECTION.md) | Wire 依赖注入完整指南           | 3            |
+| [HEXAGONAL_ARCHITECTURE.md](./docs/HEXAGONAL_ARCHITECTURE.md)       | 六边形架构应用                  | 4            |
 
 ### 外部资源
 
@@ -705,17 +712,20 @@ buf breaking --against .git#branch=main
 ### 如何添加新接口
 
 1. **定义 Proto 接口**
+
    ```protobuf
    // api/video/v1/video.proto
    rpc CreateVideo(CreateVideoRequest) returns (CreateVideoResponse);
    ```
 
 2. **生成代码**
+
    ```bash
    make api
    ```
 
 3. **实现 Service 层**
+
    ```go
    // internal/services/video.go
    func (uc *VideoUsecase) CreateVideo(ctx context.Context, req *CreateVideoRequest) (*vo.Video, error) {
@@ -724,6 +734,7 @@ buf breaking --against .git#branch=main
    ```
 
 4. **实现 Repository 层（如需）**
+
    ```sql
    -- internal/repositories/sqlc/video.sql
    -- name: InsertVideo :one
@@ -731,6 +742,7 @@ buf breaking --against .git#branch=main
    ```
 
 5. **实现 Controller 层**
+
    ```go
    // internal/controllers/video_handler.go
    func (h *VideoHandler) CreateVideo(ctx context.Context, req *videov1.CreateVideoRequest) (*videov1.CreateVideoResponse, error) {
@@ -742,16 +754,16 @@ buf breaking --against .git#branch=main
 
 ### 最佳实践
 
-| 场景 | 推荐做法 | 禁止做法 |
-|------|---------|---------|
-| **参数校验** | 在 Controller 层完成 | 在 Service 层校验 HTTP 参数 |
-| **业务逻辑** | 在 Service 层实现 | 在 Controller 写业务代码 |
-| **数据访问** | 在 Repository 层封装 | Service 层直接调用 SQL |
-| **错误处理** | 分层映射（404/504/500） | 统一返回 500 |
-| **超时控制** | 使用 `context.WithTimeout` | 无限等待 |
-| **数据模型** | 多层隔离（DB → PO → VO → Proto） | 直接暴露数据库模型 |
+| 场景         | 推荐做法                         | 禁止做法                    |
+| ------------ | -------------------------------- | --------------------------- |
+| **参数校验** | 在 Controller 层完成             | 在 Service 层校验 HTTP 参数 |
+| **业务逻辑** | 在 Service 层实现                | 在 Controller 写业务代码    |
+| **数据访问** | 在 Repository 层封装             | Service 层直接调用 SQL      |
+| **错误处理** | 分层映射（404/504/500）          | 统一返回 500                |
+| **超时控制** | 使用 `context.WithTimeout`       | 无限等待                    |
+| **数据模型** | 多层隔离（DB → PO → VO → Proto） | 直接暴露数据库模型          |
 
-详见：[docs/ARCHITECTURE.md - 第12节：最佳实践与反模式](./docs/ARCHITECTURE.md#12-最佳实践与反模式)
+详见：[docs/ARCHITECTURE.md - 第 12 节：最佳实践与反模式](./docs/ARCHITECTURE.md#12-最佳实践与反模式)
 
 ---
 
@@ -760,36 +772,40 @@ buf breaking --against .git#branch=main
 ### Q1: 为什么 Service 层要定义 Repository 接口？
 
 **A**: 这是**依赖倒置原则**的体现。Service 层依赖接口而非具体实现，便于：
+
 - 单元测试时使用 Mock Repository
 - 切换不同的数据源实现
 - 解耦业务逻辑与基础设施
 
-详见：[docs/ARCHITECTURE.md - 第7节：依赖注入](./docs/ARCHITECTURE.md#7-依赖注入与组件装配)
+详见：[docs/ARCHITECTURE.md - 第 7 节：依赖注入](./docs/ARCHITECTURE.md#7-依赖注入与组件装配)
 
 ### Q2: 为什么需要这么多数据模型（CatalogVideo/PO/VO/Proto）？
 
 **A**: 多层数据模型隔离的目的是：
+
 - **CatalogVideo**: sqlc 生成的数据库模型（含 pgtype 类型）
 - **po.Video**: 领域持久化对象（Go 原生类型），不泄漏数据库细节
 - **vo.VideoDetail**: 业务视图对象（精简字段），过滤内部字段
 - **Proto**: 传输对象（Protobuf），面向 API 消费者
 
-详见：[docs/ARCHITECTURE.md - 第6节：数据模型转换](./docs/ARCHITECTURE.md#6-数据模型转换)
+详见：[docs/ARCHITECTURE.md - 第 6 节：数据模型转换](./docs/ARCHITECTURE.md#6-数据模型转换)
 
 ### Q3: Controller 层应该做什么？
 
 **A**: Controller 层**仅做**：
+
 - ✅ 参数校验（非空、格式检查）
 - ✅ 类型转换（string → UUID）
 - ✅ 设置超时上下文
 - ✅ 调用 Service 层
 - ❌ **禁止**包含业务逻辑
 
-详见：[docs/ARCHITECTURE.md - 第4.1节：Adapter 层](./docs/ARCHITECTURE.md#41-adapter-层适配器层)
+详见：[docs/ARCHITECTURE.md - 第 4.1 节：Adapter 层](./docs/ARCHITECTURE.md#41-adapter-层适配器层)
 
 ### Q4: 如何调试 Wire 依赖注入问题？
 
 **A**:
+
 1. 查看生成的 `wire_gen.go` 文件
 2. 检查 `ProviderSet` 是否正确导出
 3. 确认接口绑定：`wire.Bind(new(ServiceInterface), new(*RepositoryImpl))`
@@ -800,12 +816,14 @@ buf breaking --against .git#branch=main
 ### Q5: 如何连接 Supabase 数据库？
 
 **A**: 在 Supabase 项目中：
+
 1. 进入 **Settings → Database**
 2. 复制 **Connection String (URI)**
 3. 确保包含 `?sslmode=require`
 4. 配置到 `configs/config.yaml` 的 `data.database.source`
 
 示例：
+
 ```
 postgres://postgres.xxx:password@aws-0-us-west-1.pooler.supabase.com:5432/postgres?sslmode=require
 ```
@@ -813,6 +831,7 @@ postgres://postgres.xxx:password@aws-0-us-west-1.pooler.supabase.com:5432/postgr
 ### Q6: sqlc 生成代码报错怎么办？
 
 **A**:
+
 1. 检查 `sqlc.yaml` 配置是否正确
 2. 确保 SQL 查询语法正确（PostgreSQL 方言）
 3. 运行 `sqlc vet` 检查 SQL 质量
@@ -845,37 +864,6 @@ postgres://postgres.xxx:password@aws-0-us-west-1.pooler.supabase.com:5432/postgr
 - ⬜ **事务支持** - 跨 Repository 事务
 - ⬜ **API 限流** - Token Bucket 算法
 - ⬜ **监控告警** - Prometheus + Grafana
-
-详见：[TODO.md](./TODO.md)
-
----
-
-## 许可证
-
-本项目采用 [MIT License](LICENSE)。
-
----
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-在提交代码前，请确保：
-1. 通过所有测试：`make test`
-2. 通过代码检查：`make lint`
-3. 遵循代码风格：`make fmt`
-4. 更新相关文档
-
----
-
-## 致谢
-
-本项目基于以下优秀开源项目构建：
-
-- [Kratos](https://go-kratos.dev/) - 微服务框架
-- [sqlc](https://sqlc.dev/) - SQL 代码生成器
-- [Wire](https://github.com/google/wire) - 依赖注入工具
-- [OpenTelemetry](https://opentelemetry.io/) - 可观测性标准
 
 ---
 
