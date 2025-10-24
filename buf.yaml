@@ -9,7 +9,12 @@ deps:
 
 lint:
   use:
-    - DEFAULT
+    - STANDARD
+  except:
+    # 项目使用 api/video/v1 而不是 video/v1 的目录结构
+    - PACKAGE_DIRECTORY_MATCH
+    # internal proto 文件的包名不需要版本后缀
+    - PACKAGE_VERSION_SUFFIX
 
 breaking:
   use:

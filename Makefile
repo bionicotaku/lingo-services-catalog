@@ -17,8 +17,9 @@ config:
 	buf generate --template '{"version":"v1","plugins":[{"plugin":"go","out":".","opt":["paths=source_relative"]}]}' --path internal/infrastructure/config_loader/pb
 
 .PHONY: lint
-# run static analysis (staticcheck + revive)
+# run static analysis (buf lint + staticcheck + revive)
 lint:
+	buf lint
 	staticcheck -checks=all,-ST1000 ./...
 	revive ./...
 

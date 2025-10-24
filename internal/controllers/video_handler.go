@@ -33,12 +33,12 @@ func NewVideoHandler(uc *services.VideoUsecase) *VideoHandler {
 // GetVideoDetail 实现 VideoQueryService.GetVideoDetail RPC。
 func (h *VideoHandler) GetVideoDetail(ctx context.Context, req *videov1.GetVideoDetailRequest) (*videov1.GetVideoDetailResponse, error) {
 	if req.GetVideoId() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_VIDEO_ID_INVALID.String(), "video_id is required")
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "video_id is required")
 	}
 
 	videoID, err := uuid.Parse(req.GetVideoId())
 	if err != nil {
-		return nil, errors.BadRequest(videov1.ErrorReason_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
 	}
 
 	// 设置查询超时，防止慢查询阻塞

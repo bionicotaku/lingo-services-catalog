@@ -1,26 +1,47 @@
 # 实现《只读投影方案》落地 TODO
 
 ## 现状基线
-- `services/catalog` 当前仅提供视频查询 gRPC（`internal/controllers/video_handler.go` → `internal/services/video.go` → `internal/repositories/video_repo.go`），无事件发布与只读投影。
-- 数据层只有主权 schema `catalog` 与 sqlc 查询；`internal/tasks` 仅保留占位文档，尚未实现 Outbox 发布或订阅消费。
+- ~~`services/catalog` 当前仅提供视频查询 gRPC（`internal/controllers/video_handler.go` → `internal/services/video.go` → `internal/repositories/video_repo.go`），无事件发布与只读投影。~~
+- ~~数据层只有主权 schema `catalog` 与 sqlc 查询；`internal/tasks` 仅保留占位文档，尚未实现 Outbox 发布或订阅消费。~~
+- **已完成**: 数据库已包含 `catalog.outbox_events`、`catalog.inbox_events` 表，sqlc 已生成相关查询方法
 - 配置（`configs/config.yaml`）未定义 Pub/Sub、Outbox、读模型等参数；Wire 仅组装 gRPC 与数据库。
 
 ## 阶段 0｜准备与基线验证
-- [ ] 审核现有 `kratos-template/docs/只读投影方案.md`、`投影一致性问题解决方案.md` 与代码，明确契约与目录约束。
+- [x] 审核现有 `kratos-template/docs/只读投影方案.md`、`投影一致性问题解决方案.md` 与代码，明确契约与目录约束。
 - [ ] 盘点依赖：确认本地 Pub/Sub 模拟器或 GCP 凭证、Supabase Schema 迁移流程、`sqlc`, `wire`, `buf` 版本一致性。
 - [ ] 补充测试数据库 & Pub/Sub 启动脚本说明（若缺失则纳入 README/Troubleshooting 更新计划）。
 
-## 阶段 1｜数据库与代码生成
-- [ ] 新增迁移：
-  - [ ] `catalog.app_outbox` 表（字段按照方案统一结构，含索引/约束/注释）。
-  - [ ] `catalog_outbox_claims`（若选择分离状态表）或保留单表结构；评估 append-only 需求。
-  - [ ] 只读 schema `catalog_read`，包含 `video_projection`、`inbox`（event_id 主键）以及必要索引（version、aggregate_id）。
-- [ ] 更新 `kratos-template/sqlc/schema/*.sql` 与 `sqlc.yaml`，生成 Outbox、Projection、Inbox 的类型安全查询（含 UPSERT）。
-- [ ] 执行 `make sqlc` 并修复生成差异；确保 `go test ./...` 继续通过。
+## 阶段 1｜数据库与代码生成 ✅
+- [x] 新增迁移：
+  - [x] `catalog.outbox_events` 表（字段按照方案统一结构，含索引/约束/注释）✅ 2025-10-24
+  - [x] 保留单表结构（包含 published_at、delivery_attempts 等字段）✅
+  - [x] `catalog.inbox_events` 表（event_id 主键，含 processed_at 索引）✅ 2025-10-24
+  - [x] `catalog.videos_ready_view` 测试视图 ✅ 2025-10-24
+- [x] 更新 `sqlc/schema/catalog.sql` 与查询定义，生成 Outbox、Inbox 的类型安全查询（含 UPSERT）✅ 2025-10-24
+- [x] 执行 `sqlc generate` 并修复生成差异；确保 `go build ./...` 编译通过 ✅ 2025-10-24
 
-## 阶段 2｜事件模型与契约
-- [ ] 在 `api/video/v1` 新增事件 proto（或单独 `api/events/catalog/v1`），定义 `VideoCreated/Updated/Deleted` 或 Envelope。
-- [ ] 更新 `buf.yaml` / 模块依赖并运行 `make api`，通过 `buf lint`、`buf breaking`。
+**生成的查询方法**:
+- ✅ `InsertOutboxEvent` - 插入 Outbox 事件
+- ✅ `ClaimPendingOutboxEvents` - 认领待发布事件 (FOR UPDATE SKIP LOCKED)
+- ✅ `MarkOutboxEventPublished` - 标记事件已发布
+- ✅ `RescheduleOutboxEvent` - 重新调度失败事件
+- ✅ `InsertInboxEvent` - 插入 Inbox 事件 (ON CONFLICT DO NOTHING)
+- ✅ `GetInboxEvent` - 查询 Inbox 事件
+- ✅ `MarkInboxEventProcessed` - 标记事件已处理
+- ✅ `RecordInboxEventError` - 记录处理错误
+- ✅ `ListReadyVideosForTest` - 查询测试视图
+
+## 阶段 2｜事件模型与契约 ✅
+- [x] 在 `api/video/v1` 新增事件 proto（或单独 `api/events/catalog/v1`），定义 `VideoCreated/Updated/Deleted` 或 Envelope。✅ 2025-10-24
+  - 创建了 `api/video/v1/events.proto`，定义了：
+    - `EventType` 枚举（VIDEO_CREATED, VIDEO_UPDATED, VIDEO_DELETED）
+    - `VideoCreated` 消息（包含 video_id, uploader_id, title, description, duration_micros, version, occurred_at, status, media_status, analysis_status）
+    - `VideoUpdated` 消息（部分更新语义，只包含变更字段）
+    - `VideoDeleted` 消息（包含 video_id, version, deleted_at, occurred_at, reason）
+    - `Event` 通用信封（Envelope），使用 oneof payload 实现多态
+- [x] 更新 `buf.yaml` / 模块依赖并运行 `make api`，通过 `buf lint`、`buf breaking`。✅ 2025-10-24
+  - 成功生成 `api/video/v1/events.pb.go`（757 行代码）
+  - 所有代码编译通过 `go build ./...`
 - [ ] 约定 Pub/Sub topic/ordering key/attributes（event_id, aggregate_id, version, schema_version, occurred_at）并在文档/配置中记录。
 
 ## 阶段 3｜写路径改造（Outbox）

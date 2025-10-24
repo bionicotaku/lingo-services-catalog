@@ -26,32 +26,32 @@ type ErrorReason int32
 
 const (
 	// 默认未指定错误
-	ErrorReason_VIDEO_UNSPECIFIED ErrorReason = 0
+	ErrorReason_ERROR_REASON_UNSPECIFIED ErrorReason = 0
 	// 视频未找到
-	ErrorReason_VIDEO_NOT_FOUND ErrorReason = 1
+	ErrorReason_ERROR_REASON_VIDEO_NOT_FOUND ErrorReason = 1
 	// 视频 ID 无效
-	ErrorReason_VIDEO_ID_INVALID ErrorReason = 2
+	ErrorReason_ERROR_REASON_VIDEO_ID_INVALID ErrorReason = 2
 	// 查询视频失败
-	ErrorReason_QUERY_VIDEO_FAILED ErrorReason = 3
+	ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED ErrorReason = 3
 	// 查询超时
-	ErrorReason_QUERY_TIMEOUT ErrorReason = 4
+	ErrorReason_ERROR_REASON_QUERY_TIMEOUT ErrorReason = 4
 )
 
 // Enum value maps for ErrorReason.
 var (
 	ErrorReason_name = map[int32]string{
-		0: "VIDEO_UNSPECIFIED",
-		1: "VIDEO_NOT_FOUND",
-		2: "VIDEO_ID_INVALID",
-		3: "QUERY_VIDEO_FAILED",
-		4: "QUERY_TIMEOUT",
+		0: "ERROR_REASON_UNSPECIFIED",
+		1: "ERROR_REASON_VIDEO_NOT_FOUND",
+		2: "ERROR_REASON_VIDEO_ID_INVALID",
+		3: "ERROR_REASON_QUERY_VIDEO_FAILED",
+		4: "ERROR_REASON_QUERY_TIMEOUT",
 	}
 	ErrorReason_value = map[string]int32{
-		"VIDEO_UNSPECIFIED":  0,
-		"VIDEO_NOT_FOUND":    1,
-		"VIDEO_ID_INVALID":   2,
-		"QUERY_VIDEO_FAILED": 3,
-		"QUERY_TIMEOUT":      4,
+		"ERROR_REASON_UNSPECIFIED":        0,
+		"ERROR_REASON_VIDEO_NOT_FOUND":    1,
+		"ERROR_REASON_VIDEO_ID_INVALID":   2,
+		"ERROR_REASON_QUERY_VIDEO_FAILED": 3,
+		"ERROR_REASON_QUERY_TIMEOUT":      4,
 	}
 )
 
@@ -86,15 +86,13 @@ var File_api_video_v1_error_reason_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_error_reason_proto_rawDesc = "" +
 	"\n" +
-	"\x1fapi/video/v1/error_reason.proto\x12\bvideo.v1*z\n" +
-	"\vErrorReason\x12\x15\n" +
-	"\x11VIDEO_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fVIDEO_NOT_FOUND\x10\x01\x12\x14\n" +
-	"\x10VIDEO_ID_INVALID\x10\x02\x12\x16\n" +
-	"\x12QUERY_VIDEO_FAILED\x10\x03\x12\x11\n" +
-	"\rQUERY_TIMEOUT\x10\x04BV\n" +
-	"\bvideo.v1P\x01Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1\xa2\x02\n" +
-	"APIVideoV1b\x06proto3"
+	"\x1fapi/video/v1/error_reason.proto\x12\bvideo.v1*\xb5\x01\n" +
+	"\vErrorReason\x12\x1c\n" +
+	"\x18ERROR_REASON_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cERROR_REASON_VIDEO_NOT_FOUND\x10\x01\x12!\n" +
+	"\x1dERROR_REASON_VIDEO_ID_INVALID\x10\x02\x12#\n" +
+	"\x1fERROR_REASON_QUERY_VIDEO_FAILED\x10\x03\x12\x1e\n" +
+	"\x1aERROR_REASON_QUERY_TIMEOUT\x10\x04B=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_error_reason_proto_rawDescOnce sync.Once

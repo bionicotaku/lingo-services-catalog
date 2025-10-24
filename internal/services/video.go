@@ -15,7 +15,7 @@ import (
 )
 
 // ErrVideoNotFound 是当视频未找到时返回的哨兵错误。
-var ErrVideoNotFound = errors.NotFound(videov1.ErrorReason_VIDEO_NOT_FOUND.String(), "video not found")
+var ErrVideoNotFound = errors.NotFound(videov1.ErrorReason_ERROR_REASON_VIDEO_NOT_FOUND.String(), "video not found")
 
 // VideoRepo 定义 Video 实体的持久化行为接口。
 // 由 Repository 层实现，使用 sqlc 生成的查询方法。
@@ -54,12 +54,12 @@ func (uc *VideoUsecase) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (
 		// 检查是否为超时错误
 		if errors.Is(err, context.DeadlineExceeded) {
 			uc.log.WithContext(ctx).Warnf("get video detail timeout: video_id=%s", videoID)
-			return nil, errors.GatewayTimeout(videov1.ErrorReason_QUERY_TIMEOUT.String(), "query timeout")
+			return nil, errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "query timeout")
 		}
 
 		// 其他内部错误
 		uc.log.WithContext(ctx).Errorf("get video detail failed: video_id=%s err=%v", videoID, err)
-		return nil, errors.InternalServer(videov1.ErrorReason_QUERY_VIDEO_FAILED.String(), "failed to query video").WithCause(fmt.Errorf("find video by id: %w", err))
+		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to query video").WithCause(fmt.Errorf("find video by id: %w", err))
 	}
 
 	uc.log.WithContext(ctx).Debugf("GetVideoDetail: video_id=%s, status=%s", video.VideoID, video.Status)
