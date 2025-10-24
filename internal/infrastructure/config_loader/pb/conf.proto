@@ -1,0 +1,98 @@
+syntax = "proto3";
+package kratos.api;
+
+option go_package = "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpb";
+
+import "google/protobuf/duration.proto";
+import "buf/validate/validate.proto";
+
+message Bootstrap {
+  Server server = 1;
+  Data data = 2;
+  Observability observability = 3;
+}
+
+message Server {
+  message GRPC {
+    string network = 1;
+    string addr = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  message JWT {
+    string expected_audience = 1;
+    bool skip_validate = 2;
+    bool required = 3;
+    string header_key = 4;
+  }
+  GRPC grpc = 1;
+  JWT jwt = 2;
+}
+
+message Data {
+  // PostgreSQL 数据库配置（Supabase 专用）
+  message PostgreSQL {
+    // DSN 连接串（必填）
+    string dsn = 1 [(buf.validate.field).string = { min_len: 1, pattern: "^postgres(ql)?://.*" }];
+
+    // 连接池配置
+    int32 max_open_conns = 2 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+    int32 min_open_conns = 3 [(buf.validate.field).int32 = {gte: 0, lte: 50}];
+    google.protobuf.Duration max_conn_lifetime = 4;
+    google.protobuf.Duration max_conn_idle_time = 5;
+    google.protobuf.Duration health_check_period = 6;
+
+    // Supabase 特定配置
+    string schema = 7;  // 默认 schema (如 "kratos_template")
+    bool enable_prepared_statements = 8;  // Pooler 模式建议设为 false
+  }
+
+  // gRPC Client 配置（可选，用于服务间调用）
+  message Client {
+    string target = 1;  // 目标地址，留空则不创建 client
+    message JWT {
+      string audience = 1;
+      bool disabled = 2;
+      string header_key = 3;
+    }
+    JWT jwt = 2;
+  }
+
+  PostgreSQL postgres = 1 [(buf.validate.field).required = true];
+  Client grpc_client = 2;
+}
+
+message Observability {
+  message Tracing {
+    bool enabled = 1;
+    string exporter = 2;
+    string endpoint = 3;
+    map<string, string> headers = 4;
+    bool insecure = 5;
+    double sampling_ratio = 6;
+    google.protobuf.Duration batch_timeout = 7;
+    google.protobuf.Duration export_timeout = 8;
+    int32 max_queue_size = 9;
+    int32 max_export_batch_size = 10;
+    bool required = 11;
+    string service_name = 12;
+    string service_version = 13;
+    string environment = 14;
+    map<string, string> attributes = 15;
+  }
+  message Metrics {
+    bool enabled = 1;
+    string exporter = 2;
+    string endpoint = 3;
+    map<string, string> headers = 4;
+    bool insecure = 5;
+    google.protobuf.Duration interval = 6;
+    bool disable_runtime_stats = 7;
+    bool required = 8;
+    map<string, string> resource_attributes = 9;
+    optional bool grpc_enabled = 10;
+    optional bool grpc_include_health = 11;
+  }
+  map<string, string> global_attributes = 1;
+  Tracing tracing = 2;
+  Metrics metrics = 3;
+}
