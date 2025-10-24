@@ -3,7 +3,7 @@ module github.com/bionicotaku/lingo-services-catalog
 go 1.25.3
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.9-20250912141014-52f32327d4b0.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.1-20241127180247-a33202765966.1
 	github.com/bionicotaku/lingo-utils/gcjwt v0.1.0
 	github.com/bionicotaku/lingo-utils/gclog v0.1.0
 	github.com/bionicotaku/lingo-utils/observability v0.1.0
@@ -82,5 +82,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go => buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.1-20241127180247-a33202765966.1
