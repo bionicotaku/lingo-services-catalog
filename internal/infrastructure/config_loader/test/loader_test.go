@@ -709,3 +709,150 @@ observability:
 		}
 	}
 }
+
+// TestBuild_PORTEnvironmentVariable 测试 PORT 环境变量覆盖端口逻辑
+func TestBuild_PORTEnvironmentVariable(t *testing.T) {
+	t.Run("未设置 PORT - 使用配置文件默认值", func(t *testing.T) {
+		// 清除 PORT 环境变量
+		t.Setenv("PORT", "")
+
+		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
+
+		addr := bundle.Bootstrap.GetServer().GetGrpc().GetAddr()
+		expected := "0.0.0.0:9000" // config.yaml 中的默认值
+		if addr != expected {
+			t.Errorf("未设置 PORT 时，addr = %q, want %q", addr, expected)
+		}
+	})
+
+	t.Run("设置 PORT=8080 - 覆盖端口保留 host", func(t *testing.T) {
+		t.Setenv("PORT", "8080")
+
+		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
+
+		addr := bundle.Bootstrap.GetServer().GetGrpc().GetAddr()
+		expected := "0.0.0.0:8080" // 端口被覆盖，host 保持 0.0.0.0
+		if addr != expected {
+			t.Errorf("设置 PORT=8080 时，addr = %q, want %q", addr, expected)
+		}
+	})
+
+	t.Run("设置 PORT=3000 - 验证动态端口", func(t *testing.T) {
+		t.Setenv("PORT", "3000")
+
+		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
+
+		addr := bundle.Bootstrap.GetServer().GetGrpc().GetAddr()
+		expected := "0.0.0.0:3000"
+		if addr != expected {
+			t.Errorf("设置 PORT=3000 时，addr = %q, want %q", addr, expected)
+		}
+	})
+
+	t.Run("PORT + DATABASE_URL 同时覆盖", func(t *testing.T) {
+		testDSN := "postgres://test:password@db.supabase.co:5432/postgres"
+		t.Setenv("PORT", "8080")
+		t.Setenv("DATABASE_URL", testDSN)
+
+		bundle, err := loader.Build(loader.Params{ConfPath: "../../../configs"})
+		if err != nil {
+			t.Fatalf("Build() error = %v", err)
+		}
+
+		// 验证端口覆盖
+		addr := bundle.Bootstrap.GetServer().GetGrpc().GetAddr()
+		if addr != "0.0.0.0:8080" {
+			t.Errorf("PORT 覆盖失败，addr = %q, want %q", addr, "0.0.0.0:8080")
+		}
+
+		// 验证数据库 DSN 覆盖
+		dsn := bundle.Bootstrap.GetData().GetPostgres().GetDsn()
+		if dsn != testDSN {
+			t.Errorf("DATABASE_URL 覆盖失败，dsn = %q, want %q", dsn, testDSN)
+		}
+	})
+}
+
+// TestReplacePortLogic 通过临时配置文件测试端口替换逻辑
+func TestReplacePortLogic(t *testing.T) {
+	createTempConfig := func(t *testing.T, addr string) string {
+		tmpDir := t.TempDir()
+		configFile := filepath.Join(tmpDir, "config.yaml")
+		content := fmt.Sprintf(`
+server:
+  grpc:
+    addr: %s
+    timeout: 5s
+data:
+  postgres:
+    dsn: ""
+`, addr)
+		if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
+			t.Fatalf("create config file: %v", err)
+		}
+		return tmpDir
+	}
+
+	tests := []struct {
+		name         string
+		originalAddr string
+		portEnv      string
+		expectedAddr string
+	}{
+		{
+			name:         "标准 IPv4 地址 - 端口覆盖",
+			originalAddr: "0.0.0.0:9000",
+			portEnv:      "8080",
+			expectedAddr: "0.0.0.0:8080",
+		},
+		{
+			name:         "localhost - 端口覆盖",
+			originalAddr: "127.0.0.1:9000",
+			portEnv:      "8080",
+			expectedAddr: "127.0.0.1:8080",
+		},
+		{
+			name:         "仅端口 - 端口覆盖",
+			originalAddr: ":9000",
+			portEnv:      "8080",
+			expectedAddr: ":8080",
+		},
+		{
+			name:         "未设置 PORT - 保持原值",
+			originalAddr: "0.0.0.0:9000",
+			portEnv:      "",
+			expectedAddr: "0.0.0.0:9000",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := createTempConfig(t, tt.originalAddr)
+
+			if tt.portEnv != "" {
+				t.Setenv("PORT", tt.portEnv)
+			} else {
+				t.Setenv("PORT", "")
+			}
+
+			bundle, err := loader.Build(loader.Params{ConfPath: tmpDir})
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
+
+			addr := bundle.Bootstrap.GetServer().GetGrpc().GetAddr()
+			if addr != tt.expectedAddr {
+				t.Errorf("addr = %q, want %q", addr, tt.expectedAddr)
+			}
+		})
+	}
+}

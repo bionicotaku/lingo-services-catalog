@@ -8,7 +8,27 @@ import (
 	"github.com/google/wire"
 )
 
-// ProviderSet exposes configuration-derived dependencies for Wire graphs.
+// ProviderSet 向 Wire 依赖图暴露配置相关的所有 Provider 函数。
+//
+// 该 ProviderSet 提供：
+//   - Bundle: 完整配置包（包含 Bootstrap、ObsConfig、ServiceMetadata）
+//   - ServiceMetadata: 服务元信息（用于日志、追踪标签）
+//   - Bootstrap: 强类型的 protobuf 配置根对象
+//   - ServerConfig: 服务器配置（gRPC、JWT 等）
+//   - DataConfig: 数据层配置（PostgreSQL、gRPC Client 等）
+//   - ObservabilityConfig: 可观测性配置（追踪、指标）
+//   - ObservabilityInfo: 观测组件所需的服务信息
+//   - LoggerConfig: 日志组件所需的配置
+//   - JWTConfig: JWT 中间件配置（Server + Client）
+//
+// Wire 使用示例：
+//
+//	wire.Build(
+//	    configloader.ProviderSet,  // 注入配置相关依赖
+//	    gclog.ProviderSet,         // 日志组件依赖 LoggerConfig
+//	    observability.ProviderSet, // 观测组件依赖 ObservabilityConfig
+//	    // ...
+//	)
 var ProviderSet = wire.NewSet(
 	ProvideBundle,
 	ProvideServiceMetadata,
@@ -21,12 +41,42 @@ var ProviderSet = wire.NewSet(
 	ProvideJWTConfig,
 )
 
-// ProvideBundle constructs a Bundle from runtime parameters.
+// ProvideBundle 从运行时参数构造配置 Bundle。
+//
+// 该函数是配置加载的入口点，负责：
+// 1. 解析配置文件路径
+// 2. 加载并验证配置
+// 3. 应用环境变量覆盖
+// 4. 构建服务元信息
+//
+// 参数：
+//   - p: Params 包含 ConfPath（配置文件路径）
+//
+// 返回：
+//   - *Bundle: 包含 Bootstrap、ObsConfig、ServiceMetadata 的配置包
+//   - error: 配置加载或验证失败时返回错误
+//
+// Wire 依赖：
+//   - 输入：Params（由 main.go 或命令行参数提供）
+//   - 输出：*Bundle（供下游 Provider 使用）
 func ProvideBundle(p Params) (*Bundle, error) {
 	return Build(p)
 }
 
-// ProvideServiceMetadata returns the resolved ServiceMetadata from the bundle.
+// ProvideServiceMetadata 从 Bundle 中提取服务元信息。
+//
+// 服务元信息用途：
+//   - 日志组件：通过 LoggerConfig() 转换为 gclog.Config
+//   - 观测组件：通过 ObservabilityInfo() 转换为 observability.ServiceInfo
+//   - 指标标签：service_name、service_version、environment
+//   - 实例标识：用于分布式环境下区分不同实例
+//
+// 参数：
+//   - b: Bundle 配置包（nil-safe）
+//
+// 返回：
+//   - ServiceMetadata: 包含 Name、Version、Environment、InstanceID
+//     nil 时返回零值（空字符串）
 func ProvideServiceMetadata(b *Bundle) ServiceMetadata {
 	if b == nil {
 		return ServiceMetadata{}
@@ -34,7 +84,22 @@ func ProvideServiceMetadata(b *Bundle) ServiceMetadata {
 	return b.Service
 }
 
-// ProvideBootstrap exposes the strongly typed bootstrap configuration.
+// ProvideBootstrap 暴露强类型的 Bootstrap 配置根对象。
+//
+// Bootstrap 是所有配置的根节点，包含：
+//   - Server: 服务器配置（gRPC 地址、超时、JWT）
+//   - Data: 数据层配置（PostgreSQL、gRPC Client）
+//   - Observability: 可观测性配置（追踪、指标）
+//
+// 参数：
+//   - b: Bundle 配置包（nil-safe）
+//
+// 返回：
+//   - *configpb.Bootstrap: protobuf 定义的配置对象，nil 时返回 nil
+//
+// Wire 用途：
+//   - 供其他 Provider 函数拆分为更细粒度的配置片段
+//   - 避免直接依赖 Bundle，降低耦合度
 func ProvideBootstrap(b *Bundle) *configpb.Bootstrap {
 	if b == nil {
 		return nil
@@ -42,7 +107,21 @@ func ProvideBootstrap(b *Bundle) *configpb.Bootstrap {
 	return b.Bootstrap
 }
 
-// ProvideServerConfig returns the server section of the bootstrap configuration.
+// ProvideServerConfig 提取 Bootstrap 中的 Server 配置节。
+//
+// Server 配置包含：
+//   - grpc.addr: gRPC 服务器监听地址（如 "0.0.0.0:9000"）
+//   - grpc.timeout: 请求超时时间
+//   - jwt: 服务端 JWT 验证配置（expected_audience、skip_validate 等）
+//
+// 参数：
+//   - bc: Bootstrap 配置对象（nil-safe）
+//
+// 返回：
+//   - *configpb.Server: 服务器配置，nil 时返回 nil
+//
+// Wire 依赖链：
+//   - Bootstrap -> Server -> gRPC Server、JWT Server Middleware
 func ProvideServerConfig(bc *configpb.Bootstrap) *configpb.Server {
 	if bc == nil {
 		return nil
@@ -50,7 +129,20 @@ func ProvideServerConfig(bc *configpb.Bootstrap) *configpb.Server {
 	return bc.GetServer()
 }
 
-// ProvideDataConfig returns the data section of the bootstrap configuration.
+// ProvideDataConfig 提取 Bootstrap 中的 Data 配置节。
+//
+// Data 配置包含：
+//   - postgres: PostgreSQL 连接配置（DSN、连接池参数、schema）
+//   - grpc_client: 出站 gRPC 客户端配置（target、jwt）
+//
+// 参数：
+//   - bc: Bootstrap 配置对象（nil-safe）
+//
+// 返回：
+//   - *configpb.Data: 数据层配置，nil 时返回 nil
+//
+// Wire 依赖链：
+//   - Bootstrap -> Data -> Database Pool、gRPC Client、JWT Client Middleware
 func ProvideDataConfig(bc *configpb.Bootstrap) *configpb.Data {
 	if bc == nil {
 		return nil
@@ -58,7 +150,26 @@ func ProvideDataConfig(bc *configpb.Bootstrap) *configpb.Data {
 	return bc.GetData()
 }
 
-// ProvideObservabilityConfig exposes the normalized observability configuration.
+// ProvideObservabilityConfig 暴露规范化后的可观测性配置。
+//
+// 规范化处理：
+//   - 将 protobuf 配置转换为 observability 包所需的 Go 结构体
+//   - 应用默认值（如 gRPC 指标默认启用）
+//   - 转换 Duration 类型（protobuf.Duration -> time.Duration）
+//
+// 配置内容：
+//   - GlobalAttributes: 全局标签（附加到所有追踪和指标）
+//   - Tracing: 追踪配置（exporter、endpoint、sampling_ratio 等）
+//   - Metrics: 指标配置（exporter、interval、gRPC 指标开关）
+//
+// 参数：
+//   - b: Bundle 配置包（nil-safe）
+//
+// 返回：
+//   - obswire.ObservabilityConfig: 规范化配置，nil 时返回零值
+//
+// Wire 依赖链：
+//   - Bundle -> ObservabilityConfig -> observability.Component
 func ProvideObservabilityConfig(b *Bundle) obswire.ObservabilityConfig {
 	if b == nil {
 		return obswire.ObservabilityConfig{}
@@ -66,17 +177,84 @@ func ProvideObservabilityConfig(b *Bundle) obswire.ObservabilityConfig {
 	return b.ObsConfig
 }
 
-// ProvideObservabilityInfo exposes service metadata to observability Provider.
+// ProvideObservabilityInfo 将服务元信息转换为观测组件所需格式。
+//
+// 转换内容：
+//   - ServiceMetadata.Name -> ServiceInfo.Name
+//   - ServiceMetadata.Version -> ServiceInfo.Version
+//   - ServiceMetadata.Environment -> ServiceInfo.Environment
+//   - InstanceID 不传递（观测组件通过 hostname 自动获取）
+//
+// 用途：
+//   - OpenTelemetry Resource Attributes
+//   - Tracer/Meter 初始化时的服务标识
+//
+// 参数：
+//   - meta: 服务元信息
+//
+// 返回：
+//   - obswire.ServiceInfo: 观测组件所需的服务信息
+//
+// Wire 依赖链：
+//   - ServiceMetadata -> ServiceInfo -> observability.Component
 func ProvideObservabilityInfo(meta ServiceMetadata) obswire.ServiceInfo {
 	return meta.ObservabilityInfo()
 }
 
-// ProvideLoggerConfig exposes service metadata to logging Provider.
+// ProvideLoggerConfig 将服务元信息转换为日志组件所需格式。
+//
+// 转换内容：
+//   - ServiceMetadata -> gclog.Config
+//   - 自动添加 StaticLabels（如 service.id）
+//   - 启用 SourceLocation（日志包含文件名和行号）
+//
+// 日志配置包含：
+//   - Service: 服务名称
+//   - Version: 服务版本
+//   - Environment: 运行环境（development/staging/production）
+//   - InstanceID: 实例标识（用于区分同一服务的不同实例）
+//   - StaticLabels: 静态标签（附加到所有日志条目）
+//
+// 参数：
+//   - meta: 服务元信息
+//
+// 返回：
+//   - gclog.Config: 日志组件所需的配置
+//
+// Wire 依赖链：
+//   - ServiceMetadata -> LoggerConfig -> gclog.Component -> log.Logger
 func ProvideLoggerConfig(meta ServiceMetadata) gclog.Config {
 	return meta.LoggerConfig()
 }
 
-// ProvideJWTConfig 构造 gcjwt.Config，便于统一注入。
+// ProvideJWTConfig 从 Server 和 Data 配置中提取 JWT 配置并合并。
+//
+// JWT 配置分为两部分：
+// 1. Server JWT（入站验证）：
+//   - expected_audience: 期望的 JWT 受众（aud 字段）
+//   - skip_validate: 是否跳过验证（本地开发用）
+//   - required: 是否强制要求携带 Token（false 允许匿名请求）
+//   - header_key: 从哪个 Header 读取 Token（默认 "authorization"）
+//
+// 2. Client JWT（出站注入）：
+//   - audience: 目标服务的 URL（用于获取 Identity Token）
+//   - disabled: 是否禁用中间件（本地开发用）
+//   - header_key: 注入到哪个 Header（默认 "authorization"）
+//
+// 参数：
+//   - server: Server 配置（可为 nil）
+//   - data: Data 配置（可为 nil）
+//
+// 返回：
+//   - gcjwt.Config: 包含 Server 和 Client 两部分的 JWT 配置
+//     如果对应节点不存在，对应字段为 nil
+//
+// Wire 依赖链：
+//   - Server + Data -> JWTConfig -> gcjwt.Component -> ServerMiddleware + ClientMiddleware
+//
+// 使用场景：
+//   - Gateway: Server 验证用户 JWT，Client 注入 Identity Token 调用后端
+//   - Catalog: Server 验证 Identity Token，Client 不启用（不调用其他服务）
 func ProvideJWTConfig(server *configpb.Server, data *configpb.Data) gcjwt.Config {
 	var cfg gcjwt.Config
 

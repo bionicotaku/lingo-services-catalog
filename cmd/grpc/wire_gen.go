@@ -8,18 +8,19 @@ package main
 
 import (
 	"context"
-
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
-	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
+)
 
+import (
 	_ "go.uber.org/automaxprocs"
 )
 
