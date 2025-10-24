@@ -35,6 +35,12 @@ func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*p
 	return nil, repositories.ErrVideoNotFound
 }
 
+type outboxRepoStub struct{}
+
+func (outboxRepoStub) Enqueue(context.Context, txmanager.Session, repositories.OutboxMessage) error {
+	return nil
+}
+
 type noopTxManager struct{}
 
 func (noopTxManager) WithinTx(ctx context.Context, _ txmanager.TxOptions, fn func(context.Context, txmanager.Session) error) error {
@@ -50,7 +56,7 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := controllers.NewVideoHandler(services.NewVideoUsecase(videoRepoStub{}, noopTxManager{}, logger))
+	videoSvc := controllers.NewVideoHandler(services.NewVideoUsecase(videoRepoStub{}, outboxRepoStub{}, noopTxManager{}, logger))
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)

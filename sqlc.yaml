@@ -4,6 +4,7 @@ sql:
       - "sqlc/schema/*.sql"
     queries:
       - "internal/repositories/sqlc/video.sql"
+      - "internal/repositories/sqlc/events.sql"
     engine: postgresql
     gen:
       go:

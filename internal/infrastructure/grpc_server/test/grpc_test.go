@@ -37,6 +37,12 @@ func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*p
 	return nil, repositories.ErrVideoNotFound
 }
 
+type outboxRepoStub struct{}
+
+func (outboxRepoStub) Enqueue(context.Context, txmanager.Session, repositories.OutboxMessage) error {
+	return nil
+}
+
 type noopTxManager struct{}
 
 func (noopTxManager) WithinTx(ctx context.Context, _ txmanager.TxOptions, fn func(context.Context, txmanager.Session) error) error {
@@ -51,7 +57,8 @@ func newVideoController(t *testing.T) *controllers.VideoHandler {
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
 	repo := videoRepoStub{}
-	uc := services.NewVideoUsecase(repo, noopTxManager{}, logger)
+	outbox := outboxRepoStub{}
+	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
 	return controllers.NewVideoHandler(uc)
 }
 

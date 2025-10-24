@@ -55,10 +55,10 @@
 
 ## 阶段 3｜写路径改造（Outbox）
 - [x] 为 Service 添加事务边界：在写操作用例中引入 `TxManager`/Unit of Work，确保业务写 + Outbox INSERT 同事务提交。（2025-10-24，本次迭代已完成基础 Wiring，后续 Outbox 写入落地仍需跟进）
-- [ ] 抽象 `OutboxWriter` 接口与实现（`internal/repositories/outbox_repository.go`），复用 sqlc 查询并接受上下文。
-- [ ] 设计事件构造器（`internal/models/events`）：从 PO/领域对象生成 protobuf/JSON payload，封装 version 递增策略。
-- [ ] Service 层在关键状态变更（创建、更新、删除）后写入 Outbox，返回幂等响应（保留 event metadata 用于客户端一致性 token）。
-- [ ] 增加单元测试覆盖 Outbox 写入分支（含错误包装、version 规则）。
+- [x] 抽象 `OutboxWriter` 接口与实现（`internal/repositories/outbox_repository.go`），复用 sqlc 查询并接受上下文。
+- [x] 设计事件构造器（`internal/models/events`）：从 PO/领域对象生成 protobuf/JSON payload，封装 version 递增策略。
+- [ ] Service 层在关键状态变更（创建、更新、删除）后写入 Outbox，返回幂等响应（保留 event metadata 用于客户端一致性 token）。（Create 路径已接入，Update/Delete 待实现）
+- [x] 增加单元测试覆盖 Outbox 写入分支（含错误包装、version 规则）。
 
 ## 阶段 4｜发布器任务
 - [ ] 在 `internal/tasks/outbox_publisher` 实现：

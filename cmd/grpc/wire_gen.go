@@ -27,17 +27,16 @@ import (
 
 // Injectors from wire.go:
 
-// wireApp 构建整个 Kratos 应用，分阶段装配依赖：
-// 1. config_loader.ProviderSet：
-//   - 基于传入的 Params 解析配置路径、执行 PGV 校验后返回 *loader.Bundle。
-//   - 拆分出 ServiceMetadata、Bootstrap(Server/Data) 以及标准化的 ObservabilityConfig。
-//   - 基于 ServiceMetadata 预先派生 gclog.Config 与 observability.ServiceInfo。
+// wireApp 构建整个 Kratos 应用，分阶段装配依赖。
 //
-// 2. gclog.ProviderSet：根据 gclog.Config 初始化结构化日志组件，并导出 trace-aware log.Logger。
-// 3. observability.ProviderSet：用标准化配置和 ServiceInfo 装配 Tracer/Meter Provider，同时暴露 gRPC 指标配置。
-// 4. grpc/grpc_client ProviderSet：使用 Server/Data 配置与观测设置构建入站 gRPC Server、出站 gRPC Client。
-// 5. 业务 ProviderSet（clients/repositories/services/controllers）：注入上游依赖形成完整 MVC 调用链。
-// 6. newApp：汇总日志器、观测组件与 gRPC Server，返回具备 cleanup 的 kratos.App。
+// Wire 会根据类型自动解析依赖关系并生成 wire_gen.go，详细的 Provider 列表见文件末尾注释。
+//
+// 依赖注入顺序:
+//  1. 配置加载: configloader.ProviderSet 解析配置并派生组件配置
+//  2. 基础设施: gclog → observability → gcjwt → database → txmanager
+//  3. 业务层: repositories → services → controllers
+//  4. 服务器: grpc_server.ProviderSet 组装 gRPC Server
+//  5. 应用: newApp 创建 Kratos App
 func wireApp(contextContext context.Context, params loader.Params) (*kratos.App, func(), error) {
 	bundle, err := loader.ProvideBundle(params)
 	if err != nil {
@@ -83,6 +82,7 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		return nil, nil, err
 	}
 	videoRepository := repositories.NewVideoRepository(pool, logger)
+	outboxRepository := repositories.NewOutboxRepository(pool, logger)
 	txmanagerConfig := loader.ProvideTxManagerConfig(bundle)
 	txmanagerComponent, cleanup5, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
@@ -93,7 +93,7 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		return nil, nil, err
 	}
 	manager := txmanager.ProvideManager(txmanagerComponent)
-	videoUsecase := services.NewVideoUsecase(videoRepository, manager, logger)
+	videoUsecase := services.NewVideoUsecase(videoRepository, outboxRepository, manager, logger)
 	videoHandler := controllers.NewVideoHandler(videoUsecase)
 	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoHandler, logger)
 	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)

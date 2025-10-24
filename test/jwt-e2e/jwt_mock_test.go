@@ -61,7 +61,8 @@ func TestE2E_JWT_MockToken_SkipValidate(t *testing.T) {
 
 	// 创建 Video 服务
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
+	outbox := &mockOutboxRepo{}
+	videoUC := services.NewVideoUsecase(videoRepo, outbox, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	// 启动 gRPC Server
@@ -179,7 +180,8 @@ func TestE2E_JWT_NoToken_Required(t *testing.T) {
 	}
 
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
+	outbox := &mockOutboxRepo{}
+	videoUC := services.NewVideoUsecase(videoRepo, outbox, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	serverCfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
@@ -256,7 +258,8 @@ func TestE2E_JWT_NoToken_Optional(t *testing.T) {
 	}
 
 	videoRepo := &mockVideoRepo{}
-	videoUC := services.NewVideoUsecase(videoRepo, noopTxManager{}, logger)
+	outbox := &mockOutboxRepo{}
+	videoUC := services.NewVideoUsecase(videoRepo, outbox, noopTxManager{}, logger)
 	videoHandler := controllers.NewVideoHandler(videoUC)
 
 	serverCfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
@@ -317,6 +320,12 @@ func (m *mockVideoRepo) Create(_ context.Context, _ txmanager.Session, _ reposit
 
 func (m *mockVideoRepo) FindByID(_ context.Context, _ txmanager.Session, _ uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
+}
+
+type mockOutboxRepo struct{}
+
+func (mockOutboxRepo) Enqueue(context.Context, txmanager.Session, repositories.OutboxMessage) error {
+	return nil
 }
 
 type noopTxManager struct{}
