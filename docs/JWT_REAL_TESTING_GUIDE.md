@@ -242,7 +242,7 @@ go run check_token.go
 
 ### 3.2 测试 1：Mock Token + Skip Validate
 
-**文件**：`test/e2e/jwt_e2e_mock_test.go`
+**文件**：`test/jwt-e2e/jwt_e2e_mock_test.go`
 
 **特点**：
 - ✅ 不需要 Google Cloud 凭证
@@ -255,7 +255,7 @@ go run check_token.go
 cd /Users/evan/Code/learning-app/back-end/kratos-template
 
 # 运行 Mock 测试（不需要 Google 凭证）
-go test -v ./test/e2e -run TestE2E_JWT_MockToken
+go test -v ./test/jwt-e2e -run TestE2E_JWT_MockToken
 ```
 
 **测试流程**：
@@ -299,7 +299,7 @@ defer gcjwt.SetTokenSourceFactory(nil)  // 恢复默认行为
 
 ### 3.3 测试 2：Real Token + Skip Validate
 
-**文件**：`test/e2e/jwt_e2e_real_test.go` → `TestE2E_JWT_Real_SkipValidate`
+**文件**：`test/jwt-e2e/jwt_e2e_real_test.go` → `TestE2E_JWT_Real_SkipValidate`
 
 **特点**：
 - ✅ 测试真实 Token 获取流程
@@ -319,10 +319,10 @@ gcloud auth print-identity-token --audiences="https://test-service.run.app/"
 **运行**：
 ```bash
 # 运行真实 Token 测试（需要 Google 凭证）
-go test -v ./test/e2e -run TestE2E_JWT_Real_SkipValidate
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_SkipValidate
 
 # 跳过（使用 -short 标志）
-go test -v ./test/e2e -short  # 会跳过所有真实 Token 测试
+go test -v ./test/jwt-e2e -short  # 会跳过所有真实 Token 测试
 ```
 
 **测试流程**：
@@ -381,7 +381,7 @@ serverJWTCfg := gcjwt.Config{
 
 ### 3.4 测试 3：Real Token + Full Validation
 
-**文件**：`test/e2e/jwt_e2e_real_test.go` → `TestE2E_JWT_Real_FullValidation`
+**文件**：`test/jwt-e2e/jwt_e2e_real_test.go` → `TestE2E_JWT_Real_FullValidation`
 
 **特点**：
 - ✅ 完整验证流程（生产环境模拟）
@@ -392,7 +392,7 @@ serverJWTCfg := gcjwt.Config{
 **运行**：
 ```bash
 # 完整验证测试
-go test -v ./test/e2e -run TestE2E_JWT_Real_FullValidation
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_FullValidation
 ```
 
 **测试流程**：
@@ -594,10 +594,10 @@ gcloud auth print-identity-token --audiences="https://test.example.com"
 **解决**：
 ```bash
 # 不使用 -short
-go test -v ./test/e2e -run TestE2E_JWT_Real
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Real
 
 # 或者指定完整测试名称
-go test -v ./test/e2e -run TestE2E_JWT_Real_SkipValidate
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_SkipValidate
 ```
 
 ---
@@ -719,7 +719,7 @@ jobs:
 
       # 单元测试（使用 Mock Token）
       - name: Run Unit Tests
-        run: go test -v ./test/e2e -run TestE2E_JWT_MockToken
+        run: go test -v ./test/jwt-e2e -run TestE2E_JWT_MockToken
 
       # 如果配置了 Service Account，运行集成测试
       - name: Setup Google Cloud Auth
@@ -730,11 +730,11 @@ jobs:
 
       - name: Run Integration Tests
         if: env.GCP_SA_KEY != ''
-        run: go test -v ./test/e2e -run TestE2E_JWT_Real_SkipValidate
+        run: go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_SkipValidate
 
       - name: Run E2E Tests
         if: env.GCP_SA_KEY != ''
-        run: go test -v ./test/e2e -run TestE2E_JWT_Real_FullValidation
+        run: go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_FullValidation
 ```
 
 ---
@@ -806,7 +806,7 @@ logger := log.NewStdLogger(os.Stdout)
 - [ ] 配置 `configs/config.yaml`：
   - `server.jwt.skip_validate: true`
   - `server.jwt.required: false`
-- [ ] 运行测试：`go test -v ./test/e2e`
+- [ ] 运行测试：`go test -v ./test/jwt-e2e`
 
 ---
 
@@ -817,7 +817,7 @@ logger := log.NewStdLogger(os.Stdout)
 - [ ] 设置 `required: true`
 - [ ] 配置 Service Account 权限
 - [ ] 验证网络可访问 Google JWKS endpoint
-- [ ] 运行 E2E 测试：`go test -v ./test/e2e -run TestE2E_JWT_Real_FullValidation`
+- [ ] 运行 E2E 测试：`go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_FullValidation`
 
 ---
 
@@ -837,16 +837,16 @@ gcloud auth print-identity-token --audiences="https://test.com" | \
 
 # === 测试执行 ===
 # 快速测试（Mock Token）
-go test -v ./test/e2e -run TestE2E_JWT_MockToken
+go test -v ./test/jwt-e2e -run TestE2E_JWT_MockToken
 
 # 集成测试（需要 Google 凭证）
-go test -v ./test/e2e -run TestE2E_JWT_Real_SkipValidate
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_SkipValidate
 
 # 完整 E2E 测试
-go test -v ./test/e2e -run TestE2E_JWT_Real_FullValidation
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Real_FullValidation
 
 # 跳过真实 Token 测试
-go test -v ./test/e2e -short
+go test -v ./test/jwt-e2e -short
 
 # === 调试 ===
 # 手动测试 gRPC

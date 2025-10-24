@@ -3,7 +3,7 @@
 ## 📁 文件结构
 
 ```
-test/e2e/
+test/jwt-e2e/
 ├── jwt_mock_test.go           # Mock Token 测试（默认运行，CI 友好）
 ├── jwt_real_test.go           # 真实 GCP Token 测试（需要 gcloud）
 ├── test_utils/                # 测试工具包
@@ -36,10 +36,10 @@ test/e2e/
 **运行**:
 ```bash
 # 默认运行（CI 环境）
-go test -v ./test/e2e
+go test -v ./test/jwt-e2e
 
 # 只运行 Mock 测试
-go test -v ./test/e2e -run TestE2E_JWT_Mock
+go test -v ./test/jwt-e2e -run TestE2E_JWT_Mock
 ```
 
 ---
@@ -66,10 +66,10 @@ go test -v ./test/e2e -run TestE2E_JWT_Mock
 **运行**:
 ```bash
 # 运行真实环境测试
-go test -tags=integration -v ./test/e2e
+go test -tags=integration -v ./test/jwt-e2e
 
 # 运行单个真实环境测试
-go test -tags=integration -v ./test/e2e -run TestE2E_JWT_RealEnv_SkipValidate
+go test -tags=integration -v ./test/jwt-e2e -run TestE2E_JWT_RealEnv_SkipValidate
 ```
 
 ---
@@ -89,7 +89,7 @@ go test -tags=integration -v ./test/e2e -run TestE2E_JWT_RealEnv_SkipValidate
 #### 1. 生成 Mock Token
 
 ```go
-import "github.com/bionicotaku/kratos-template/test/e2e/test_utils"
+import "github.com/bionicotaku/kratos-template/test/jwt-e2e/test_utils"
 
 // 生成自签名 JWT Token
 token := test_utils.GenerateValidCloudRunToken(t,
@@ -131,14 +131,14 @@ cp configs/.env.test.example configs/.env.test
 # 编辑 configs/.env.test 填写实际值
 
 # 3. 运行所有测试
-go test -tags=integration -v ./test/e2e
+go test -tags=integration -v ./test/jwt-e2e
 ```
 
 ### CI/CD 环境
 
 ```bash
 # 只运行 Mock 测试（无需 gcloud）
-go test -v ./test/e2e
+go test -v ./test/jwt-e2e
 
 # 预期输出：
 # - TestE2E_JWT_MockToken_SkipValidate ✅ PASS
@@ -209,7 +209,7 @@ jobs:
 
       # 只运行 Mock 测试（无需 gcloud）
       - name: Run E2E Tests (Mock)
-        run: go test -v ./test/e2e
+        run: go test -v ./test/jwt-e2e
 
       # 可选：在有 gcloud 凭证时运行真实测试
       # - name: Run E2E Tests (Real)
@@ -217,7 +217,7 @@ jobs:
       #   run: |
       #     echo "$GOOGLE_CREDENTIALS" > /tmp/gcloud-key.json
       #     gcloud auth activate-service-account --key-file=/tmp/gcloud-key.json
-      #     go test -tags=integration -v ./test/e2e
+      #     go test -tags=integration -v ./test/jwt-e2e
 ```
 
 ---
@@ -231,10 +231,10 @@ jobs:
 **解决**:
 ```bash
 # ❌ 错误
-go test -v ./test/e2e -run TestE2E_JWT_RealEnv
+go test -v ./test/jwt-e2e -run TestE2E_JWT_RealEnv
 
 # ✅ 正确
-go test -tags=integration -v ./test/e2e -run TestE2E_JWT_RealEnv
+go test -tags=integration -v ./test/jwt-e2e -run TestE2E_JWT_RealEnv
 ```
 
 ---

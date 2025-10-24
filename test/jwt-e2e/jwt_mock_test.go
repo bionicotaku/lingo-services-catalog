@@ -15,7 +15,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
-	"github.com/bionicotaku/kratos-template/test/e2e/testutils"
+	"github.com/bionicotaku/kratos-template/test/jwt-e2e/testutils"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"

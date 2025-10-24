@@ -10,7 +10,7 @@
 //    gcloud auth application-default login
 //
 // 3. 运行测试：
-//    make test  # 或 go test -v ./test/e2e
+//    make test  # 或 go test -v ./test/jwt-e2e
 //
 // 4. CI 环境（自动跳过真实 GCP 测试）：
 //    - 由于 .env.test 在 .gitignore 中，CI 环境不存在该文件
@@ -31,7 +31,7 @@ import (
 	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/services"
-	"github.com/bionicotaku/kratos-template/test/e2e/testutils"
+	"github.com/bionicotaku/kratos-template/test/jwt-e2e/testutils"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
