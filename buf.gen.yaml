@@ -9,8 +9,3 @@ plugins:
     out: .
     opt:
       - paths=source_relative
-  - plugin: validate
-    out: .
-    opt:
-      - paths=source_relative
-      - lang=go

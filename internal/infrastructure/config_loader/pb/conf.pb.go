@@ -7,14 +7,13 @@
 package configpb
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
-	_ "github.com/envoyproxy/protoc-gen-validate/validate"
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -878,7 +877,7 @@ var File_internal_infrastructure_config_loader_pb_conf_proto protoreflect.FileDe
 const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\n" +
 	"3internal/infrastructure/config_loader/pb/conf.proto\x12\n" +
-	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\x1a\x17validate/validate.proto\"\x9e\x01\n" +
+	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\"\x9e\x01\n" +
 	"\tBootstrap\x12*\n" +
 	"\x06server\x18\x01 \x01(\v2\x12.kratos.api.ServerR\x06server\x12$\n" +
 	"\x04data\x18\x02 \x01(\v2\x10.kratos.api.DataR\x04data\x12?\n" +
@@ -895,16 +894,16 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\rskip_validate\x18\x02 \x01(\bR\fskipValidate\x12\x1a\n" +
 	"\brequired\x18\x03 \x01(\bR\brequired\x12\x1d\n" +
 	"\n" +
-	"header_key\x18\x04 \x01(\tR\theaderKey\"\x84\x06\n" +
-	"\x04Data\x12A\n" +
-	"\bpostgres\x18\x01 \x01(\v2\x1b.kratos.api.Data.PostgreSQLB\b\xfaB\x05\x8a\x01\x02\x10\x01R\bpostgres\x128\n" +
+	"header_key\x18\x04 \x01(\tR\theaderKey\"\x82\x06\n" +
+	"\x04Data\x12?\n" +
+	"\bpostgres\x18\x01 \x01(\v2\x1b.kratos.api.Data.PostgreSQLB\x06\xbaH\x03\xc8\x01\x01R\bpostgres\x128\n" +
 	"\vgrpc_client\x18\x02 \x01(\v2\x17.kratos.api.Data.ClientR\n" +
 	"grpcClient\x1a\xce\x03\n" +
 	"\n" +
 	"PostgreSQL\x12.\n" +
-	"\x03dsn\x18\x01 \x01(\tB\x1c\xfaB\x19r\x17\x10\x012\x13^postgres(ql)?://.*R\x03dsn\x12/\n" +
-	"\x0emax_open_conns\x18\x02 \x01(\x05B\t\xfaB\x06\x1a\x04\x18d(\x01R\fmaxOpenConns\x12/\n" +
-	"\x0emin_open_conns\x18\x03 \x01(\x05B\t\xfaB\x06\x1a\x04\x182(\x00R\fminOpenConns\x12E\n" +
+	"\x03dsn\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17\x10\x012\x13^postgres(ql)?://.*R\x03dsn\x12/\n" +
+	"\x0emax_open_conns\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01R\fmaxOpenConns\x12/\n" +
+	"\x0emin_open_conns\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x182(\x00R\fminOpenConns\x12E\n" +
 	"\x11max_conn_lifetime\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\x0fmaxConnLifetime\x12F\n" +
 	"\x12max_conn_idle_time\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x0fmaxConnIdleTime\x12I\n" +
 	"\x13health_check_period\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x11healthCheckPeriod\x12\x16\n" +

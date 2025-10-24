@@ -76,7 +76,7 @@ func TestJWTClientMiddleware_EnabledMode(t *testing.T) {
 
 	// 配置 mock TokenSource
 	mockTokenSource := &mockTokenSource{token: "fake-jwt-token"}
-	gcjwt.SetTokenSourceFactory(func(ctx context.Context, audience string) (oauth2.TokenSource, error) {
+	gcjwt.SetTokenSourceFactory(func(_ context.Context, _ string) (oauth2.TokenSource, error) {
 		return mockTokenSource, nil
 	})
 	t.Cleanup(func() { gcjwt.SetTokenSourceFactory(nil) })
@@ -135,7 +135,7 @@ func TestJWTClientMiddleware_CustomHeaderKey(t *testing.T) {
 
 	// 配置 mock TokenSource
 	mockTokenSource := &mockTokenSource{token: "fake-jwt-token"}
-	gcjwt.SetTokenSourceFactory(func(ctx context.Context, audience string) (oauth2.TokenSource, error) {
+	gcjwt.SetTokenSourceFactory(func(_ context.Context, _ string) (oauth2.TokenSource, error) {
 		return mockTokenSource, nil
 	})
 	t.Cleanup(func() { gcjwt.SetTokenSourceFactory(nil) })
@@ -193,7 +193,7 @@ func TestJWTClientIntegration_WithJWTMiddleware(t *testing.T) {
 
 	// 配置 mock TokenSource
 	mockTokenSource := &mockTokenSource{token: "fake-jwt-token"}
-	gcjwt.SetTokenSourceFactory(func(ctx context.Context, audience string) (oauth2.TokenSource, error) {
+	gcjwt.SetTokenSourceFactory(func(_ context.Context, _ string) (oauth2.TokenSource, error) {
 		return mockTokenSource, nil
 	})
 	t.Cleanup(func() { gcjwt.SetTokenSourceFactory(nil) })

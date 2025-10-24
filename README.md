@@ -115,7 +115,8 @@ Kratos-Template 是一个**视频目录微服务**示例，实现了以下业务
 |------|------|------|
 | **gcjwt** | v0.1.0 | JWT 认证中间件（lingo-utils） |
 | **buf** | - | Protobuf 管理工具 |
-| **proto-gen-validate** | v1.2.1 | 参数校验 |
+| **protovalidate** | v1.0.0 | 参数校验（运行时反射验证） |
+| **protovalidate middleware** | v2.27.0 | Kratos protovalidate 中间件 |
 
 ---
 
@@ -467,7 +468,7 @@ func NewVideoUsecase(repo VideoRepo, logger log.Logger) *VideoUsecase {
 2. gRPC Server 中间件处理
    - 追踪中间件（创建 Span）
    - 日志中间件（记录请求）
-   - 参数校验（Proto-Gen-Validate）
+   - 参数校验（protovalidate 运行时验证）
    ↓
 3. Controller 层 (video_handler.go)
    - 参数校验（video_id 非空）
@@ -827,7 +828,7 @@ postgres://postgres.xxx:password@aws-0-us-west-1.pooler.supabase.com:5432/postgr
 - ✅ **依赖注入** - Wire 编译期注入
 - ✅ **可观测性** - OpenTelemetry 追踪/指标 + 结构化日志
 - ✅ **类型安全的 SQL** - sqlc 生成查询代码
-- ✅ **配置管理** - Proto Schema + PGV 校验
+- ✅ **配置管理** - Proto Schema + protovalidate 运行时校验
 - ✅ **中间件栈** - 追踪、恢复、限流、参数校验、日志
 - ✅ **超时控制** - Context 超时保护
 - ✅ **错误分层处理** - 404/504/500 分类映射

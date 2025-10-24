@@ -11,12 +11,12 @@ import (
 	"github.com/bionicotaku/lingo-utils/observability"
 	obsTrace "github.com/bionicotaku/lingo-utils/observability/tracing"
 	"github.com/go-kratos/kratos/v2/log"
+	pvmw "github.com/go-kratos-ecosystem/components/v2/middleware/protovalidate"
 	"github.com/go-kratos/kratos/v2/middleware"
 	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/middleware/metadata"
 	"github.com/go-kratos/kratos/v2/middleware/ratelimit"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
-	"github.com/go-kratos/kratos/v2/middleware/validate"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	otelgrpcfilters "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
@@ -32,7 +32,7 @@ import (
 // 2. recovery.Recovery() - Panic 恢复，防止服务崩溃
 // 3. metadata.Server() - 元数据传播，转发 x-template- 前缀的 header
 // 4. ratelimit.Server() - 限流保护
-// 5. validate.Validator() - Proto-Gen-Validate 参数校验
+// 5. pvmw.Server() - protovalidate 运行时参数校验（基于反射，无需代码生成）
 // 6. logging.Server() - 结构化日志记录（含 trace_id/span_id）
 //
 // 可选指标采集：
@@ -63,7 +63,7 @@ func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, 
 	// 其余中间件保持原有顺序，保护限流、参数校验与结构化日志逻辑。
 	mws = append(mws,
 		ratelimit.Server(),
-		validate.Validator(),
+		pvmw.Server(), // protovalidate 运行时验证（无需代码生成）
 		logging.Server(logger),
 	)
 

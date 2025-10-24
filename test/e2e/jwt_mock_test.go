@@ -15,6 +15,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
+	"github.com/bionicotaku/kratos-template/test/e2e/testutils"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
@@ -91,9 +92,9 @@ func TestE2E_JWT_MockToken_SkipValidate(t *testing.T) {
 	// === 2. 配置 Client（生成自签名 JWT Token）===
 	// 生成符合 Cloud Run 格式的 JWT Token
 	testEmail := "test-service@test-project.iam.gserviceaccount.com"
-	mockToken := GenerateValidCloudRunToken(t, testAudience, testEmail)
+	mockToken := testutils.GenerateValidCloudRunToken(t, testAudience, testEmail)
 
-	gcjwt.SetTokenSourceFactory(func(ctx context.Context, audience string) (oauth2.TokenSource, error) {
+	gcjwt.SetTokenSourceFactory(func(_ context.Context, _ string) (oauth2.TokenSource, error) {
 		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: mockToken}), nil
 	})
 	t.Cleanup(func() { gcjwt.SetTokenSourceFactory(nil) })
@@ -309,7 +310,7 @@ func TestE2E_JWT_NoToken_Optional(t *testing.T) {
 // mockVideoRepo 实现 services.VideoRepo 接口用于测试。
 type mockVideoRepo struct{}
 
-func (m *mockVideoRepo) FindByID(ctx context.Context, id uuid.UUID) (*po.Video, error) {
+func (m *mockVideoRepo) FindByID(_ context.Context, _ uuid.UUID) (*po.Video, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 

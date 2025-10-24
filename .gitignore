@@ -16,7 +16,7 @@ coverage.*
 
 # Environment/configuration
 .env*
-!.env.example
+!.env*.example
 configs/*.local.yaml
 configs/*.secret.yaml
 configs/*.production.yaml

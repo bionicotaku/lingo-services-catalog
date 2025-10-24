@@ -4,7 +4,7 @@ package kratos.api;
 option go_package = "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpb";
 
 import "google/protobuf/duration.proto";
-import "validate/validate.proto";
+import "buf/validate/validate.proto";
 
 message Bootstrap {
   Server server = 1;
@@ -32,11 +32,11 @@ message Data {
   // PostgreSQL 数据库配置（Supabase 专用）
   message PostgreSQL {
     // DSN 连接串（必填）
-    string dsn = 1 [(validate.rules).string = { min_len: 1, pattern: "^postgres(ql)?://.*" }];
+    string dsn = 1 [(buf.validate.field).string = { min_len: 1, pattern: "^postgres(ql)?://.*" }];
 
     // 连接池配置
-    int32 max_open_conns = 2 [(validate.rules).int32 = {gte: 1, lte: 100}];
-    int32 min_open_conns = 3 [(validate.rules).int32 = {gte: 0, lte: 50}];
+    int32 max_open_conns = 2 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+    int32 min_open_conns = 3 [(buf.validate.field).int32 = {gte: 0, lte: 50}];
     google.protobuf.Duration max_conn_lifetime = 4;
     google.protobuf.Duration max_conn_idle_time = 5;
     google.protobuf.Duration health_check_period = 6;
@@ -57,7 +57,7 @@ message Data {
     JWT jwt = 2;
   }
 
-  PostgreSQL postgres = 1 [(validate.rules).message.required = true];
+  PostgreSQL postgres = 1 [(buf.validate.field).required = true];
   Client grpc_client = 2;
 }
 

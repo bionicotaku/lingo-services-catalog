@@ -9,6 +9,7 @@ import (
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bufbuild/protovalidate-go"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/joho/godotenv"
@@ -97,7 +98,7 @@ func (m ServiceMetadata) LoggerConfig() gclog.Config {
 //
 // 流程：
 // 1. 解析配置路径（应用回退规则）
-// 2. 加载配置并执行 PGV 校验
+// 2. 加载配置并执行 protovalidate 校验
 // 3. 推导服务元信息（来自环境变量/默认值）
 // 4. 转换可观测性配置
 func Build(params Params) (*Bundle, error) {
@@ -143,7 +144,13 @@ func loadBootstrap(confPath string) (*configpb.Bootstrap, error) {
 		return nil, BuildError{Stage: "scan", Path: confPath, Err: err}
 	}
 	applyEnvOverrides(&bc)
-	if err := bc.ValidateAll(); err != nil {
+
+	// 使用 protovalidate 进行运行时验证
+	validator, err := protovalidate.New()
+	if err != nil {
+		return nil, BuildError{Stage: "init_validator", Path: confPath, Err: err}
+	}
+	if err := validator.Validate(&bc); err != nil {
 		return nil, BuildError{Stage: "validate", Path: confPath, Err: err}
 	}
 	return &bc, nil

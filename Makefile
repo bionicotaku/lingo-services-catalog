@@ -9,18 +9,17 @@ init:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go install github.com/go-kratos/kratos/cmd/kratos/v2@latest
-	go install github.com/envoyproxy/protoc-gen-validate@latest
 	go install github.com/google/wire/cmd/wire@latest
 
 .PHONY: config
 # generate internal proto
 config:
-	buf generate --template '{"version":"v1","plugins":[{"plugin":"go","out":".","opt":["paths=source_relative"]},{"plugin":"validate","out":".","opt":["paths=source_relative","lang=go"]}]}' --path internal/infrastructure/config_loader/pb
+	buf generate --template '{"version":"v1","plugins":[{"plugin":"go","out":".","opt":["paths=source_relative"]}]}' --path internal/infrastructure/config_loader/pb
 
 .PHONY: lint
 # run static analysis (staticcheck + revive)
 lint:
-	staticcheck -checks=all,-ST1012,-ST1000 ./...
+	staticcheck -checks=all,-ST1000 ./...
 	revive ./...
 
 .PHONY: api

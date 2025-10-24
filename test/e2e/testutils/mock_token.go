@@ -1,5 +1,5 @@
-// Package e2e provides end-to-end integration test utilities.
-package e2e
+// Package testutils provides end-to-end integration test utilities.
+package testutils
 
 import (
 	"crypto/rand"
