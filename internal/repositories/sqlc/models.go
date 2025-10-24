@@ -104,6 +104,32 @@ func (ns NullCatalogVideoStatus) Value() (driver.Value, error) {
 	return string(ns.CatalogVideoStatus), nil
 }
 
+type CatalogInboxEvent struct {
+	EventID       uuid.UUID          `json:"event_id"`
+	SourceService string             `json:"source_service"`
+	EventType     string             `json:"event_type"`
+	AggregateType pgtype.Text        `json:"aggregate_type"`
+	AggregateID   pgtype.Text        `json:"aggregate_id"`
+	Payload       []byte             `json:"payload"`
+	ReceivedAt    pgtype.Timestamptz `json:"received_at"`
+	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+	LastError     pgtype.Text        `json:"last_error"`
+}
+
+type CatalogOutboxEvent struct {
+	EventID          uuid.UUID          `json:"event_id"`
+	AggregateType    string             `json:"aggregate_type"`
+	AggregateID      uuid.UUID          `json:"aggregate_id"`
+	EventType        string             `json:"event_type"`
+	Payload          []byte             `json:"payload"`
+	Headers          []byte             `json:"headers"`
+	OccurredAt       pgtype.Timestamptz `json:"occurred_at"`
+	AvailableAt      pgtype.Timestamptz `json:"available_at"`
+	PublishedAt      pgtype.Timestamptz `json:"published_at"`
+	DeliveryAttempts int32              `json:"delivery_attempts"`
+	LastError        pgtype.Text        `json:"last_error"`
+}
+
 type CatalogVideo struct {
 	VideoID           uuid.UUID          `json:"video_id"`
 	UploadUserID      uuid.UUID          `json:"upload_user_id"`
@@ -128,4 +154,14 @@ type CatalogVideo struct {
 	Tags              []string           `json:"tags"`
 	RawSubtitleUrl    pgtype.Text        `json:"raw_subtitle_url"`
 	ErrorMessage      pgtype.Text        `json:"error_message"`
+}
+
+type CatalogVideosReadyView struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	Title          string             `json:"title"`
+	Status         po.VideoStatus     `json:"status"`
+	MediaStatus    po.StageStatus     `json:"media_status"`
+	AnalysisStatus po.StageStatus     `json:"analysis_status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
