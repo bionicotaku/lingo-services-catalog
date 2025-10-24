@@ -1,0 +1,489 @@
+下面是一份**面向 Go + Cloud Run + Supabase(Postgres) + Pub/Sub** 的方案文档，专门说明微服务事件架构中最常见的**两个一致性问题**以及**可落地的解决方案**。文档默认采用：
+
+- **生产者**：业务写数据库（主权数据）+ **Transactional Outbox**，再由**服务自身发布**到 Pub/Sub（不使用 CDC）。
+- **消费者**：以 **StreamingPull**（gRPC 长连接）订阅消息，在**本地事务**中更新副本读模型，**成功后再 Ack**。
+
+---
+
+## **目录**
+
+1. 概览：两个一致性问题
+
+2. 一致性问题 #1（生产者侧）：**写数据库** 与 **发到 Pub/Sub** 的一致性
+
+   - 2.1 典型失败窗口
+   - 2.2 解决方案：Transactional Outbox + 可靠发布器
+   - 2.3 状态机与并发认领
+   - 2.4 Outbox 表结构与发布器伪代码
+   - 2.5 有序、重试与观测
+
+3. 一致性问题 #2（消费者侧）：**处理数据库更新** 与 **Ack** 的一致性
+
+   - 3.1 典型失败窗口
+   - 3.2 解决方案：先事务更新，成功后 Ack（事件驱动，非轮询）
+   - 3.3 幂等（Inbox 表）与版本化 UPSERT
+   - 3.4 Dead-letter、回放与有序
+
+4. 端到端时序与 ASCII 序列图
+
+5. 运行参数与默认建议（Cloud Run / Pub/Sub / Postgres）
+
+6. 测试与演练（How to break it, then prove it works）
+
+7. 清单与踩坑提示
+
+---
+
+## **1) 概览：两个一致性问题**
+
+- **问题 A（生产者侧）**：应用**先写数据库**、**再发消息**到 Pub/Sub 时，如果中间崩溃、网络抖动或重试不当，会出现：
+
+  - “库已变更，但消息**未发**（丢事件）”；或
+  - “消息已发，但库**回滚/未写**（幽灵事件）”。
+
+- **问题 B（消费者侧）**：应用**收到消息**后需要**更新本地副本表**，随后**确认（Ack）**消息。如果顺序或时机不当，会出现：
+
+  - “DB 更新失败却 Ack 了”（消息丢失，不会再重投）；
+  - “DB 成功但 Ack 失败”（导致重复投递，必须幂等）。
+
+> 目标：
+
+> **A**：库状态一旦提交，**事件最终必达**（允许重复）；
+
+> **B**：**只有**当本地 DB 更新成功，**才**确认消息；重复处理**不产生副作用**。
+
+**典型“崩溃窗口”逐一说明**
+
+| **时刻**                             | **发生了什么** | **结果**                                           | **为什么一致**            |
+| ------------------------------------ | -------------- | -------------------------------------------------- | ------------------------- |
+| 写业务成功、写 outbox 成功后崩溃     | 未发布         | **不会丢**：行仍是 PENDING，发布器稍后会认领并发布 | outbox 与业务同事务       |
+| 发布成功，但标记 published_at 前崩溃 | 可能重复       | **允许重复**：重启会再发；消费者幂等处理           | 发布端不追求 exactly-once |
+| 发布失败/超时（未知是否已发）        | 视为失败       | **退避重试**；即便已发也只会造成重复               | 以订阅侧幂等兜底          |
+| 消费时 DB 失败                       | 未 Ack         | **不丢**：自动重投，或进 DLQ                       | 至少一次语义 + DLQ        |
+
+---
+
+## **2) 生产端一致性问题 ：写数据库 ↔ 发到 Pub/Sub**
+
+在一次数据库事务中完成：
+
+1. 写业务表（主权数据）
+2. 同事务 INSERT … INTO outbox …（序列化后的事件，带 event_id/version 等）
+3. COMMIT
+
+这样就消除了“写库成功但没发消息”的双写窗口（发布可以稍后做、可重试）。这是**Transactional Outbox**的核心要点。
+
+### **2.1 典型失败窗口（“双写问题”）**
+
+1. **先写库，后发消息**：提交后应用崩溃/超时 → **库已变**，但消息**没发**。
+2. **先发消息，后写库**：发完消息事务回滚/失败 → **消息已发**，但库**未变**。
+3. **发消息成功，但标记成功前崩溃**：重启后不知是否已发 → **可能重复发**。
+
+### **2.2 解决方案：Transactional Outbox + 可靠发布器（不使用 CDC）**
+
+**核心思想**：
+
+把“**写业务表**”与“**记录将要发布的事件**（Outbox 表）”放进**同一条数据库事务**里提交；随后由一个**发布器（Publisher）从 Outbox 中认领**记录、**发布到 Pub/Sub**，并在**服务端确认**后把 Outbox 行**标记已发布**。
+
+- 若发布器失败/进程宕掉，**行仍在**，之后会继续重试（**至少一次**保证）。
+- 即使偶尔**重复发布**，也无害（因为消费者是幂等的）。
+
+### **2.3 发布器的状态机与并发认领**
+
+为 Outbox 行设计以下字段：
+
+published_at, publish_attempts, next_retry_at, lock_token, locked_at
+
+**状态转换**（单行）：
+
+```text
+PENDING ──(认领)──> INFLIGHT ──(发布成功)──> PUBLISHED
+   │                         └─(发布失败/未知)──> RELEASED(退避重试)
+   └--重试调度(到 next_retry_at 再认领)--> PENDING
+```
+
+- **认领**：多实例并发用 FOR UPDATE SKIP LOCKED 取一批行，加 lock_token。
+- **发布**：调用 Pub/Sub Publish()，等待服务器确认（阻塞 Get()）。
+- **标记成功**：确认成功后更新该行 published_at，清除租约字段。
+- **失败/未知**：清租约 + 指数退避设置 next_retry_at，等待下轮认领。
+
+**关键点：一次只让一个发布器“持有租约”**，用数据库原子更新来认领（不持久持锁，避免长事务）。
+
+FOR UPDATE SKIP LOCKED 让多个发布器并行认领而不互相阻塞/重复处理。
+
+### **2.4 Outbox 表结构与发布器伪代码**
+
+**Outbox DDL（示例）**
+
+```sql
+CREATE TABLE app_outbox (
+  id               uuid PRIMARY KEY,
+  aggregate_type   text        NOT NULL,  -- "video" / "user"
+  aggregate_id     text        NOT NULL,  -- e.g. video_id
+  event_type       text        NOT NULL,  -- "VideoPublished"
+  version          bigint      NOT NULL,  -- 聚合内递增
+  schema_version   int         NOT NULL DEFAULT 1,
+  payload          bytea       NOT NULL,  -- protobuf bytes 或 jsonb
+  occurred_at      timestamptz NOT NULL DEFAULT now(),
+  published_at     timestamptz,
+  publish_attempts int         NOT NULL DEFAULT 0,
+  next_retry_at    timestamptz,
+  lock_token       text,
+  locked_at        timestamptz
+);
+CREATE INDEX ON app_outbox (published_at) WHERE published_at IS NULL;
+CREATE INDEX ON app_outbox (next_retry_at) WHERE published_at IS NULL;
+```
+
+**写请求事务示例（Go/pgx）**
+
+```go
+tx, _ := db.Begin(ctx)
+defer tx.Rollback(ctx)
+
+// 1) 写业务表...
+// 2) 同事务写 outbox
+_, _ = tx.Exec(ctx, `
+  INSERT INTO app_outbox (id, aggregate_type, aggregate_id, event_type, version, payload)
+  VALUES ($1,$2,$3,$4,$5,$6)
+`, eventID, "video", videoID, "VideoPublished", version, payload)
+
+_ = tx.Commit(ctx)
+```
+
+**发布器并发认领（SQL）**
+
+```sql
+WITH cte AS (
+  SELECT id FROM app_outbox
+   WHERE published_at IS NULL
+     AND (next_retry_at IS NULL OR next_retry_at <= now())
+   ORDER BY occurred_at
+   LIMIT 200
+   FOR UPDATE SKIP LOCKED
+)
+UPDATE app_outbox o
+   SET lock_token = $1, locked_at = now()
+  FROM cte
+ WHERE o.id = cte.id
+RETURNING o.*;
+```
+
+**发布与标记（Go 伪代码）**
+
+```go
+res := topic.Publish(ctx, &pubsub.Message{
+  Data: payloadBytes,
+  OrderingKey: aggregateID,            // 按聚合键有序
+  Attributes: map[string]string{
+    "event_id": eventID.String(),
+    "event_type": "VideoPublished",
+    "aggregate_id": aggregateID,
+    "version": strconv.FormatInt(version,10),
+    "schema_version": "1",
+    "occurred_at": occurredAt.Format(time.RFC3339Nano),
+  },
+})
+// 等待服务端确认
+if _, err := res.Get(ctx); err != nil {
+  // 未知/失败 → 指数退避
+  markFail(id, token)     // attempts++, next_retry_at, 清租约
+} else {
+  markSuccess(id, token)  // published_at = now(), 清租约
+}
+```
+
+**发布与标记（两步确保一致）**
+
+- **发布**：调用 Pub/Sub Publish() 并**等待服务器确认**（Get() 返回 messageId）。
+
+  - 如果 Get() 报错或超时，状态**不确定**（可能已发布），务必按“**未知=当失败**”处理，进入退避重试——**允许重复**。
+
+- **标记成功**：只有当 Get() 成功后，执行：
+
+```sql
+UPDATE app_outbox
+   SET published_at = now(), lock_token = NULL, locked_at = NULL
+ WHERE id = $1 AND lock_token = $2;
+```
+
+- **标记失败/退避**（发布失败或未知）：清租约并设置重试时间：
+
+```sql
+UPDATE app_outbox
+   SET publish_attempts = publish_attempts + 1,
+       next_retry_at = now() + (publish_attempts || ' minutes')::interval,
+       lock_token = NULL, locked_at = NULL
+ WHERE id = $1 AND lock_token = $2;
+```
+
+> 由于网络/超时，发布端**无法做到真正 exactly-once**；必须容忍“可能重复发布”。这就是为何我们把**严格性放在消费端幂等**上。Pub/Sub 发布确认是“服务器接收确认”；若 Get() 失败即视为未知，需要可重试设计。官方文档亦强调订阅侧（不是发布侧）提供 **lease 管理/续租**与（可选的）**Exactly-once Delivery**。
+
+### **2.5 有序、重试与观测**
+
+- **Ordering Key**：同一聚合（如 video_id）使用相同 key 保证**同键内顺序**。
+
+- **允许重复**：发布端不追求 exactly-once；消费者幂等兜底。
+
+- **退避策略**：next_retry_at = now() + backoff(publish_attempts)，如 1m, 2m, 4m…。
+
+- **监控**：Outbox 积压量、平均发布延迟、失败率、最大重试次数、异常事件日志。
+
+### **2.6 发布细节建议**
+
+- 设置 **ordering key**（如 video_id/user_id），保证同键内消息顺序。
+- 消息体尽量小（≤10 MB；更大用“指针/claim-check”）。
+- 批量发布（客户端会做批处理、请求按 1 KB 起算）。
+
+---
+
+## **3) 消费端一致性问题 ：订阅处理 ↔ Ack**
+
+### **3.1 典型失败窗口**
+
+1. **先 Ack，后写库**：库更新失败 → 消息已确认，不再投递（**数据丢失**）。
+2. **先写库，后 Ack**：Ack 时网络失败/超时 → 消息被**重复投递**。
+3. **处理耗时很长**：Ack 期限到期 → 消息被**提前重投**（并发重复）。
+
+### **3.2 解决方案（事件驱动 + 先事务更新，成功后 Ack）**
+
+- 使用 **StreamingPull**：客户端与 Pub/Sub 建立**持久 gRPC 流**；事件驱动回调，库在回调执行期间会**自动延长 ack 期限**（续租），避免处理中途超时，最长 1 小时。
+
+- **处理顺序**：
+  1. 回调函数触发（事件**驱动**，非轮询）；
+  2. 开启数据库事务，执行**幂等更新**；
+     1. **inbox 去重**：INSERT INTO inbox(event_id) ON CONFLICT DO NOTHING
+     2. **投影版本化 UPSERT**：仅当 incoming.version > stored.version 才覆盖
+  3. 上述两步**同一事务提交成功后**才 Ack()；失败则 Nack() 或只要**没 Ack**，Pub/Sub 系统会按**至少一次**语义**重投递**（可配 **DLQ**）（Go 高阶客户端会在你 StreamingPull 处理期间通过周期性自动 modifyAckDeadline 续租，所以你可以安心做较长的 DB 事务，不会“处理中被过早重投”。）。
+- 可选：开启**Exactly-once Delivery**（仅 Pull/StreamingPull 支持）以获得“**Ack 被服务端接受后不再重复投递**”的语义，可以获知 Ack 是否被服务端接受，进一步降低重复处理的可能；即便如此，**DB 提交与 Ack 仍然不能构成同一分布式事务**,**幂等仍是必须**（应对 Ack 失败/重试期间的重复处理）。
+
+### **3.3 幂等：Inbox 表 + 版本化 UPSERT（强烈建议）**
+
+目标：即使重复投递或 Ack 失败重复处理，也**不会重复生效**；且“只要 DB 成功提交，最终一定能 Ack 成功”。
+
+**副本表（示例）**
+
+```sql
+CREATE TABLE catalog_read.video_projection (
+  video_id   uuid PRIMARY KEY,
+  title      text,
+  version    bigint      NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+```
+
+**消费者侧 Inbox 表（去重/审计）**
+
+```sql
+CREATE TABLE catalog_read.inbox (
+  event_id    uuid PRIMARY KEY,
+  received_at timestamptz NOT NULL
+);
+```
+
+**回调处理（Go 伪代码）**
+
+```go
+err := sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+  ev := decode(m.Data) // 含 event_id, aggregate_id, version 等
+
+  tx, _ := db.Begin(ctx)
+
+  // 1) inbox 去重（消费者侧幂等表）
+  _, err := tx.Exec(ctx, `
+    INSERT INTO inbox(event_id, received_at) VALUES ($1, now())
+    ON CONFLICT (event_id) DO NOTHING
+  `, ev.ID)
+  if err != nil { tx.Rollback(ctx); m.Nack(); return }
+
+  // 2) 投影表幂等更新（仅当 version 变大才覆盖）
+  _, err = tx.Exec(ctx, `
+    INSERT INTO read_model(entity_id, ..., version, updated_at)
+    VALUES ($1, ..., $N, now())
+    ON CONFLICT (entity_id) DO UPDATE
+      SET ... , version = EXCLUDED.version, updated_at = now()
+    WHERE read_model.version < EXCLUDED.version
+  `, ev.AggregateID, ev.Version /* ... */)
+  if err != nil { tx.Rollback(ctx); m.Nack(); return }
+
+  // 3) （可选）如果消费后还要对外发布事件：在同一事务里写 Outbox，
+  //    Outbox 的唯一键包含 source_event_id，避免重放时重复出站
+  //    INSERT INTO outbox(..., source_event_id=ev.ID) ON CONFLICT DO NOTHING
+
+  if err := tx.Commit(ctx); err != nil { m.Nack(); return }
+
+  // 4) 只有提交成功才 Ack（可选：EOD 模式下用 AckWithResult 等待服务端确认）
+  m.Ack()
+})
+```
+
+> **要点**：
+
+- > **不 Ack 就不会丢**：消息会被重投（或进 DLQ）。
+
+- > **Ack 失败也不怕**：即便重复投递，Inbox & 版本 UPSERT 使得**重复处理无副作用**。
+
+- > **长处理**不怕：StreamingPull 自动**续租** ack 期限，保证了你在 handler 里处理期间不会“超时丢租约”，避免处理中被重投。
+
+**失败窗口一览（为何不破坏一致性）**
+
+| **场景**                      | **处理策略**                                                                                            | **结果**                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| DB 事务失败                   | 不 Ack / Nack                                                                                           | 消息重投递，重试即可。                                                           |
+| DB 提交成功，但 Ack 超时/失败 | 下次会重投递                                                                                            | 因有 **inbox 去重** 和 **version UPSERT**，重复处理**不生效**，再 Ack 一次即可。 |
+| 处理很久担心被重投            | 高阶客户端自动**续租 ack 期限**到最长 1 小时（可调），避免处理中被重投。                                |                                                                                  |
+| 必须“成功 Ack 后绝不再来”     | 订阅开启 **Exactly-once delivery**；Ack 一旦被服务端接受就不会再来（仍需幂等以应对 Ack 失败后的重复）。 |                                                                                  |
+
+### **3.4 Dead-letter、回放与有序**
+
+**Dead-letter topic** 建好以兜底“毒消息”。
+
+- **Dead-letter**：对“毒消息”设置最大投递次数与 DLQ；DLQ 触发告警与人工修复/回放。
+- **回放/重建**：启用消息保留并使用回拨能力（按时间/快照）重建读模型（离线窗口内）。
+- **有序**：发布时按聚合设置 **ordering key**；同键内严格顺序可保证“旧版本不会覆盖新版本”。
+
+### **3.5 “读一致性”的两层含义与实操**
+
+1. **消息与本地读模型的一致**（上面已解决）：**先提交流水，再 Ack**，确保“**Ack 被接受 ⇒ DB 已更新**”。若 Ack 失败导致重投，幂等保证不会重复生效。
+
+2. **跨服务“读后写”体验**（客户端刚写完想马上读到）：这是**最终一致**问题，通常通过：
+
+   - **ordering key** 按聚合维度串行（如 video_id），避免乱序覆盖；
+   - **版本水位/一致性 Token**：写路径将 {aggregate_id, version} 返回给客户端；读路径若本地投影版本落后，可**短轮询/等待**至该版本或**兜底直读主权服务**。
+   - **Seek 回放**：需要重建读模型时，用 **Seek 到时间/快照**回放已确认的消息。
+
+---
+
+## **4) 端到端时序（ASCII）**
+
+### **4.1 生产者（业务写入 + Outbox 发布）**
+
+```text
+Client → Service B
+  └─ TX BEGIN
+      ├─ UPDATE 主权表
+      ├─ INSERT INTO outbox(event_id, aggregate_id, version, payload)
+      └─ TX COMMIT
+(后台Publisher循环)
+  ├─ 认领 outbox 行 (SKIP LOCKED)
+  ├─ Pub/Sub Publish() & Wait(Get)
+  ├─ 标记 published_at 或 退避重试
+  └─ 下一批
+```
+
+### **4.2 消费者（StreamingPull + 幂等处理 + Ack）**
+
+```text
+Pub/Sub → (StreamingPull) → Service A handler
+  ├─ TX BEGIN
+  │   ├─ Inbox(event_id) ON CONFLICT DO NOTHING
+  │   └─ 投影 UPSERT (仅 version 变大)
+  ├─ TX COMMIT 成功 → Ack()
+  └─ TX 失败/异常 → Nack 或不 Ack（系统重投）
+```
+
+---
+
+## **5) 运行参数与默认建议**
+
+- **发布端（Outbox Publisher）**
+
+  - 认领批量：100~500 行/批，FOR UPDATE SKIP LOCKED。
+  - 退避：指数退避 + 抖动；最大尝试次数与告警阈值。
+  - Ordering key：按聚合维度（如 video_id/user_id）。
+
+- **订阅端（StreamingPull）**
+
+  - NumGoroutines = 1 起步（单条流足够高吞吐）；
+  - MaxOutstandingMessages/Bytes 结合 DB 压力设置（如 1k/64MiB）；
+  - 失败 Nack()，可读 DeliveryAttempt 做分级退避；
+  - 可选开启 **Exactly-once Delivery**（仅 Pull/StreamingPull）。
+
+- **Cloud Run**
+
+  - 消费者为后台型：使用**实例计费（CPU 始终分配）**，必要时配置 **最小实例数**（例如 1）以维持常连与稳定延迟。
+
+- **数据库（Supabase/Postgres）**
+
+  - 投影表加必要索引（按查询/过滤维度）；
+  - Inbox 主键为 event_id；
+  - 投影 UPSERT 的 WHERE version < EXCLUDED.version。
+
+---
+
+## **6) 测试与演练（建议以自动化覆盖）**
+
+1. **生产者宕机窗口**
+
+   - 在“提交成功后、发布前”强制崩溃 → 验证 Outbox 积压后可被发布器补发。
+
+2. **发布成功但未标记崩溃**
+
+   - Publish().Get() 成功后故意不标记直接退出 → 验证重启后会**重复发布**，消费者幂等不受影响。
+
+3. **消费者 Ack 失败**
+
+   - 模拟 DB 成功后 Ack() 超时 → 验证消息被重投，Inbox 去重 & 版本 UPSERT 无副作用。
+
+4. **长事务**
+
+   - 故意延长处理（> 默认 ack deadline），观察 StreamingPull 自动续租是否生效。
+
+5. **毒消息 / 不可修复错误**
+
+   - 触发最大投递次数，验证进入 DLQ 并告警。
+
+6. **有序与覆盖**
+
+   - 乱序注入同一聚合的低版本消息，验证投影 WHERE version < ... 不被回退。
+
+---
+
+## **7) 清单与踩坑提示**
+
+**生产者侧**
+
+- 业务写入与 Outbox **同事务**提交。
+- 发布器使用 FOR UPDATE SKIP LOCKED 并**等待服务器确认**后再标记。
+- 失败退避 + 最小必要重试上限 + 告警。
+- 使用 **ordering key**；消息体小于上限，超大载荷采用“指针（claim-check）”模式。
+
+**消费者侧**
+
+- StreamingPull（事件驱动，库自动续租 ack 期限）。
+- **先事务更新，成功后 Ack**；失败不 Ack / Nack。
+- **Inbox 去重** + **版本化 UPSERT** 实现幂等。
+- 开启 **DLQ**，并基于 DeliveryAttempt 做差异化处理/告警。
+- 必要时开启 **Exactly-once Delivery**（仅 Pull/StreamingPull），仍保留幂等。
+
+**跨端到端**
+
+- 观测：Outbox 积压、发布失败率；订阅滞后、Ack 延迟、DLQ 计数；投影版本滞后（事件版本 - 表内版本）。
+- 回放/重建：启用消息保留与回拨能力；提供“重建读模型”的运维脚本。
+- “读后写”体验：把 {aggregate_id, version} 作为**一致性水位**向客户端回传；读端如发现本地版本落后，可短暂等待或**兜底直读主权服务**。
+
+### **结语**
+
+- **一致性问题 #1（生产者侧）**：用 **Transactional Outbox + 两步发布（认领 → 发布 → 标记/退避）**，实现“**至少一次**发布 + 允许重复”。
+- **一致性问题 #2（消费者侧）**：用 **StreamingPull（事件驱动）** + “**先事务更新，成功后 Ack**” + **Inbox 去重 & 版本 UPSERT**，实现“**最终一次**生效”。
+
+**我们容忍发布端重复，确保不丢；在订阅端通过幂等来保证“最终一次”。**
+
+- **不丢**：
+
+  - 业务状态与 outbox 在**同一事务**；
+  - 发布器只要看到“未标记发布”的行就会重试；
+  - 即便“已发成功但未打标记就崩溃”，重启后仍会**再发一遍**（产生重复）。
+
+- **不乱**：
+
+  - 同键内顺序靠 **ordering key**。
+  - 投影表按 version 比较；较旧事件不会覆盖较新数据。
+
+- **不重**：
+
+  - 消费者侧 **inbox(event_id)** 主键去重；或把 event_id 作为投影表的幂等键使用。
+
+- **不可处理的“毒消息”**：
+
+  - 订阅配置 **Dead-Letter Topic**（达到最大尝试次数后转入 DLQ 并告警）。
