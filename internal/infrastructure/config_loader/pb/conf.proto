@@ -144,4 +144,6 @@ message OutboxPublisher {
   google.protobuf.Duration publish_timeout = 6;
   int32 workers = 7;
   google.protobuf.Duration lock_ttl = 8;
+  optional bool logging_enabled = 9;
+  optional bool metrics_enabled = 10;
 }

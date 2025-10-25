@@ -2,248 +2,75 @@ package projection
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
+	"github.com/bionicotaku/lingo-utils/outbox/inbox"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"google.golang.org/protobuf/proto"
 )
 
 // Task 负责消费 Pub/Sub 事件并更新投影表。
 type Task struct {
-	subscriber     gcpubsub.Subscriber
-	inboxRepo      *repositories.InboxRepository
-	projectionRepo *repositories.VideoProjectionRepository
-	txManager      txmanager.Manager
-	log            *log.Helper
-	clock          func() time.Time
-	sourceService  string
-	metrics        *projectionMetrics
+	consumer *inbox.Consumer[videov1.Event]
+	handler  *eventHandler
+	metrics  *projectionMetrics
+	clock    func() time.Time
 }
 
 // NewTask 构造投影消费任务。
-func NewTask(sub gcpubsub.Subscriber, inbox *repositories.InboxRepository, projection *repositories.VideoProjectionRepository, tx txmanager.Manager, logger log.Logger) *Task {
+func NewTask(sub gcpubsub.Subscriber, inboxRepo *repositories.InboxRepository, projection *repositories.VideoProjectionRepository, tx txmanager.Manager, logger log.Logger) *Task {
 	helper := log.NewHelper(logger)
 	meter := otel.GetMeterProvider().Meter("kratos-template.projection")
-	return &Task{
-		subscriber:     sub,
-		inboxRepo:      inbox,
-		projectionRepo: projection,
-		txManager:      tx,
-		log:            helper,
-		clock:          time.Now,
-		sourceService:  "catalog",
-		metrics:        newProjectionMetrics(meter, helper),
+
+	metrics := newProjectionMetrics(meter, helper)
+
+	task := &Task{
+		metrics: metrics,
+		clock:   time.Now,
 	}
+
+	dec := newEventDecoder()
+	h := newEventHandler(projection, logger, metrics)
+	task.handler = h
+
+	consumer := inbox.NewConsumer(sub, inboxRepo.Shared(), tx, dec, h, inbox.ConsumerOptions{
+		SourceService:  "catalog",
+		MaxConcurrency: 4,
+	}, logger)
+
+	task.consumer = consumer
+	return task
 }
 
 // WithClock 提供测试替换时钟的能力。
 func (t *Task) WithClock(fn func() time.Time) {
 	if fn != nil {
 		t.clock = fn
+		if t.consumer != nil {
+			t.consumer.WithClock(fn)
+		}
+		if t.handler != nil {
+			t.handler.clock = fn
+		}
 	}
 }
 
 // Run 启动 StreamingPull 消费循环。
 func (t *Task) Run(ctx context.Context) error {
-	if t.subscriber == nil {
+	if t.consumer == nil {
 		return nil
 	}
-	return t.subscriber.Receive(ctx, t.handleMessage)
+	return t.consumer.Run(ctx)
 }
 
-func (t *Task) handleMessage(ctx context.Context, msg *gcpubsub.Message) error {
-	if msg == nil {
-		return errors.New("projection: nil message")
-	}
-
-	event := &videov1.Event{}
-	if err := proto.Unmarshal(msg.Data, event); err != nil {
-		return fmt.Errorf("projection: decode event: %w", err)
-	}
-
-	eventID, err := uuid.Parse(event.GetEventId())
-	if err != nil {
-		return fmt.Errorf("projection: parse event_id: %w", err)
-	}
-	videoID, err := uuid.Parse(event.GetAggregateId())
-	if err != nil {
-		return fmt.Errorf("projection: parse aggregate_id: %w", err)
-	}
-
-	occurredAt, err := parseTime(event.GetOccurredAt())
-	if err != nil {
-		return fmt.Errorf("projection: parse occurred_at: %w", err)
-	}
-	if occurredAt.IsZero() {
-		occurredAt = t.clock().UTC()
-	}
-
-	eventType := event.GetEventType().String()
-
-	txErr := t.txManager.WithinTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
-		insertErr := t.inboxRepo.Insert(txCtx, sess, repositories.InboxEvent{
-			EventID:       eventID,
-			SourceService: t.sourceService,
-			EventType:     event.GetEventType().String(),
-			AggregateType: event.GetAggregateType(),
-			AggregateID:   event.GetAggregateId(),
-			Payload:       msg.Data,
-		})
-		if insertErr != nil {
-			return fmt.Errorf("projection: insert inbox event: %w", insertErr)
-		}
-
-		if err := t.applyEvent(txCtx, sess, event, videoID, occurredAt); err != nil {
-			return err
-		}
-
-		if err := t.inboxRepo.MarkProcessed(txCtx, sess, eventID, t.clock().UTC()); err != nil {
-			return fmt.Errorf("projection: mark inbox processed: %w", err)
-		}
-		return nil
-	})
-	if txErr != nil {
-		if t.metrics != nil {
-			t.metrics.recordFailure(ctx, eventType, txErr)
-		}
-		return txErr
-	}
-	if t.metrics != nil {
-		t.metrics.recordSuccess(ctx, eventType, occurredAt, t.clock())
-	}
-	return nil
-}
-
-func (t *Task) applyEvent(ctx context.Context, sess txmanager.Session, evt *videov1.Event, videoID uuid.UUID, occurredAt time.Time) error {
-	switch evt.GetEventType() {
-	case videov1.EventType_EVENT_TYPE_VIDEO_CREATED:
-		payload := evt.GetCreated()
-		if payload == nil {
-			return errors.New("projection: created payload missing")
-		}
-		return t.handleCreated(ctx, sess, evt, payload, videoID, occurredAt)
-	case videov1.EventType_EVENT_TYPE_VIDEO_UPDATED:
-		payload := evt.GetUpdated()
-		if payload == nil {
-			return errors.New("projection: updated payload missing")
-		}
-		return t.handleUpdated(ctx, sess, evt, payload, videoID, occurredAt)
-	case videov1.EventType_EVENT_TYPE_VIDEO_DELETED:
-		payload := evt.GetDeleted()
-		if payload == nil {
-			return errors.New("projection: deleted payload missing")
-		}
-		return t.handleDeleted(ctx, sess, evt, payload, videoID)
-	default:
-		t.log.WithContext(ctx).Warnw("msg", "projection: skip unknown event type", "event_type", evt.GetEventType().String(), "event_id", evt.GetEventId())
-		return nil
-	}
-}
-
-func (t *Task) handleCreated(ctx context.Context, sess txmanager.Session, evt *videov1.Event, payload *videov1.Event_VideoCreated, videoID uuid.UUID, occurredAt time.Time) error {
-	title := payload.GetTitle()
-	if title == "" {
-		title = "(untitled)"
-	}
-	status := po.VideoStatus(payload.GetStatus())
-	mediaStatus := po.StageStatus(payload.GetMediaStatus())
-	analysisStatus := po.StageStatus(payload.GetAnalysisStatus())
-
-	createdAt, err := parseTime(payload.GetOccurredAt())
-	if err != nil {
-		return fmt.Errorf("projection: parse created.occurred_at: %w", err)
-	}
-	if createdAt.IsZero() {
-		createdAt = occurredAt
-	}
-
-	record := repositories.VideoProjection{
-		VideoID:        videoID,
-		Title:          title,
-		Status:         status,
-		MediaStatus:    mediaStatus,
-		AnalysisStatus: analysisStatus,
-		CreatedAt:      createdAt.UTC(),
-		UpdatedAt:      occurredAt.UTC(),
-		Version:        evt.GetVersion(),
-		OccurredAt:     occurredAt.UTC(),
-	}
-
-	if err := t.projectionRepo.Upsert(ctx, sess, record); err != nil {
-		return fmt.Errorf("projection: upsert created: %w", err)
-	}
-	return nil
-}
-
-func (t *Task) handleUpdated(ctx context.Context, sess txmanager.Session, evt *videov1.Event, payload *videov1.Event_VideoUpdated, videoID uuid.UUID, occurredAt time.Time) error {
-	current, err := t.projectionRepo.Get(ctx, sess, videoID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			t.log.WithContext(ctx).Warnw("msg", "projection: skip update without existing projection", "video_id", videoID, "event_version", evt.GetVersion())
-			return nil
-		}
-		return fmt.Errorf("projection: load projection: %w", err)
-	}
-
-	record := repositories.VideoProjection{
-		VideoID:        current.VideoID,
-		Title:          current.Title,
-		Status:         current.Status,
-		MediaStatus:    current.MediaStatus,
-		AnalysisStatus: current.AnalysisStatus,
-		CreatedAt:      mustTimestamp(current.CreatedAt),
-		UpdatedAt:      occurredAt.UTC(),
-		Version:        evt.GetVersion(),
-		OccurredAt:     occurredAt.UTC(),
-	}
-
-	if payload.Title != nil {
-		record.Title = payload.GetTitle()
-	}
-	if payload.Status != nil {
-		record.Status = po.VideoStatus(payload.GetStatus())
-	}
-	if payload.MediaStatus != nil {
-		record.MediaStatus = po.StageStatus(payload.GetMediaStatus())
-	}
-	if payload.AnalysisStatus != nil {
-		record.AnalysisStatus = po.StageStatus(payload.GetAnalysisStatus())
-	}
-
-	if err := t.projectionRepo.Upsert(ctx, sess, record); err != nil {
-		return fmt.Errorf("projection: upsert updated: %w", err)
-	}
-	return nil
-}
-
-func (t *Task) handleDeleted(ctx context.Context, sess txmanager.Session, evt *videov1.Event, payload *videov1.Event_VideoDeleted, videoID uuid.UUID) error {
-	version := evt.GetVersion()
-	if payload.GetVersion() > 0 {
-		version = payload.GetVersion()
-	}
-	if version == 0 {
-		version = time.Now().UnixNano()
-	}
-
-	if err := t.projectionRepo.Delete(ctx, sess, videoID, version); err != nil {
-		return fmt.Errorf("projection: delete projection: %w", err)
-	}
-	return nil
-}
-
+// 以下函数保留供 eventHandler 调用。
 func parseTime(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, nil

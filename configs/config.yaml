@@ -105,7 +105,7 @@ observability:
 # 消息系统配置：Pub/Sub 与 Outbox 发布器
 messaging:
   pubsub:
-    project_id: smiling-landing-472320-q0 # TODO: 替换为实际 GCP 项目 ID
+    project_id: smiling-landing-472320-q0
     topic_id: catalog.video.events
     subscription_id: catalog.video.events.catalog-reader
     dead_letter_topic_id: catalog.video.events.dlq
@@ -130,3 +130,5 @@ messaging:
     publish_timeout: 10s
     workers: 4
     lock_ttl: 120s
+    logging_enabled: true
+    metrics_enabled: true

@@ -2,234 +2,59 @@ package repositories
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/repositories/mappers"
-	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
+	"github.com/bionicotaku/lingo-utils/outbox/store"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // OutboxMessage 描述需要写入 outbox_events 的事件数据。
-type OutboxMessage struct {
-	EventID       uuid.UUID
-	AggregateType string
-	AggregateID   uuid.UUID
-	EventType     string
-	Payload       []byte
-	Headers       map[string]string
-	AvailableAt   time.Time
-}
+type OutboxMessage = store.Message
 
 // OutboxEvent 表示从数据库读取的待发布事件。
-type OutboxEvent struct {
-	EventID          uuid.UUID
-	AggregateType    string
-	AggregateID      uuid.UUID
-	EventType        string
-	Payload          []byte
-	Headers          map[string]string
-	OccurredAt       time.Time
-	AvailableAt      time.Time
-	PublishedAt      *time.Time
-	DeliveryAttempts int32
-	LastError        *string
-	LockToken        *string
-	LockedAt         *time.Time
-}
+type OutboxEvent = store.Event
 
-// OutboxRepository 提供写入 Outbox 表的能力，确保与 TxManager Session 协作。
+// OutboxRepository 封装共享仓储实现，维持原有依赖注入接口。
 type OutboxRepository struct {
-	baseQueries *catalogsql.Queries
-	log         *log.Helper
+	delegate *store.Repository
 }
 
-// NewOutboxRepository 构造 Repository。
+// NewOutboxRepository 构建 Outbox 仓储，内部复用 lingo-utils/outbox/repository。
 func NewOutboxRepository(db *pgxpool.Pool, logger log.Logger) *OutboxRepository {
-	// 预初始化 sqlc Queries 与日志 helper，减少每次调用的重复工作。
 	return &OutboxRepository{
-		baseQueries: catalogsql.New(db),
-		log:         log.NewHelper(logger),
+		delegate: store.NewRepository(db, logger),
 	}
 }
 
-// Enqueue 在指定事务内插入 Outbox 事件。
+// Enqueue 在事务内插入 Outbox 事件。
 func (r *OutboxRepository) Enqueue(ctx context.Context, sess txmanager.Session, msg OutboxMessage) error {
-	// 默认使用根查询对象；若处于事务，则切换到 tx 绑定的 sqlc Queries。
-	queries := r.baseQueries
-	if sess != nil {
-		queries = queries.WithTx(sess.Tx())
-	}
-
-	// 统一 AvailableAt 为 UTC，缺省时自动填当前时间，方便调度器排序。
-	availableAt := msg.AvailableAt.UTC()
-	if availableAt.IsZero() {
-		availableAt = time.Now().UTC()
-	}
-
-	// 组装 sqlc 所需参数，包含事件头、载荷与聚合标识。
-	params, err := mappers.BuildInsertOutboxEventParams(
-		msg.EventID,
-		msg.AggregateType,
-		msg.AggregateID,
-		msg.EventType,
-		msg.Payload,
-		msg.Headers,
-		availableAt,
-	)
-	if err != nil {
-		return fmt.Errorf("encode outbox headers: %w", err)
-	}
-
-	// 调用 sqlc 生成的 InsertOutboxEvent，确保失败时返回带上下文的错误。
-	if _, err := queries.InsertOutboxEvent(ctx, params); err != nil {
-		r.log.WithContext(ctx).Errorf("insert outbox event failed: event_id=%s err=%v", msg.EventID, err)
-		return fmt.Errorf("insert outbox event: %w", err)
-	}
-
-	// Debug 日志记录成功写入，便于排障或验证幂等。
-	r.log.WithContext(ctx).Debugf("outbox event enqueued: aggregate=%s id=%s", msg.AggregateType, msg.AggregateID)
-	return nil
+	return r.delegate.Enqueue(ctx, sess, msg)
 }
 
 // ClaimPending 返回一批待发布的 Outbox 事件。
 func (r *OutboxRepository) ClaimPending(ctx context.Context, availableBefore, staleBefore time.Time, limit int, lockToken string) ([]OutboxEvent, error) {
-	params := catalogsql.ClaimPendingOutboxEventsParams{
-		AvailableAt: timestamptzFromTime(availableBefore),
-		LockedAt:    timestamptzFromTime(staleBefore),
-		Limit:       int32(limit),
-		LockToken:   textFromString(lockToken),
-	}
-	records, err := r.baseQueries.ClaimPendingOutboxEvents(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("claim outbox events: %w", err)
-	}
-	events := make([]OutboxEvent, 0, len(records))
-	for _, rec := range records {
-		events = append(events, outboxEventFromRecord(rec))
-	}
-	return events, nil
+	return r.delegate.ClaimPending(ctx, availableBefore, staleBefore, limit, lockToken)
 }
 
 // MarkPublished 更新事件状态为已发布。
 func (r *OutboxRepository) MarkPublished(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, lockToken string, publishedAt time.Time) error {
-	queries := r.baseQueries
-	if sess != nil {
-		queries = queries.WithTx(sess.Tx())
-	}
-	params := catalogsql.MarkOutboxEventPublishedParams{
-		EventID:     eventID,
-		LockToken:   textFromString(lockToken),
-		PublishedAt: timestamptzFromTime(publishedAt),
-	}
-	if err := queries.MarkOutboxEventPublished(ctx, params); err != nil {
-		return fmt.Errorf("mark outbox published: %w", err)
-	}
-	return nil
+	return r.delegate.MarkPublished(ctx, sess, eventID, lockToken, publishedAt)
 }
 
 // Reschedule 将事件重新安排在未来时间发布，并记录错误信息。
 func (r *OutboxRepository) Reschedule(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, lockToken string, nextAvailable time.Time, lastErr string) error {
-	queries := r.baseQueries
-	if sess != nil {
-		queries = queries.WithTx(sess.Tx())
-	}
-	params := catalogsql.RescheduleOutboxEventParams{
-		EventID:     eventID,
-		LockToken:   textFromString(lockToken),
-		LastError:   textFromNullableString(lastErr),
-		AvailableAt: timestamptzFromTime(nextAvailable),
-	}
-	if err := queries.RescheduleOutboxEvent(ctx, params); err != nil {
-		return fmt.Errorf("reschedule outbox event: %w", err)
-	}
-	return nil
+	return r.delegate.Reschedule(ctx, sess, eventID, lockToken, nextAvailable, lastErr)
 }
 
 // CountPending 返回当前未发布的 Outbox 事件数量。
 func (r *OutboxRepository) CountPending(ctx context.Context) (int64, error) {
-	count, err := r.baseQueries.CountPendingOutboxEvents(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("count pending outbox events: %w", err)
-	}
-	return count, nil
+	return r.delegate.CountPending(ctx)
 }
 
-func outboxEventFromRecord(rec catalogsql.CatalogOutboxEvent) OutboxEvent {
-	var publishedAt *time.Time
-	if rec.PublishedAt.Valid {
-		value := rec.PublishedAt.Time
-		publishedAt = &value
-	}
-	var lastErr *string
-	if rec.LastError.Valid {
-		value := rec.LastError.String
-		lastErr = &value
-	}
-	var lockToken *string
-	if rec.LockToken.Valid {
-		value := rec.LockToken.String
-		lockToken = &value
-	}
-	var lockedAt *time.Time
-	if rec.LockedAt.Valid {
-		value := rec.LockedAt.Time
-		lockedAt = &value
-	}
-	return OutboxEvent{
-		EventID:          rec.EventID,
-		AggregateType:    rec.AggregateType,
-		AggregateID:      rec.AggregateID,
-		EventType:        rec.EventType,
-		Payload:          rec.Payload,
-		Headers:          decodeHeaders(rec.Headers),
-		OccurredAt:       mustTimestamp(rec.OccurredAt),
-		AvailableAt:      mustTimestamp(rec.AvailableAt),
-		PublishedAt:      publishedAt,
-		DeliveryAttempts: rec.DeliveryAttempts,
-		LastError:        lastErr,
-		LockToken:        lockToken,
-		LockedAt:         lockedAt,
-	}
-}
-
-func timestamptzFromTime(t time.Time) pgtype.Timestamptz {
-	if t.IsZero() {
-		return pgtype.Timestamptz{}
-	}
-	return pgtype.Timestamptz{Time: t.UTC(), Valid: true}
-}
-
-func mustTimestamp(ts pgtype.Timestamptz) time.Time {
-	if !ts.Valid {
-		return time.Time{}
-	}
-	return ts.Time
-}
-
-func textFromString(value string) pgtype.Text {
-	if value == "" {
-		return pgtype.Text{}
-	}
-	return pgtype.Text{String: value, Valid: true}
-}
-
-func textFromNullableString(value string) pgtype.Text {
-	return pgtype.Text{String: value, Valid: value != ""}
-}
-
-func decodeHeaders(value string) map[string]string {
-	if value == "" {
-		return map[string]string{}
-	}
-	var attrs map[string]string
-	if err := json.Unmarshal([]byte(value), &attrs); err != nil {
-		return map[string]string{}
-	}
-	return attrs
+// Shared 返回底层通用实现，供共享任务使用。
+func (r *OutboxRepository) Shared() *store.Repository {
+	return r.delegate
 }

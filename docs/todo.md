@@ -10,6 +10,7 @@
 - [x] 审核现有 `kratos-template/docs/只读投影方案.md`、`投影一致性问题解决方案.md` 与代码，明确契约与目录约束。
 - [ ] 盘点依赖：确认本地 Pub/Sub 模拟器或 GCP 凭证、Supabase Schema 迁移流程、`sqlc`, `wire`, `buf` 版本一致性。
 - [ ] 补充测试数据库 & Pub/Sub 启动脚本说明（若缺失则纳入 README/Troubleshooting 更新计划）。
+- [x] 建立 Outbox/Inbox 模板共享方案：在 `lingo-utils/outbox` 新增 DDL/sqlc 模板与渲染工具，可跨服务复用（2025-10-25）
 
 ## 阶段 1｜数据库与代码生成 ✅
 - [x] 新增迁移：

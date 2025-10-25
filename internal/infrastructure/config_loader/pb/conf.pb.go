@@ -517,6 +517,8 @@ type OutboxPublisher struct {
 	PublishTimeout *durationpb.Duration   `protobuf:"bytes,6,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
 	Workers        int32                  `protobuf:"varint,7,opt,name=workers,proto3" json:"workers,omitempty"`
 	LockTtl        *durationpb.Duration   `protobuf:"bytes,8,opt,name=lock_ttl,json=lockTtl,proto3" json:"lock_ttl,omitempty"`
+	LoggingEnabled *bool                  `protobuf:"varint,9,opt,name=logging_enabled,json=loggingEnabled,proto3,oneof" json:"logging_enabled,omitempty"`
+	MetricsEnabled *bool                  `protobuf:"varint,10,opt,name=metrics_enabled,json=metricsEnabled,proto3,oneof" json:"metrics_enabled,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -605,6 +607,20 @@ func (x *OutboxPublisher) GetLockTtl() *durationpb.Duration {
 		return x.LockTtl
 	}
 	return nil
+}
+
+func (x *OutboxPublisher) GetLoggingEnabled() bool {
+	if x != nil && x.LoggingEnabled != nil {
+		return *x.LoggingEnabled
+	}
+	return false
+}
+
+func (x *OutboxPublisher) GetMetricsEnabled() bool {
+	if x != nil && x.MetricsEnabled != nil {
+		return *x.MetricsEnabled
+	}
+	return false
 }
 
 type Server_GRPC struct {
@@ -1457,7 +1473,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x18max_outstanding_messages\x18\x02 \x01(\x05R\x16maxOutstandingMessages\x122\n" +
 	"\x15max_outstanding_bytes\x18\x03 \x01(\x05R\x13maxOutstandingBytes\x12>\n" +
 	"\rmax_extension\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fmaxExtension\x12K\n" +
-	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xa7\x03\n" +
+	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xab\x04\n" +
 	"\x0fOutboxPublisher\x12\x1d\n" +
 	"\n" +
 	"batch_size\x18\x01 \x01(\x05R\tbatchSize\x12>\n" +
@@ -1468,7 +1484,12 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\fmax_attempts\x18\x05 \x01(\x05R\vmaxAttempts\x12B\n" +
 	"\x0fpublish_timeout\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeout\x12\x18\n" +
 	"\aworkers\x18\a \x01(\x05R\aworkers\x124\n" +
-	"\block_ttl\x18\b \x01(\v2\x19.google.protobuf.DurationR\alockTtlBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
+	"\block_ttl\x18\b \x01(\v2\x19.google.protobuf.DurationR\alockTtl\x12,\n" +
+	"\x0flogging_enabled\x18\t \x01(\bH\x00R\x0eloggingEnabled\x88\x01\x01\x12,\n" +
+	"\x0fmetrics_enabled\x18\n" +
+	" \x01(\bH\x01R\x0emetricsEnabled\x88\x01\x01B\x12\n" +
+	"\x10_logging_enabledB\x12\n" +
+	"\x10_metrics_enabledBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
 
 var (
 	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce sync.Once
@@ -1557,6 +1578,7 @@ func file_internal_infrastructure_config_loader_pb_conf_proto_init() {
 	if File_internal_infrastructure_config_loader_pb_conf_proto != nil {
 		return
 	}
+	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7].OneofWrappers = []any{}
 	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10].OneofWrappers = []any{}
 	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12].OneofWrappers = []any{}
 	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15].OneofWrappers = []any{}

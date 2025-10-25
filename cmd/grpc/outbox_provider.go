@@ -33,6 +33,14 @@ func provideOutboxTask(
 		Workers:        cfg.Workers,
 		LockTTL:        cfg.LockTTL,
 	}
+	if !cfg.LoggingEnabled {
+		b := false
+		taskCfg.LoggingEnabled = &b
+	}
+	if !cfg.MetricsEnabled {
+		b := false
+		taskCfg.MetricsEnabled = &b
+	}
 
 	meter := otel.GetMeterProvider().Meter("kratos-template.outbox")
 	return outbox.NewPublisherTask(repo, publisher, taskCfg, logger, meter)

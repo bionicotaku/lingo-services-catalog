@@ -307,36 +307,40 @@ func ProvideProjectionConsumerConfig(msg *configpb.Messaging) ProjectionConsumer
 
 // OutboxPublisherConfig 描述 Outbox 发布器的运行参数。
 type OutboxPublisherConfig struct {
-	BatchSize      int
-	TickInterval   time.Duration
-	InitialBackoff time.Duration
-	MaxBackoff     time.Duration
-	MaxAttempts    int
-	PublishTimeout time.Duration
-	Workers        int
-	LockTTL        time.Duration
+    BatchSize      int
+    TickInterval   time.Duration
+    InitialBackoff time.Duration
+    MaxBackoff     time.Duration
+    MaxAttempts    int
+    PublishTimeout time.Duration
+    Workers        int
+    LockTTL        time.Duration
+    LoggingEnabled bool
+    MetricsEnabled bool
 }
 
 // ProvideOutboxPublisherConfig 返回 Outbox 发布器配置，使用默认值兜底。
 func ProvideOutboxPublisherConfig(msg *configpb.Messaging) OutboxPublisherConfig {
-	cfg := OutboxPublisherConfig{
-		BatchSize:      defaultOutboxBatchSize,
-		TickInterval:   defaultOutboxTickInterval,
-		InitialBackoff: defaultOutboxInitialBackoff,
-		MaxBackoff:     defaultOutboxMaxBackoff,
-		MaxAttempts:    defaultOutboxMaxAttempts,
-		PublishTimeout: defaultOutboxPublishTimeout,
-		Workers:        defaultOutboxWorkers,
-		LockTTL:        defaultOutboxLockTTL,
-	}
+    cfg := OutboxPublisherConfig{
+        BatchSize:      defaultOutboxBatchSize,
+        TickInterval:   defaultOutboxTickInterval,
+        InitialBackoff: defaultOutboxInitialBackoff,
+        MaxBackoff:     defaultOutboxMaxBackoff,
+        MaxAttempts:    defaultOutboxMaxAttempts,
+        PublishTimeout: defaultOutboxPublishTimeout,
+        Workers:        defaultOutboxWorkers,
+        LockTTL:        defaultOutboxLockTTL,
+        LoggingEnabled: true,
+        MetricsEnabled: true,
+    }
 	if msg == nil || msg.GetOutbox() == nil {
 		return cfg
 	}
 
 	ob := msg.GetOutbox()
-	if ob.GetBatchSize() > 0 {
-		cfg.BatchSize = int(ob.GetBatchSize())
-	}
+    if ob.GetBatchSize() > 0 {
+        cfg.BatchSize = int(ob.GetBatchSize())
+    }
 	if d := durationFromProto(ob.GetTickInterval()); d > 0 {
 		cfg.TickInterval = d
 	}
@@ -355,10 +359,16 @@ func ProvideOutboxPublisherConfig(msg *configpb.Messaging) OutboxPublisherConfig
 	if ob.GetWorkers() > 0 {
 		cfg.Workers = int(ob.GetWorkers())
 	}
-	if d := durationFromProto(ob.GetLockTtl()); d > 0 {
-		cfg.LockTTL = d
-	}
-	return cfg
+    if d := durationFromProto(ob.GetLockTtl()); d > 0 {
+        cfg.LockTTL = d
+    }
+    if ob.LoggingEnabled != nil {
+        cfg.LoggingEnabled = ob.GetLoggingEnabled()
+    }
+    if ob.MetricsEnabled != nil {
+        cfg.MetricsEnabled = ob.GetMetricsEnabled()
+    }
+    return cfg
 }
 
 func durationFromProto(d *durationpb.Duration) time.Duration {
