@@ -65,8 +65,8 @@ gcloud pubsub subscriptions create catalog.video.events.catalog-reader \
     --enable-exactly-once-delivery \
     --dead-letter-topic=catalog.video.events.dlq \
     --max-delivery-attempts=5 \
-    --retry-policy-minimum-backoff=10s \
-    --retry-policy-maximum-backoff=600s
+    --min-retry-delay=10s \
+    --max-retry-delay=600s
 ```
 
 说明：

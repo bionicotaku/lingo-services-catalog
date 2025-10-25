@@ -140,4 +140,5 @@ message OutboxPublisher {
   google.protobuf.Duration max_backoff = 4;
   int32 max_attempts = 5;
   google.protobuf.Duration publish_timeout = 6;
+  int32 workers = 7;
 }

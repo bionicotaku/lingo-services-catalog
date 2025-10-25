@@ -128,6 +128,8 @@ type CatalogOutboxEvent struct {
 	PublishedAt      pgtype.Timestamptz `json:"published_at"`
 	DeliveryAttempts int32              `json:"delivery_attempts"`
 	LastError        pgtype.Text        `json:"last_error"`
+	LockToken        pgtype.Text        `json:"lock_token"`
+	LockedAt         pgtype.Timestamptz `json:"locked_at"`
 }
 
 type CatalogVideo struct {

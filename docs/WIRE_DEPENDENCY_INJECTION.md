@@ -64,7 +64,7 @@ func main() {
 // wire.go
 func wireApp(...) (*kratos.App, func(), error) {
     wire.Build(
-        database.ProviderSet,
+        pgxpoolx.ProviderSet,
         repositories.ProviderSet,
         services.ProviderSet,
         controllers.ProviderSet,
@@ -230,7 +230,7 @@ func wireApp(ctx context.Context, params configloader.Params) (*kratos.App, func
     // Wire 会分析这个 Build 调用，生成完整的构造代码
     panic(wire.Build(
         configloader.ProviderSet,
-        database.ProviderSet,
+        pgxpoolx.ProviderSet,
         repositories.ProviderSet,
         services.ProviderSet,
         controllers.ProviderSet,
@@ -248,11 +248,12 @@ func wireApp(ctx context.Context, params configloader.Params) (*kratos.App, func
     // 1. 加载配置
     bundle := configloader.LoadConfig(params)
 
-    // 2. 初始化数据库
-    pool, cleanup1, err := database.NewPgxPool(bundle.Bootstrap.Data)
+    // 2. 初始化数据库连接池组件
+    pgxComponent, cleanup1, err := pgxpoolx.ProvideComponent(ctx, bundle.PgxConfig, logger)
     if err != nil {
         return nil, nil, err
     }
+    pool := pgxpoolx.ProvidePool(pgxComponent)
 
     // 3. 创建 Repository
     videoRepository := repositories.NewVideoRepository(pool, logger)
@@ -309,7 +310,7 @@ graph TB
 ```go
 wire.Build(
     // ProviderSet（提供者集合）
-    database.ProviderSet,      // 提供 *pgxpool.Pool
+    pgxpoolx.ProviderSet,      // 提供 *pgxpool.Pool 组件与连接池
     repositories.ProviderSet,  // 提供 *VideoRepository
     services.ProviderSet,      // 提供 *VideoUsecase
 
@@ -550,7 +551,7 @@ graph TB
         end
 
         subgraph Layer3["基础设施层"]
-            PS4["database.ProviderSet"]
+            PS4["pgxpoolx.ProviderSet"]
             PS4_Items["- NewPgxPool<br/>- HealthCheck"]
             PS5["grpcserver.ProviderSet"]
             PS5_Items["- NewGRPCServer"]
@@ -727,8 +728,9 @@ graph TB
 
         subgraph Phase2["阶段 2：基础设施初始化"]
             I1["logger := gclog.ProvideLogger(...)"]
-            I2["pool, cleanup1 := database.NewPgxPool(...)"]
-            I3["server := grpcserver.NewGRPCServer(...)"]
+            I2["pgxComponent, cleanup1 := pgxpoolx.ProvideComponent(...)"]
+            I3["pool := pgxpoolx.ProvidePool(pgxComponent)"]
+            I4["server := grpcserver.NewGRPCServer(...)"]
         end
 
         subgraph Phase3["阶段 3：业务层构造"]
@@ -800,7 +802,7 @@ graph TB
 **代码示例**：
 
 ```go
-// database/pgx.go
+// pgxpoolx/component.go
 func NewPgxPool(cfg *configpb.Data) (*pgxpool.Pool, func(), error) {
     pool, err := pgxpool.New(context.Background(), cfg.Postgres.Dsn)
     if err != nil {
@@ -819,16 +821,17 @@ func NewPgxPool(cfg *configpb.Data) (*pgxpool.Pool, func(), error) {
 
 // Wire 生成的代码
 func wireApp(...) (*kratos.App, func(), error) {
-    pool, cleanup1, err := database.NewPgxPool(cfg)
+    component, cleanup1, err := pgxpoolx.ProvideComponent(ctx, cfg, logger)
     if err != nil {
         return nil, nil, err
     }
+    pool := pgxpoolx.ProvidePool(component)
 
     // ... 其他初始化
 
     // 聚合所有清理函数
     cleanup := func() {
-        cleanup1()  // ← 调用 pool.Close()
+        cleanup1()  // ← pgxpoolx cleanup，内部关闭连接池
         cleanup2()
         cleanup3()
     }

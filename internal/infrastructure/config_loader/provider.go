@@ -8,6 +8,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
@@ -44,11 +45,23 @@ var ProviderSet = wire.NewSet(
 	ProvideObservabilityConfig,
 	ProvideObservabilityInfo,
 	ProvideLoggerConfig,
+	ProvidePgxPoolConfig,
 	ProvideJWTConfig,
 	ProvideTxManagerConfig,
 	ProvideMessagingConfig,
 	ProvidePubsubConfig,
 	ProvidePubsubDependencies,
+	ProvideOutboxPublisherConfig,
+)
+
+const (
+	defaultOutboxBatchSize      = 100
+	defaultOutboxTickInterval   = time.Second
+	defaultOutboxInitialBackoff = 2 * time.Second
+	defaultOutboxMaxBackoff     = 120 * time.Second
+	defaultOutboxMaxAttempts    = 20
+	defaultOutboxPublishTimeout = 10 * time.Second
+	defaultOutboxWorkers        = 4
 )
 
 // ProvideBundle 从运行时参数构造配置 Bundle。
@@ -260,6 +273,57 @@ func ProvidePubsubDependencies(logger log.Logger) gcpubsub.Dependencies {
 	}
 }
 
+// OutboxPublisherConfig 描述 Outbox 发布器的运行参数。
+type OutboxPublisherConfig struct {
+	BatchSize      int
+	TickInterval   time.Duration
+	InitialBackoff time.Duration
+	MaxBackoff     time.Duration
+	MaxAttempts    int
+	PublishTimeout time.Duration
+	Workers        int
+}
+
+// ProvideOutboxPublisherConfig 返回 Outbox 发布器配置，使用默认值兜底。
+func ProvideOutboxPublisherConfig(msg *configpb.Messaging) OutboxPublisherConfig {
+	cfg := OutboxPublisherConfig{
+		BatchSize:      defaultOutboxBatchSize,
+		TickInterval:   defaultOutboxTickInterval,
+		InitialBackoff: defaultOutboxInitialBackoff,
+		MaxBackoff:     defaultOutboxMaxBackoff,
+		MaxAttempts:    defaultOutboxMaxAttempts,
+		PublishTimeout: defaultOutboxPublishTimeout,
+		Workers:        defaultOutboxWorkers,
+	}
+	if msg == nil || msg.GetOutbox() == nil {
+		return cfg
+	}
+
+	ob := msg.GetOutbox()
+	if ob.GetBatchSize() > 0 {
+		cfg.BatchSize = int(ob.GetBatchSize())
+	}
+	if d := durationFromProto(ob.GetTickInterval()); d > 0 {
+		cfg.TickInterval = d
+	}
+	if d := durationFromProto(ob.GetInitialBackoff()); d > 0 {
+		cfg.InitialBackoff = d
+	}
+	if d := durationFromProto(ob.GetMaxBackoff()); d > 0 {
+		cfg.MaxBackoff = d
+	}
+	if ob.GetMaxAttempts() > 0 {
+		cfg.MaxAttempts = int(ob.GetMaxAttempts())
+	}
+	if d := durationFromProto(ob.GetPublishTimeout()); d > 0 {
+		cfg.PublishTimeout = d
+	}
+	if ob.GetWorkers() > 0 {
+		cfg.Workers = int(ob.GetWorkers())
+	}
+	return cfg
+}
+
 func durationFromProto(d *durationpb.Duration) time.Duration {
 	if d == nil {
 		return 0
@@ -296,6 +360,14 @@ func boolPtr(b bool) *bool {
 //   - ServiceMetadata -> LoggerConfig -> gclog.Component -> log.Logger
 func ProvideLoggerConfig(meta ServiceMetadata) gclog.Config {
 	return meta.LoggerConfig()
+}
+
+// ProvidePgxPoolConfig 暴露 pgxpoolx 组件所需配置。
+func ProvidePgxPoolConfig(b *Bundle) pgxpoolx.Config {
+	if b == nil {
+		return pgxpoolx.Config{}
+	}
+	return b.PgxConfig
 }
 
 // ProvideJWTConfig 从 Server 和 Data 配置中提取 JWT 配置并合并。

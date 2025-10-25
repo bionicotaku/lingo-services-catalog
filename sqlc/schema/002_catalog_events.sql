@@ -9,8 +9,18 @@ CREATE TABLE catalog.outbox_events (
   available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   published_at TIMESTAMPTZ,
   delivery_attempts INTEGER NOT NULL DEFAULT 0 CHECK (delivery_attempts >= 0),
-  last_error TEXT
+  last_error TEXT,
+  lock_token TEXT,
+  locked_at TIMESTAMPTZ
 );
+
+CREATE INDEX IF NOT EXISTS outbox_events_available_idx
+  ON catalog.outbox_events (available_at)
+  WHERE published_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS outbox_events_lock_idx
+  ON catalog.outbox_events (lock_token)
+  WHERE lock_token IS NOT NULL;
 
 CREATE TABLE catalog.inbox_events (
   event_id UUID PRIMARY KEY,

@@ -12,7 +12,9 @@ create table if not exists catalog.outbox_events (
   available_at        timestamptz not null default now(),          -- 可发布时间（延迟投递时使用）
   published_at        timestamptz,                                 -- 发布成功时间
   delivery_attempts   integer not null default 0 check (delivery_attempts >= 0), -- 投递尝试次数
-  last_error          text                                         -- 最近一次失败原因
+  last_error          text,                                        -- 最近一次失败原因
+  lock_token          text,                                        -- 发布器租约标记
+  locked_at           timestamptz                                  -- 租约获取时间
 );
 
 comment on table catalog.outbox_events is 'Outbox 表：与业务事务同库写入，后台扫描发布到事件总线';
@@ -25,11 +27,18 @@ comment on column catalog.outbox_events.available_at      is '事件可被 Relay
 comment on column catalog.outbox_events.published_at      is '事件成功发布到消息通道的时间戳';
 comment on column catalog.outbox_events.delivery_attempts is 'Outbox Relay 重试次数的累积值';
 comment on column catalog.outbox_events.last_error        is '最近一次投递失败/异常的描述';
+comment on column catalog.outbox_events.lock_token        is '发布器租约标记，标识由哪个实例认领';
+comment on column catalog.outbox_events.locked_at         is '租约获取时间，防止长期占用';
 
 create index if not exists outbox_events_available_idx
   on catalog.outbox_events (available_at)
   where published_at is null;
 comment on index catalog.outbox_events_available_idx is '扫描未发布事件时按 available_at 排序';
+
+create index if not exists outbox_events_lock_idx
+  on catalog.outbox_events (lock_token)
+  where lock_token is not null;
+comment on index catalog.outbox_events_lock_idx is '租约查询，辅助排查是否存在长时间锁定的任务';
 
 create index if not exists outbox_events_published_idx
   on catalog.outbox_events (published_at);

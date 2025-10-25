@@ -10,6 +10,7 @@ import (
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/go-kratos/kratos/v2/config"
@@ -47,6 +48,7 @@ type Bundle struct {
 	Bootstrap *configpb.Bootstrap
 	ObsConfig obswire.ObservabilityConfig
 	Service   ServiceMetadata
+	PgxConfig pgxpoolx.Config
 	TxConfig  txconfig.Config
 }
 
@@ -116,14 +118,49 @@ func Build(params Params) (*Bundle, error) {
 
 	meta := buildServiceMetadata()
 	obsCfg := toObservabilityConfig(bootstrap.GetObservability())
+	pgCfg := toPgxpoolConfig(bootstrap.GetData().GetPostgres())
 	txCfg := toTxManagerConfig(bootstrap.GetData().GetPostgres())
 
 	return &Bundle{
 		Bootstrap: bootstrap,
 		ObsConfig: obsCfg,
 		Service:   meta,
+		PgxConfig: pgCfg,
 		TxConfig:  txCfg,
 	}, nil
+}
+
+func toPgxpoolConfig(pg *configpb.Data_PostgreSQL) pgxpoolx.Config {
+	if pg == nil {
+		return pgxpoolx.Config{}
+	}
+
+	cfg := pgxpoolx.Config{
+		DSN:               pg.GetDsn(),
+		MaxConns:          pg.GetMaxOpenConns(),
+		MinConns:          pg.GetMinOpenConns(),
+		Schema:            pg.GetSchema(),
+		HealthCheckPeriod: durationOrZero(pg.GetHealthCheckPeriod()),
+	}
+
+	if d := pg.GetMaxConnLifetime(); d != nil {
+		cfg.MaxConnLifetime = d.AsDuration()
+	}
+	if d := pg.GetMaxConnIdleTime(); d != nil {
+		cfg.MaxConnIdleTime = d.AsDuration()
+	}
+
+	prepared := pg.GetEnablePreparedStatements()
+	cfg.EnablePreparedStmt = &prepared
+
+	if tx := pg.GetTransaction(); tx != nil {
+		if tx.MetricsEnabled != nil {
+			metrics := tx.GetMetricsEnabled()
+			cfg.MetricsEnabled = &metrics
+		}
+	}
+
+	return cfg
 }
 
 // ResolveConfPath 应用回退规则确定要加载的配置目录/文件路径。
@@ -420,6 +457,13 @@ func toObservabilityConfig(src *configpb.Observability) obswire.ObservabilityCon
 		}
 	}
 	return cfg
+}
+
+func durationOrZero(d *durationpb.Duration) time.Duration {
+	if d == nil {
+		return 0
+	}
+	return d.AsDuration()
 }
 
 // cloneStringMap 创建字符串映射的深拷贝，避免共享底层数据。

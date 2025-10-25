@@ -12,7 +12,6 @@ import (
 
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
@@ -21,6 +20,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/google/wire"
@@ -32,7 +32,7 @@ import (
 //
 // 依赖注入顺序:
 //  1. 配置加载: configloader.ProviderSet 解析配置并派生组件配置
-//  2. 基础设施: gclog → observability → gcjwt → database → txmanager
+//  2. 基础设施: gclog → observability → gcjwt → pgxpoolx → txmanager
 //  3. 业务层: repositories → services → controllers
 //  4. 服务器: grpc_server.ProviderSet 组装 gRPC Server
 //  5. 应用: newApp 创建 Kratos App
@@ -42,7 +42,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		gclog.ProviderSet,        // 结构化日志
 		gcjwt.ProviderSet,        // JWT 认证中间件
 		obswire.ProviderSet,      // OpenTelemetry 追踪和指标
-		database.ProviderSet,     // PostgreSQL 连接池
+		pgxpoolx.ProviderSet,    // PostgreSQL 连接池
 		txmanager.ProviderSet,    // 事务管理器
 		gcpubsub.ProviderSet,     // Pub/Sub 发布与订阅
 		grpcserver.ProviderSet,   // gRPC Server
@@ -53,6 +53,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		wire.Bind(new(services.OutboxRepo), new(*repositories.OutboxRepository)), // 接口绑定: OutboxRepo → OutboxRepository
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
+		provideOutboxTask,
 		newApp,                  // 组装 Kratos 应用
 	))
 }
@@ -138,12 +139,15 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 //       暴露客户端中间件供 gRPC Client 注入。
 //
 // ┌─────────────────────────────────────────────────────────────────────────┐
-// │ 5. 数据库层 (database.ProviderSet)                                      │
+// │ 5. 数据库层 (pgxpoolx.ProviderSet)                                     │
 // └─────────────────────────────────────────────────────────────────────────┘
 //
-//   - database.NewPgxPool(context.Context, *configpb.Data, log.Logger)
-//                          (*pgxpool.Pool, func(), error)
-//       创建 PostgreSQL 连接池，返回 cleanup 函数。
+//   - pgxpoolx.ProvideComponent(context.Context, pgxpoolx.Config, log.Logger)
+//                             (*pgxpoolx.Component, func(), error)
+//       构建 PostgreSQL 连接池组件。
+//
+//   - pgxpoolx.ProvidePool(*pgxpoolx.Component) *pgxpool.Pool
+//       暴露 Pool 实例供仓储及事务管理器使用。
 //
 // ┌─────────────────────────────────────────────────────────────────────────┐
 // │ 6. 事务管理层 (txmanager.ProviderSet)                                   │

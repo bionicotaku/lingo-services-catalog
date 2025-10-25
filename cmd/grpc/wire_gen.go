@@ -10,13 +10,14 @@ import (
 	"context"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/database"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
+	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/bionicotaku/lingo-utils/observability"
+	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
 )
@@ -33,7 +34,7 @@ import (
 //
 // 依赖注入顺序:
 //  1. 配置加载: configloader.ProviderSet 解析配置并派生组件配置
-//  2. 基础设施: gclog → observability → gcjwt → database → txmanager
+//  2. 基础设施: gclog → observability → gcjwt → pgxpoolx → txmanager
 //  3. 业务层: repositories → services → controllers
 //  4. 服务器: grpc_server.ProviderSet 组装 gRPC Server
 //  5. 应用: newApp 创建 Kratos App
@@ -74,13 +75,15 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		cleanup()
 		return nil, nil, err
 	}
-	pool, cleanup4, err := database.NewPgxPool(contextContext, data, logger)
+	pgxpoolxConfig := loader.ProvidePgxPoolConfig(bundle)
+	pgxpoolxComponent, cleanup4, err := pgxpoolx.ProvideComponent(contextContext, pgxpoolxConfig, logger)
 	if err != nil {
 		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
+	pool := pgxpoolx.ProvidePool(pgxpoolxComponent)
 	videoRepository := repositories.NewVideoRepository(pool, logger)
 	outboxRepository := repositories.NewOutboxRepository(pool, logger)
 	txmanagerConfig := loader.ProvideTxManagerConfig(bundle)
@@ -96,8 +99,24 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	videoUsecase := services.NewVideoUsecase(videoRepository, outboxRepository, manager, logger)
 	videoHandler := controllers.NewVideoHandler(videoUsecase)
 	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoHandler, logger)
-	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata)
+	messaging := loader.ProvideMessagingConfig(bootstrap)
+	gcpubsubConfig := loader.ProvidePubsubConfig(messaging)
+	dependencies := loader.ProvidePubsubDependencies(logger)
+	gcpubsubComponent, cleanup6, err := gcpubsub.NewComponent(contextContext, gcpubsubConfig, dependencies)
+	if err != nil {
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	publisher := gcpubsub.ProvidePublisher(gcpubsubComponent)
+	outboxPublisherConfig := loader.ProvideOutboxPublisherConfig(messaging)
+	publisherTask := provideOutboxTask(outboxRepository, publisher, gcpubsubConfig, outboxPublisherConfig, logger)
+	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata, publisherTask)
 	return app, func() {
+		cleanup6()
 		cleanup5()
 		cleanup4()
 		cleanup3()

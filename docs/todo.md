@@ -60,24 +60,24 @@
 - [x] Service 层在关键状态变更（创建、更新、删除）后写入 Outbox，返回幂等响应（保留 event metadata 用于客户端一致性 token）。（Create + Update + Delete 全量接入，响应内附带 event_id/version/occurred_at）✅ 2025-10-25
 - [x] 增加单元测试覆盖 Outbox 写入分支（含错误包装、version 规则）。
 
-## 阶段 4｜发布器任务
+## 阶段 4｜发布器任务（进行中）
 - [ ] 在 `internal/tasks/outbox_publisher` 实现：
-  - [ ] 认领逻辑（`FOR UPDATE SKIP LOCKED` + `lock_token` 字段）。
+  - [x] 认领逻辑（`FOR UPDATE SKIP LOCKED`，待补 `lock_token` 字段处理）。
   - [ ] 发布器协程池，等待 `Publish().Get()` 完成后标记 `published_at`，失败退避调整 `next_retry_at`。
   - [ ] 指标与日志（发布成功/失败计数、积压长度、拉取批次）。
-- [ ] 新增 `internal/infrastructure/pubsub` 初始化 Pub/Sub Publisher 客户端，提供 Wire Provider（支持本地 emulator）。
-- [ ] 在 `cmd/grpc/wire.go` 将 OutboxPublisher 注入并在启动时启动后台任务，响应 `context.Context` 取消。
+- [x] 新增 `config_loader` → `gcpubsub.ProviderSet`、`OutboxPublisherConfig`，支持 emulator / 默认值。
+- [x] 在 `cmd/grpc/wire.go` 将 OutboxPublisher 注入并随 Kratos 生命周期启动后台任务。
 - [ ] 编写集成测试或 e2e stub（可使用 Pub/Sub emulator）验证重复发布、退避策略。
 
-## 阶段 5｜StreamingPull 消费者与投影
+## 阶段 5｜StreamingPull 消费者与投影（进行中）
 - [ ] 规划订阅命名 `<topic>.catalog-reader`，配置 DLQ、Ack deadline、Exactly-once（可选）。
 - [ ] 在 `internal/tasks/projection_consumer` 实现 StreamingPull handler：
   - [ ] 反序列化事件，校验 schema_version、version 单调性。
   - [ ] 数据库事务内执行 `Inbox INSERT ON CONFLICT DO NOTHING` 与投影 `UPSERT ... WHERE version < excluded.version`。
-  - [ ] 成功后 Ack；失败时 Nack 或不 Ack（让 Pub/Sub 重投）；记录 DeliveryAttempt。
+  - [ ] 成功后 Ack；失败时 Nack 或返回错误（触发重投）；记录 DeliveryAttempt。
   - [ ] metrics：处理耗时、nack 次数、滞后版本（事件 version - 投影 version）。
 - [ ] 通过 Wire 将消费者注册为后台 goroutine；支持 graceful shutdown。
-- [ ] 添加配置项：订阅 ID、MaxOutstandingMessages/Bytes、NumGoroutines、ExactlyOnce flag。
+- [ ] 添加消费者配置项：订阅 ID、MaxOutstandingMessages/Bytes、NumGoroutines、ExactlyOnce flag 等。
 - [ ] 编写单元/集成测试验证幂等（重复消息、乱序版本、毒消息进入 DLQ）。
 
 ## 阶段 6｜配置、部署与文档

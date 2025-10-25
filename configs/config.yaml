@@ -125,3 +125,4 @@ messaging:
     max_backoff: 120s
     max_attempts: 20
     publish_timeout: 10s
+    workers: 4

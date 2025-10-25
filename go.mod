@@ -4,7 +4,7 @@ go 1.25.3
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.1-20241127180247-a33202765966.1
-	github.com/bionicotaku/lingo-utils v0.1.2
+	github.com/bionicotaku/lingo-utils v0.1.3
 	github.com/bufbuild/protovalidate-go v0.8.2
 	github.com/go-kratos-ecosystem/components/v2 v2.27.0
 	github.com/go-kratos/kratos/v2 v2.9.1
@@ -18,6 +18,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/automaxprocs v1.5.1
 	golang.org/x/oauth2 v0.32.0
+	golang.org/x/sync v0.17.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 )
@@ -76,7 +77,6 @@ require (
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.14.0 // indirect

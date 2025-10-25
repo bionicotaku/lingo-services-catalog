@@ -4,9 +4,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"sync"
 
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/tasks/outbox"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -24,15 +27,55 @@ import (
 //   - meta: 服务元信息（Name/Version/Environment/InstanceID）
 //
 // 返回 kratos.App 实例，调用 app.Run() 启动服务并阻塞直到收到停止信号。
-func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata) *kratos.App {
-	return kratos.New(
+func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata, publisher *outbox.PublisherTask) *kratos.App {
+	options := []kratos.Option{
 		kratos.ID(meta.InstanceID),
 		kratos.Name(meta.Name),
 		kratos.Version(meta.Version),
 		kratos.Metadata(map[string]string{"environment": meta.Environment}),
 		kratos.Logger(logger),
-		kratos.Server(gs), // 注册 gRPC Server
-	)
+		kratos.Server(gs),
+	}
+
+	if publisher != nil {
+		var (
+			wg     sync.WaitGroup
+			cancel context.CancelFunc
+		)
+
+		helper := log.NewHelper(logger)
+		options = append(options,
+			kratos.BeforeStart(func(ctx context.Context) error {
+				runCtx, c := context.WithCancel(ctx)
+				cancel = c
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := publisher.Run(runCtx); err != nil && !errors.Is(err, context.Canceled) {
+						helper.Warnf("outbox publisher stopped: %v", err)
+					}
+				}()
+				return nil
+			}),
+			kratos.AfterStop(func(ctx context.Context) error {
+				if cancel != nil {
+					cancel()
+				}
+				done := make(chan struct{})
+				go func() {
+					wg.Wait()
+					close(done)
+				}()
+				select {
+				case <-ctx.Done():
+				case <-done:
+				}
+				return nil
+			}),
+		)
+	}
+
+	return kratos.New(options...)
 }
 
 func main() {

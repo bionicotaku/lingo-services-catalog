@@ -507,6 +507,7 @@ type OutboxPublisher struct {
 	MaxBackoff     *durationpb.Duration   `protobuf:"bytes,4,opt,name=max_backoff,json=maxBackoff,proto3" json:"max_backoff,omitempty"`
 	MaxAttempts    int32                  `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
 	PublishTimeout *durationpb.Duration   `protobuf:"bytes,6,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
+	Workers        int32                  `protobuf:"varint,7,opt,name=workers,proto3" json:"workers,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -581,6 +582,13 @@ func (x *OutboxPublisher) GetPublishTimeout() *durationpb.Duration {
 		return x.PublishTimeout
 	}
 	return nil
+}
+
+func (x *OutboxPublisher) GetWorkers() int32 {
+	if x != nil {
+		return x.Workers
+	}
+	return 0
 }
 
 type Server_GRPC struct {
@@ -1421,7 +1429,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x18max_outstanding_messages\x18\x02 \x01(\x05R\x16maxOutstandingMessages\x122\n" +
 	"\x15max_outstanding_bytes\x18\x03 \x01(\x05R\x13maxOutstandingBytes\x12>\n" +
 	"\rmax_extension\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fmaxExtension\x12K\n" +
-	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xd7\x02\n" +
+	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xf1\x02\n" +
 	"\x0fOutboxPublisher\x12\x1d\n" +
 	"\n" +
 	"batch_size\x18\x01 \x01(\x05R\tbatchSize\x12>\n" +
@@ -1430,7 +1438,8 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\vmax_backoff\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
 	"maxBackoff\x12!\n" +
 	"\fmax_attempts\x18\x05 \x01(\x05R\vmaxAttempts\x12B\n" +
-	"\x0fpublish_timeout\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeoutBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
+	"\x0fpublish_timeout\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeout\x12\x18\n" +
+	"\aworkers\x18\a \x01(\x05R\aworkersBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
 
 var (
 	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce sync.Once

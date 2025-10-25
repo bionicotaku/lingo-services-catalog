@@ -13,33 +13,51 @@ import (
 )
 
 const claimPendingOutboxEvents = `-- name: ClaimPendingOutboxEvents :many
-SELECT
-    event_id,
-    aggregate_type,
-    aggregate_id,
-    event_type,
-    payload,
-    headers,
-    occurred_at,
-    available_at,
-    published_at,
-    delivery_attempts,
-    last_error
-FROM catalog.outbox_events
-WHERE published_at IS NULL
-  AND available_at <= $1
-ORDER BY available_at
-FOR UPDATE SKIP LOCKED
-LIMIT $2
+WITH candidates AS (
+    SELECT o.event_id
+    FROM catalog.outbox_events o
+    WHERE o.published_at IS NULL
+      AND o.available_at <= $1
+      AND (o.lock_token IS NULL OR o.locked_at <= $2)
+    ORDER BY o.available_at
+    FOR UPDATE SKIP LOCKED
+    LIMIT $3
+)
+UPDATE catalog.outbox_events AS o
+SET lock_token = $4,
+    locked_at = now()
+FROM candidates
+WHERE o.event_id = candidates.event_id
+RETURNING
+    o.event_id,
+    o.aggregate_type,
+    o.aggregate_id,
+    o.event_type,
+    o.payload,
+    o.headers,
+    o.occurred_at,
+    o.available_at,
+    o.published_at,
+    o.delivery_attempts,
+    o.last_error,
+    o.lock_token,
+    o.locked_at
 `
 
 type ClaimPendingOutboxEventsParams struct {
 	AvailableAt pgtype.Timestamptz `json:"available_at"`
+	LockedAt    pgtype.Timestamptz `json:"locked_at"`
 	Limit       int32              `json:"limit"`
+	LockToken   pgtype.Text        `json:"lock_token"`
 }
 
 func (q *Queries) ClaimPendingOutboxEvents(ctx context.Context, arg ClaimPendingOutboxEventsParams) ([]CatalogOutboxEvent, error) {
-	rows, err := q.db.Query(ctx, claimPendingOutboxEvents, arg.AvailableAt, arg.Limit)
+	rows, err := q.db.Query(ctx, claimPendingOutboxEvents,
+		arg.AvailableAt,
+		arg.LockedAt,
+		arg.Limit,
+		arg.LockToken,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +77,8 @@ func (q *Queries) ClaimPendingOutboxEvents(ctx context.Context, arg ClaimPending
 			&i.PublishedAt,
 			&i.DeliveryAttempts,
 			&i.LastError,
+			&i.LockToken,
+			&i.LockedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -190,11 +210,25 @@ type InsertOutboxEventParams struct {
 	AvailableAt   pgtype.Timestamptz `json:"available_at"`
 }
 
+type InsertOutboxEventRow struct {
+	EventID          uuid.UUID          `json:"event_id"`
+	AggregateType    string             `json:"aggregate_type"`
+	AggregateID      uuid.UUID          `json:"aggregate_id"`
+	EventType        string             `json:"event_type"`
+	Payload          []byte             `json:"payload"`
+	Headers          []byte             `json:"headers"`
+	OccurredAt       pgtype.Timestamptz `json:"occurred_at"`
+	AvailableAt      pgtype.Timestamptz `json:"available_at"`
+	PublishedAt      pgtype.Timestamptz `json:"published_at"`
+	DeliveryAttempts int32              `json:"delivery_attempts"`
+	LastError        pgtype.Text        `json:"last_error"`
+}
+
 // Outbox / Inbox 相关 SQL 定义
 // ============================================
 // Outbox 相关查询
 // ============================================
-func (q *Queries) InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (CatalogOutboxEvent, error) {
+func (q *Queries) InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (InsertOutboxEventRow, error) {
 	row := q.db.QueryRow(ctx, insertOutboxEvent,
 		arg.EventID,
 		arg.AggregateType,
@@ -204,7 +238,7 @@ func (q *Queries) InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventPa
 		arg.Headers,
 		arg.AvailableAt,
 	)
-	var i CatalogOutboxEvent
+	var i InsertOutboxEventRow
 	err := row.Scan(
 		&i.EventID,
 		&i.AggregateType,
@@ -240,19 +274,22 @@ func (q *Queries) MarkInboxEventProcessed(ctx context.Context, arg MarkInboxEven
 
 const markOutboxEventPublished = `-- name: MarkOutboxEventPublished :exec
 UPDATE catalog.outbox_events
-SET published_at = $2,
+SET published_at = $3,
     delivery_attempts = delivery_attempts + 1,
-    last_error = NULL
-WHERE event_id = $1
+    last_error = NULL,
+    lock_token = NULL,
+    locked_at = NULL
+WHERE event_id = $1 AND lock_token = $2
 `
 
 type MarkOutboxEventPublishedParams struct {
 	EventID     uuid.UUID          `json:"event_id"`
+	LockToken   pgtype.Text        `json:"lock_token"`
 	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
 func (q *Queries) MarkOutboxEventPublished(ctx context.Context, arg MarkOutboxEventPublishedParams) error {
-	_, err := q.db.Exec(ctx, markOutboxEventPublished, arg.EventID, arg.PublishedAt)
+	_, err := q.db.Exec(ctx, markOutboxEventPublished, arg.EventID, arg.LockToken, arg.PublishedAt)
 	return err
 }
 
@@ -276,18 +313,26 @@ func (q *Queries) RecordInboxEventError(ctx context.Context, arg RecordInboxEven
 const rescheduleOutboxEvent = `-- name: RescheduleOutboxEvent :exec
 UPDATE catalog.outbox_events
 SET delivery_attempts = delivery_attempts + 1,
-    last_error = $2,
-    available_at = $3
-WHERE event_id = $1
+    last_error = $3,
+    available_at = $4,
+    lock_token = NULL,
+    locked_at = NULL
+WHERE event_id = $1 AND lock_token = $2
 `
 
 type RescheduleOutboxEventParams struct {
 	EventID     uuid.UUID          `json:"event_id"`
+	LockToken   pgtype.Text        `json:"lock_token"`
 	LastError   pgtype.Text        `json:"last_error"`
 	AvailableAt pgtype.Timestamptz `json:"available_at"`
 }
 
 func (q *Queries) RescheduleOutboxEvent(ctx context.Context, arg RescheduleOutboxEventParams) error {
-	_, err := q.db.Exec(ctx, rescheduleOutboxEvent, arg.EventID, arg.LastError, arg.AvailableAt)
+	_, err := q.db.Exec(ctx, rescheduleOutboxEvent,
+		arg.EventID,
+		arg.LockToken,
+		arg.LastError,
+		arg.AvailableAt,
+	)
 	return err
 }
