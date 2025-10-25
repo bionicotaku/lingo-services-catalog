@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/models/events"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/google/uuid"
@@ -27,17 +26,31 @@ func TestNewVideoCreatedEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if evt.GetEventType() != videov1.EventType_EVENT_TYPE_VIDEO_CREATED {
-		t.Fatalf("unexpected event type: %v", evt.GetEventType())
+	if evt.Kind != events.KindVideoCreated {
+		t.Fatalf("unexpected event kind: %v", evt.Kind)
 	}
-	if evt.GetAggregateId() != video.VideoID.String() {
+	if evt.AggregateID != video.VideoID {
 		t.Fatalf("aggregate mismatch")
 	}
-	if evt.GetOccurredAt().AsTime() != now {
-		t.Fatalf("occurred_at mismatch")
+	if !evt.OccurredAt.Equal(now.UTC()) {
+		t.Fatalf("occurred_at mismatch: got %s want %s", evt.OccurredAt, now.UTC())
 	}
-	if evt.GetVersion() == 0 {
+	if evt.Version == 0 {
 		t.Fatalf("expected version to be set")
+	}
+	payload, ok := evt.Payload.(*events.VideoCreated)
+	if !ok {
+		t.Fatalf("payload type mismatch: %T", evt.Payload)
+	}
+	if payload.Title != video.Title {
+		t.Fatalf("title mismatch")
+	}
+	pb, err := events.ToProto(evt)
+	if err != nil {
+		t.Fatalf("encode proto: %v", err)
+	}
+	if pb.GetCreated().GetTitle() != video.Title {
+		t.Fatalf("proto title mismatch")
 	}
 }
 
@@ -92,15 +105,25 @@ func TestNewVideoUpdatedEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if evt.GetEventType() != videov1.EventType_EVENT_TYPE_VIDEO_UPDATED {
-		t.Fatalf("unexpected event type: %v", evt.GetEventType())
+	if evt.Kind != events.KindVideoUpdated {
+		t.Fatalf("unexpected event kind: %v", evt.Kind)
 	}
-	payload := evt.GetUpdated()
-	if payload.GetTitle().GetValue() != newTitle {
+	payload, ok := evt.Payload.(*events.VideoUpdated)
+	if !ok {
+		t.Fatalf("payload type mismatch: %T", evt.Payload)
+	}
+	if payload.Title == nil || *payload.Title != newTitle {
 		t.Fatalf("title not populated")
 	}
-	if payload.GetStatus().GetValue() != string(newStatus) {
+	if payload.Status == nil || *payload.Status != string(newStatus) {
 		t.Fatalf("status mismatch")
+	}
+	pb, err := events.ToProto(evt)
+	if err != nil {
+		t.Fatalf("encode proto: %v", err)
+	}
+	if pb.GetUpdated().GetTitle() != newTitle {
+		t.Fatalf("proto title mismatch")
 	}
 }
 
@@ -116,15 +139,25 @@ func TestNewVideoDeletedEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if evt.GetEventType() != videov1.EventType_EVENT_TYPE_VIDEO_DELETED {
-		t.Fatalf("unexpected event type: %v", evt.GetEventType())
+	if evt.Kind != events.KindVideoDeleted {
+		t.Fatalf("unexpected event kind: %v", evt.Kind)
 	}
-	payload := evt.GetDeleted()
-	if payload.GetReason().GetValue() != reason {
+	payload, ok := evt.Payload.(*events.VideoDeleted)
+	if !ok {
+		t.Fatalf("payload type mismatch: %T", evt.Payload)
+	}
+	if payload.Reason == nil || *payload.Reason != reason {
 		t.Fatalf("reason mismatch")
 	}
-	if payload.GetVersion() == 0 {
-		t.Fatalf("expected version to be set")
+	if payload.DeletedAt == nil || !payload.DeletedAt.Equal(evt.OccurredAt) {
+		t.Fatalf("deleted_at mismatch")
+	}
+	pb, err := events.ToProto(evt)
+	if err != nil {
+		t.Fatalf("encode proto: %v", err)
+	}
+	if pb.GetDeleted().GetReason() != reason {
+		t.Fatalf("proto reason mismatch")
 	}
 }
 

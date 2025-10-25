@@ -83,27 +83,46 @@ type DeleteVideoInput struct {
 	Reason  *string
 }
 
-func (uc *VideoUsecase) enqueueOutbox(ctx context.Context, sess txmanager.Session, event *videov1.Event, eventID uuid.UUID, aggregateID uuid.UUID, availableAt time.Time) error {
-	payload, marshalErr := proto.Marshal(event)
+// enqueueOutbox 将领域事件写入 Outbox。
+//
+// 处理流程：
+//  1. 通过 events.ToProto 将 DomainEvent 转换为 protobuf Event。
+//  2. 序列化为字节数组，用作 Outbox payload。
+//  3. 使用 events.BuildAttributes 生成消息属性（event_id、occurred_at、schema_version 等）。
+//  4. 构造 repositories.OutboxMessage 并调用仓储入队；若 availableAt 未设置，则使用当前 UTC 时间。
+//
+// 返回：处理过程中如有错误，统一包装上下文并返回。
+func (uc *VideoUsecase) enqueueOutbox(ctx context.Context, sess txmanager.Session, event *events.DomainEvent, availableAt time.Time) error {
+	// 1) 将领域事件转换为 protobuf Event。
+	protoEvent, encodeErr := events.ToProto(event)
+	if encodeErr != nil {
+		return fmt.Errorf("convert event to proto: %w", encodeErr)
+	}
+
+	// 2) 序列化为字节数组，用作 Outbox payload。
+	payload, marshalErr := proto.Marshal(protoEvent)
 	if marshalErr != nil {
 		return fmt.Errorf("marshal video event: %w", marshalErr)
 	}
 
+	// 3) 生成消息属性（含 trace_id、schema_version 等）。
 	headersMap := events.BuildAttributes(event, events.SchemaVersionV1, events.TraceIDFromContext(ctx))
 	headers, hdrErr := events.MarshalAttributes(headersMap)
 	if hdrErr != nil {
 		return fmt.Errorf("encode event headers: %w", hdrErr)
 	}
 
+	// 4) availableAt 未设置时使用当前时间，便于调度排序。
 	if availableAt.IsZero() {
 		availableAt = time.Now().UTC()
 	}
 
+	// 5) 构造 Outbox 消息并入队。
 	msg := repositories.OutboxMessage{
-		EventID:       eventID,
-		AggregateType: events.AggregateTypeVideo,
-		AggregateID:   aggregateID,
-		EventType:     events.FormatEventType(event.GetEventType()),
+		EventID:       event.EventID,
+		AggregateType: event.AggregateType,
+		AggregateID:   event.AggregateID,
+		EventType:     events.FormatEventType(event.Kind),
 		Payload:       payload,
 		Headers:       headers,
 		AvailableAt:   availableAt,

@@ -2,15 +2,14 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
+	"github.com/bionicotaku/kratos-template/internal/controllers/mapper"
 	"github.com/bionicotaku/kratos-template/internal/services"
 	"github.com/bionicotaku/kratos-template/internal/views"
 
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/google/uuid"
 )
 
 const (
@@ -33,33 +32,9 @@ func NewVideoHandler(uc *services.VideoUsecase) *VideoHandler {
 
 // CreateVideo 实现 VideoCommandService.CreateVideo RPC。
 func (h *VideoHandler) CreateVideo(ctx context.Context, req *videov1.CreateVideoRequest) (*videov1.CreateVideoResponse, error) {
-	// 参数校验
-	if req.GetUploadUserId() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "upload_user_id is required")
-	}
-	if req.GetTitle() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "title is required")
-	}
-	if req.GetRawFileReference() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "raw_file_reference is required")
-	}
-
-	uploaderID, err := uuid.Parse(req.GetUploadUserId())
+	input, err := mapper.ToCreateVideoInput(req)
 	if err != nil {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid upload_user_id: %v", err))
-	}
-
-	// 构造 Service 输入参数
-	input := services.CreateVideoInput{
-		UploadUserID:     uploaderID,
-		Title:            req.GetTitle(),
-		RawFileReference: req.GetRawFileReference(),
-	}
-
-	// 处理可选的 description 字段
-	if req.GetDescription() != nil {
-		desc := req.GetDescription().Value
-		input.Description = &desc
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
 	// 设置创建超时
@@ -76,64 +51,9 @@ func (h *VideoHandler) CreateVideo(ctx context.Context, req *videov1.CreateVideo
 
 // UpdateVideo 实现 VideoCommandService.UpdateVideo RPC。
 func (h *VideoHandler) UpdateVideo(ctx context.Context, req *videov1.UpdateVideoRequest) (*videov1.UpdateVideoResponse, error) {
-	if req.GetVideoId() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "video_id is required")
-	}
-	videoID, err := uuid.Parse(req.GetVideoId())
+	input, err := mapper.ToUpdateVideoInput(req)
 	if err != nil {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
-	}
-
-	input := services.UpdateVideoInput{
-		VideoID: videoID,
-	}
-	if req.Title != nil {
-		value := req.Title.Value
-		input.Title = &value
-	}
-	if req.Description != nil {
-		value := req.Description.Value
-		input.Description = &value
-	}
-	if req.Status != nil {
-		value := req.Status.Value
-		input.Status = &value
-	}
-	if req.MediaStatus != nil {
-		value := req.MediaStatus.Value
-		input.MediaStatus = &value
-	}
-	if req.AnalysisStatus != nil {
-		value := req.AnalysisStatus.Value
-		input.AnalysisStatus = &value
-	}
-	if req.DurationMicros != nil {
-		value := req.DurationMicros.Value
-		input.DurationMicros = &value
-	}
-	if req.ThumbnailUrl != nil {
-		value := req.ThumbnailUrl.Value
-		input.ThumbnailURL = &value
-	}
-	if req.HlsMasterPlaylist != nil {
-		value := req.HlsMasterPlaylist.Value
-		input.HLSMasterPlaylist = &value
-	}
-	if req.Difficulty != nil {
-		value := req.Difficulty.Value
-		input.Difficulty = &value
-	}
-	if req.Summary != nil {
-		value := req.Summary.Value
-		input.Summary = &value
-	}
-	if req.RawSubtitleUrl != nil {
-		value := req.RawSubtitleUrl.Value
-		input.RawSubtitleURL = &value
-	}
-	if req.ErrorMessage != nil {
-		value := req.ErrorMessage.Value
-		input.ErrorMessage = &value
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, queryTimeout)
@@ -148,27 +68,15 @@ func (h *VideoHandler) UpdateVideo(ctx context.Context, req *videov1.UpdateVideo
 
 // DeleteVideo 实现 VideoCommandService.DeleteVideo RPC。
 func (h *VideoHandler) DeleteVideo(ctx context.Context, req *videov1.DeleteVideoRequest) (*videov1.DeleteVideoResponse, error) {
-	if req.GetVideoId() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "video_id is required")
-	}
-	videoID, err := uuid.Parse(req.GetVideoId())
+	input, err := mapper.ToDeleteVideoInput(req)
 	if err != nil {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
-	}
-
-	var reason *string
-	if req.Reason != nil {
-		value := req.Reason.Value
-		reason = &value
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	deleted, err := h.uc.DeleteVideo(timeoutCtx, services.DeleteVideoInput{
-		VideoID: videoID,
-		Reason:  reason,
-	})
+	deleted, err := h.uc.DeleteVideo(timeoutCtx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -177,13 +85,9 @@ func (h *VideoHandler) DeleteVideo(ctx context.Context, req *videov1.DeleteVideo
 
 // GetVideoDetail 实现 VideoQueryService.GetVideoDetail RPC。
 func (h *VideoHandler) GetVideoDetail(ctx context.Context, req *videov1.GetVideoDetailRequest) (*videov1.GetVideoDetailResponse, error) {
-	if req.GetVideoId() == "" {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "video_id is required")
-	}
-
-	videoID, err := uuid.Parse(req.GetVideoId())
+	videoID, err := mapper.ParseVideoID(req.GetVideoId())
 	if err != nil {
-		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
 	// 设置查询超时，防止慢查询阻塞

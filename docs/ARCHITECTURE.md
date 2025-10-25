@@ -231,19 +231,20 @@ func (h *VideoHandler) GetVideoDetail(
 func NewGetVideoDetailResponse(detail *vo.VideoDetail) *videov1.GetVideoDetailResponse {
     return &videov1.GetVideoDetailResponse{
         Detail: &videov1.VideoDetail{
-            VideoId:           detail.VideoID.String(),
-            Title:             detail.Title,
-            CreatedAt:         timestamppb.New(detail.CreatedAt),
-            Description:       wrapperspb.String(*detail.Description), // 可选字段
-            // ...
+            VideoId:     detail.VideoID.String(),
+            Title:       detail.Title,
+            CreatedAt:   formatTime(detail.CreatedAt),
+            UpdatedAt:   formatTime(detail.UpdatedAt),
+            Status:      detail.Status,
+            MediaStatus: detail.MediaStatus,
         },
     }
 }
 ```
 
 **职责**：
-- Go 类型 → Protobuf 类型转换
-- 处理可选字段（使用 `google.protobuf.Wrappers`）
+- Go 类型 → Protobuf DTO 转换（string、RFC3339 时间串）
+- 统一格式化时间与可选字段
 
 ---
 
@@ -575,7 +576,7 @@ graph TD
 | **CatalogVideo** | `sqlc/models.go` | pgtype 包装类型 | `uuid.UUID`, `pgtype.Timestamptz`, `pgtype.Text` |
 | **po.Video** | `models/po/video.go` | Go 原生类型，完整字段 | `uuid.UUID`, `time.Time`, `*string` |
 | **vo.VideoDetail** | `models/vo/video.go` | Go 原生类型，精简字段 | `uuid.UUID`, `time.Time`, `*string` |
-| **videov1.VideoDetail** | `api/video/v1/*.pb.go` | Protobuf 类型 | `string`, `*timestamppb.Timestamp`, `*wrapperspb.StringValue` |
+| **videov1.VideoDetail** | `api/video/v1/*.pb.go` | Protobuf 类型 | `string`（含 RFC3339 时间串）、`optional string` |
 
 ### 6.3 Mapper 转换示例
 

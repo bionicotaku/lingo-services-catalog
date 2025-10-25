@@ -1,4 +1,5 @@
-// Package events 提供领域事件构造与元数据辅助函数，统一事件命名与属性。
+// Package events 提供领域事件相关的元数据辅助方法。本文件专注于
+// 从领域事件中派生 Pub/Sub/Outbox 所需的附加属性（attributes）及共用工具。
 package events
 
 import (
@@ -7,36 +8,26 @@ import (
 	"strconv"
 	"time"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// FormatEventType 将枚举映射为语义化字符串（如 video.created）。
-func FormatEventType(eventType videov1.EventType) string {
-	switch eventType {
-	case videov1.EventType_EVENT_TYPE_VIDEO_CREATED:
-		return "video.created"
-	case videov1.EventType_EVENT_TYPE_VIDEO_UPDATED:
-		return "video.updated"
-	case videov1.EventType_EVENT_TYPE_VIDEO_DELETED:
-		return "video.deleted"
-	default:
-		return "video.unknown"
-	}
+// FormatEventType 将事件种类映射为语义化字符串。
+func FormatEventType(kind Kind) string {
+	return kind.String()
 }
 
 // BuildAttributes 构造符合 Pub/Sub 约定的 message attributes。
-func BuildAttributes(event *videov1.Event, schemaVersion string, traceID string) map[string]string {
+func BuildAttributes(event *DomainEvent, schemaVersion string, traceID string) map[string]string {
 	if schemaVersion == "" {
 		schemaVersion = SchemaVersionV1
 	}
 	attrs := map[string]string{
-		"event_id":       event.GetEventId(),
-		"event_type":     FormatEventType(event.GetEventType()),
-		"aggregate_id":   event.GetAggregateId(),
-		"aggregate_type": event.GetAggregateType(),
-		"version":        strconv.FormatInt(event.GetVersion(), 10),
-		"occurred_at":    event.GetOccurredAt().AsTime().UTC().Format(time.RFC3339),
+		"event_id":       event.EventID.String(),
+		"event_type":     FormatEventType(event.Kind),
+		"aggregate_id":   event.AggregateID.String(),
+		"aggregate_type": event.AggregateType,
+		"version":        strconv.FormatInt(event.Version, 10),
+		"occurred_at":    event.OccurredAt.UTC().Format(time.RFC3339Nano),
 		"schema_version": schemaVersion,
 	}
 	if traceID != "" {

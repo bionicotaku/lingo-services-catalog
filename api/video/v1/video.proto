@@ -4,8 +4,7 @@ package video.v1;
 
 option go_package = "github.com/bionicotaku/kratos-template/api/video/v1;videov1";
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/wrappers.proto";
+import "buf/validate/validate.proto";
 
 // VideoQueryService 提供视频只读查询能力。
 service VideoQueryService {
@@ -25,7 +24,7 @@ service VideoCommandService {
 
 // GetVideoDetailRequest 表示查询参数。
 message GetVideoDetailRequest {
-  string video_id = 1; // UUID 字符串
+  string video_id = 1 [(buf.validate.field).string.uuid = true]; // UUID 字符串
 }
 
 // GetVideoDetailResponse 封装查询结果。
@@ -41,72 +40,72 @@ message VideoDetail {
   string status = 3;                                           // 状态（ready/published）
   string media_status = 4;                                     // 媒体处理状态
   string analysis_status = 5;                                  // AI 分析状态
-  google.protobuf.Timestamp created_at = 6;                    // 创建时间
-  google.protobuf.Timestamp updated_at = 7;                    // 更新时间
+  string created_at = 6;                                       // 创建时间（UTC RFC3339）
+  string updated_at = 7;                                       // 更新时间（UTC RFC3339）
 }
 
 // CreateVideoRequest 表示创建视频的请求参数。
 // video_id 由数据库自动生成，不允许客户端指定
 message CreateVideoRequest {
-  string upload_user_id = 1;                                   // 上传者 ID (UUID)
-  string title = 2;                                            // 标题
-  google.protobuf.StringValue description = 3;                 // 描述 (可选)
-  string raw_file_reference = 4;                               // 原始文件引用 (GCS 路径)
+  string upload_user_id = 1 [(buf.validate.field).string.uuid = true]; // 上传者 ID (UUID)
+  string title = 2 [(buf.validate.field).string.min_len = 1]; // 标题
+  optional string description = 3;                             // 描述 (可选)
+  string raw_file_reference = 4 [(buf.validate.field).string.min_len = 1]; // 原始文件引用 (GCS 路径)
 }
 
 // CreateVideoResponse 表示创建视频的响应。
 message CreateVideoResponse {
   string video_id = 1;                                         // 创建的视频 ID
-  google.protobuf.Timestamp created_at = 2;                    // 创建时间
+  string created_at = 2;                                       // 创建时间（UTC RFC3339）
   string status = 3;                                           // 视频状态
   string media_status = 4;                                     // 媒体处理状态
   string analysis_status = 5;                                  // 分析状态
   string event_id = 6;                                         // 事件 ID（用于客户端幂等与回放）
   int64 version = 7;                                           // 聚合版本号
-  google.protobuf.Timestamp occurred_at = 8;                   // 事件发生时间
+  string occurred_at = 8;                                      // 事件发生时间（UTC RFC3339）
 }
 
 // UpdateVideoRequest 表示对视频元数据的部分更新请求。
 // 仅填充需要更新的字段，其余字段保持不变。
 message UpdateVideoRequest {
-  string video_id = 1;                                         // 视频 ID（必填）
-  google.protobuf.StringValue title = 2;                       // 标题
-  google.protobuf.StringValue description = 3;                 // 描述
-  google.protobuf.StringValue status = 4;                      // 视频状态
-  google.protobuf.StringValue media_status = 5;                // 媒体阶段状态
-  google.protobuf.StringValue analysis_status = 6;             // 分析阶段状态
-  google.protobuf.Int64Value duration_micros = 7;              // 视频时长（微秒）
-  google.protobuf.StringValue thumbnail_url = 8;               // 缩略图 URL
-  google.protobuf.StringValue hls_master_playlist = 9;         // HLS 主清单
-  google.protobuf.StringValue difficulty = 10;                 // 难度
-  google.protobuf.StringValue summary = 11;                    // 摘要
-  google.protobuf.StringValue raw_subtitle_url = 12;           // 原始字幕
-  google.protobuf.StringValue error_message = 13;              // 错误信息
+  string video_id = 1 [(buf.validate.field).string.uuid = true]; // 视频 ID（必填）
+  optional string title = 2;                                   // 标题
+  optional string description = 3;                             // 描述
+  optional string status = 4;                                  // 视频状态
+  optional string media_status = 5;                            // 媒体阶段状态
+  optional string analysis_status = 6;                         // 分析阶段状态
+  optional int64 duration_micros = 7 [(buf.validate.field).int64.gte = 0]; // 视频时长（微秒）
+  optional string thumbnail_url = 8;                           // 缩略图 URL
+  optional string hls_master_playlist = 9;                     // HLS 主清单
+  optional string difficulty = 10;                             // 难度
+  optional string summary = 11;                                // 摘要
+  optional string raw_subtitle_url = 12;                       // 原始字幕
+  optional string error_message = 13;                          // 错误信息
 }
 
 // UpdateVideoResponse 返回更新后的核心字段与事件元数据。
 message UpdateVideoResponse {
   string video_id = 1;                                         // 视频 ID
-  google.protobuf.Timestamp updated_at = 2;                    // 更新时间
+  string updated_at = 2;                                       // 更新时间（UTC RFC3339）
   string status = 3;                                           // 视频状态
   string media_status = 4;                                     // 媒体阶段状态
   string analysis_status = 5;                                  // 分析阶段状态
   string event_id = 6;                                         // 事件 ID
   int64 version = 7;                                           // 聚合版本号
-  google.protobuf.Timestamp occurred_at = 8;                   // 事件发生时间
+  string occurred_at = 8;                                      // 事件发生时间（UTC RFC3339）
 }
 
 // DeleteVideoRequest 表示删除视频的请求。
 message DeleteVideoRequest {
-  string video_id = 1;                                         // 视频 ID（必填）
-  google.protobuf.StringValue reason = 2;                      // 删除原因（可选）
+  string video_id = 1 [(buf.validate.field).string.uuid = true]; // 视频 ID（必填）
+  optional string reason = 2;                                  // 删除原因（可选）
 }
 
 // DeleteVideoResponse 返回删除操作的事件元数据。
 message DeleteVideoResponse {
   string video_id = 1;                                         // 被删除的视频 ID
-  google.protobuf.Timestamp deleted_at = 2;                    // 删除时间
+  string deleted_at = 2;                                       // 删除时间（UTC RFC3339）
   string event_id = 3;                                         // 事件 ID
   int64 version = 4;                                           // 聚合版本号
-  google.protobuf.Timestamp occurred_at = 5;                   // 事件发生时间
+  string occurred_at = 5;                                      // 事件发生时间（UTC RFC3339）
 }

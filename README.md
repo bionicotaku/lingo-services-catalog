@@ -532,7 +532,7 @@ po.Video (*string, time.Time) [完整字段]
     ↓ vo.NewVideoDetail
 vo.VideoDetail (*string, time.Time) [精简字段]
     ↓ views.NewVideoDetail
-videov1.VideoDetail (wrapperspb.StringValue, timestamppb.Timestamp)
+videov1.VideoDetail (string, RFC3339 时间串)
 ```
 
 ---

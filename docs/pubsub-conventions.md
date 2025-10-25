@@ -125,36 +125,8 @@
 ### 3.3 Attributes 构造示例（Go）
 
 ```go
-func BuildMessageAttributes(event *videov1.Event, traceID string) map[string]string {
-    attrs := map[string]string{
-        "event_id":       event.EventId,
-        "event_type":     formatEventType(event.EventType),
-        "aggregate_id":   event.AggregateId,
-        "aggregate_type": event.AggregateType,
-        "version":        strconv.FormatInt(event.Version, 10),
-        "occurred_at":    event.OccurredAt.AsTime().Format(time.RFC3339),
-        "schema_version": "v1",
-    }
-
-    // 可选属性
-    if traceID != "" {
-        attrs["trace_id"] = traceID
-    }
-
-    return attrs
-}
-
-func formatEventType(et videov1.EventType) string {
-    switch et {
-    case videov1.EventType_VIDEO_CREATED:
-        return "video.created"
-    case videov1.EventType_VIDEO_UPDATED:
-        return "video.updated"
-    case videov1.EventType_VIDEO_DELETED:
-        return "video.deleted"
-    default:
-        return "unknown"
-    }
+func BuildMessageAttributes(evt *events.DomainEvent, traceID string) map[string]string {
+    return events.BuildAttributes(evt, events.SchemaVersionV1, traceID)
 }
 ```
 
@@ -186,22 +158,28 @@ orderingKey := event.AggregateId  // UUID string
 ### 4.3 Ordering Key 使用示例（Go）
 
 ```go
-import "cloud.google.com/go/pubsub"
+import (
+    "cloud.google.com/go/pubsub"
+    "google.golang.org/protobuf/proto"
+)
 
-func publishEvent(ctx context.Context, topic *pubsub.Topic, event *videov1.Event) error {
-    payload, err := proto.Marshal(event)
+func publishEvent(ctx context.Context, topic *pubsub.Topic, evt *events.DomainEvent) error {
+    protoEvent, err := events.ToProto(evt)
+    if err != nil {
+        return fmt.Errorf("encode proto: %w", err)
+    }
+    payload, err := proto.Marshal(protoEvent)
     if err != nil {
         return fmt.Errorf("marshal event: %w", err)
     }
 
     msg := &pubsub.Message{
         Data:        payload,
-        Attributes:  BuildMessageAttributes(event, ""),
-        OrderingKey: event.AggregateId,  // 关键：使用 aggregate_id 作为 Ordering Key
+        Attributes:  BuildMessageAttributes(evt, ""),
+        OrderingKey: evt.AggregateID.String(), // 关键：使用 aggregate_id 作为 Ordering Key
     }
 
-    result := topic.Publish(ctx, msg)
-    _, err = result.Get(ctx)
+    _, err = topic.Publish(ctx, msg).Get(ctx)
     return err
 }
 ```

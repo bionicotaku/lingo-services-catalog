@@ -3,10 +3,10 @@
 package views
 
 import (
+	"time"
+
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/models/vo"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // NewCreateVideoResponse 将 VideoCreated 视图对象转换为 gRPC 响应。
@@ -16,13 +16,13 @@ func NewCreateVideoResponse(created *vo.VideoCreated) *videov1.CreateVideoRespon
 	}
 	return &videov1.CreateVideoResponse{
 		VideoId:        created.VideoID.String(),
-		CreatedAt:      timestamppb.New(created.CreatedAt),
+		CreatedAt:      formatTime(created.CreatedAt),
 		Status:         created.Status,
 		MediaStatus:    created.MediaStatus,
 		AnalysisStatus: created.AnalysisStatus,
 		EventId:        created.EventID.String(),
 		Version:        created.Version,
-		OccurredAt:     timestamppb.New(created.OccurredAt),
+		OccurredAt:     formatTime(created.OccurredAt),
 	}
 }
 
@@ -44,8 +44,8 @@ func NewVideoDetail(detail *vo.VideoDetail) *videov1.VideoDetail {
 		Status:         detail.Status,
 		MediaStatus:    detail.MediaStatus,
 		AnalysisStatus: detail.AnalysisStatus,
-		CreatedAt:      timestamppb.New(detail.CreatedAt),
-		UpdatedAt:      timestamppb.New(detail.UpdatedAt),
+		CreatedAt:      formatTime(detail.CreatedAt),
+		UpdatedAt:      formatTime(detail.UpdatedAt),
 	}
 }
 
@@ -56,13 +56,13 @@ func NewUpdateVideoResponse(updated *vo.VideoUpdated) *videov1.UpdateVideoRespon
 	}
 	return &videov1.UpdateVideoResponse{
 		VideoId:        updated.VideoID.String(),
-		UpdatedAt:      timestamppb.New(updated.UpdatedAt),
+		UpdatedAt:      formatTime(updated.UpdatedAt),
 		Status:         updated.Status,
 		MediaStatus:    updated.MediaStatus,
 		AnalysisStatus: updated.AnalysisStatus,
 		EventId:        updated.EventID.String(),
 		Version:        updated.Version,
-		OccurredAt:     timestamppb.New(updated.OccurredAt),
+		OccurredAt:     formatTime(updated.OccurredAt),
 	}
 }
 
@@ -73,9 +73,16 @@ func NewDeleteVideoResponse(deleted *vo.VideoDeleted) *videov1.DeleteVideoRespon
 	}
 	return &videov1.DeleteVideoResponse{
 		VideoId:    deleted.VideoID.String(),
-		DeletedAt:  timestamppb.New(deleted.DeletedAt),
+		DeletedAt:  formatTime(deleted.DeletedAt),
 		EventId:    deleted.EventID.String(),
 		Version:    deleted.Version,
-		OccurredAt: timestamppb.New(deleted.OccurredAt),
+		OccurredAt: formatTime(deleted.OccurredAt),
 	}
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339Nano)
 }

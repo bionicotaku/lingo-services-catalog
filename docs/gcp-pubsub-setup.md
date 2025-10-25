@@ -23,19 +23,14 @@
 ---
 
 ## 2. 构建并注册 Schema
-1. 在仓库根目录执行：
-   ```bash
-   cd kratos-template
-   buf build --path api/video/v1/events.proto --output tools/build/events.desc
-   ```
-2. 创建 Pub/Sub Schema（类型为 Protocol Buffer）：
+1. 创建 Pub/Sub Schema（类型为 Protocol Buffer，`--definition-file` 需要传入文本 proto 而非 `.desc` 二进制）：
    ```bash
    gcloud pubsub schemas create video-events \
        --project=smiling-landing-472320-q0 \
        --type=protocol-buffer \
-       --definition-file=tools/build/events.desc
+       --definition-file=api/video/v1/events.proto
    ```
-3. Schema 演进策略：
+2. Schema 演进策略：
    - 遵循 Proto 向后兼容规则（字段只增不删、不重用标签号）。
    - 调整 Schema 时重新执行 `buf build` → `schemas commit` 新版本，并同步更新消息 `schema_version` 属性（如从 `v1` 升级为 `v2`）。
 
@@ -160,18 +155,19 @@ messaging:
 - 取出 Outbox 行后构造 `videov1.Event`，使用 `proto.Marshal` 得到消息体。
 - `pubsub.Message` 设置：
   ```go
+  protoEvent, err := events.ToProto(evt)
+  if err != nil {
+      return fmt.Errorf("encode proto: %w", err)
+  }
+  data, err := proto.Marshal(protoEvent)
+  if err != nil {
+      return fmt.Errorf("marshal event: %w", err)
+  }
+
   msg := &pubsub.Message{
-      Data: data,                                   // protobuf bytes
-      OrderingKey: event.GetAggregateId(),          // 保证同聚合有序
-      Attributes: map[string]string{
-          "event_id": event.GetEventId(),
-          "event_type": strings.ToLower(event.GetEventType().String()),
-          "aggregate_id": event.GetAggregateId(),
-          "aggregate_type": event.GetAggregateType(),
-          "version": strconv.FormatInt(event.GetVersion(), 10),
-          "occurred_at": event.GetOccurredAt().AsTime().UTC().Format(time.RFC3339Nano),
-          "schema_version": "v1",
-      },
+      Data:        data,
+      OrderingKey: evt.AggregateID.String(),
+      Attributes:  events.BuildAttributes(evt, events.SchemaVersionV1, traceID),
   }
   ```
 - 调用 `topic.Publish(ctx, msg)` 后必须等待 `result.Get(ctx)`，确定成功再标记 Outbox 行 `published_at`。
