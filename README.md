@@ -188,8 +188,8 @@ psql $DATABASE_URL < migrations/002_create_catalog_event_tables.sql
 # 创建视频主表及索引/触发器
 psql $DATABASE_URL < migrations/003_create_catalog_videos_table.sql
 
-# 创建只读视图
-psql $DATABASE_URL < migrations/004_create_catalog_videos_ready_view.sql
+# 创建只读投影表
+psql $DATABASE_URL < migrations/004_create_catalog_video_projection.sql
 ```
 
 ### 5. 生成代码

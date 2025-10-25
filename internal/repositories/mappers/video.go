@@ -88,8 +88,21 @@ func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
 	}
 }
 
-// VideoReadyViewFromCatalog 将 sqlc 生成的 CatalogVideosReadyView 转换为 po.VideoReadyView。
-func VideoReadyViewFromCatalog(v catalogsql.CatalogVideosReadyView) *po.VideoReadyView {
+// VideoReadyViewFromFindRow 将 FindVideoByID 查询结果转换为 po.VideoReadyView。
+func VideoReadyViewFromFindRow(v catalogsql.FindVideoByIDRow) *po.VideoReadyView {
+	return &po.VideoReadyView{
+		VideoID:        v.VideoID,
+		Title:          v.Title,
+		Status:         po.VideoStatus(v.Status),
+		MediaStatus:    po.StageStatus(v.MediaStatus),
+		AnalysisStatus: po.StageStatus(v.AnalysisStatus),
+		CreatedAt:      mustTimestamp(v.CreatedAt),
+		UpdatedAt:      mustTimestamp(v.UpdatedAt),
+	}
+}
+
+// VideoReadyViewFromListRow 将 ListReadyVideosForTest 查询结果转换为 po.VideoReadyView。
+func VideoReadyViewFromListRow(v catalogsql.ListReadyVideosForTestRow) *po.VideoReadyView {
 	return &po.VideoReadyView{
 		VideoID:        v.VideoID,
 		Title:          v.Title,

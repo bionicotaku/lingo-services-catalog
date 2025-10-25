@@ -154,5 +154,5 @@ func (r *VideoRepository) FindByID(ctx context.Context, sess txmanager.Session, 
 		r.log.WithContext(ctx).Errorf("find video by id failed: video_id=%s err=%v", videoID, err)
 		return nil, fmt.Errorf("find video by id: %w", err)
 	}
-	return mappers.VideoReadyViewFromCatalog(record), nil
+	return mappers.VideoReadyViewFromFindRow(record), nil
 }

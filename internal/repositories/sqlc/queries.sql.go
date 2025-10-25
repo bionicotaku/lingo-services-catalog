@@ -8,7 +8,9 @@ package catalogsql
 import (
 	"context"
 
+	po "github.com/bionicotaku/kratos-template/internal/models/po"
 	uuid "github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const findVideoByID = `-- name: FindVideoByID :one
@@ -21,15 +23,26 @@ SELECT
     analysis_status,
     created_at,
     updated_at
-FROM catalog.videos_ready_view
+FROM catalog.video_projection
 WHERE video_id = $1
+  AND status IN ('ready', 'published')
 `
 
-// Video 只读视图查询相关 SQL
-// 根据 video_id 从只读视图查询视频详情（仅返回 ready/published 状态的视频）
-func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (CatalogVideosReadyView, error) {
+type FindVideoByIDRow struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	Title          string             `json:"title"`
+	Status         po.VideoStatus     `json:"status"`
+	MediaStatus    po.StageStatus     `json:"media_status"`
+	AnalysisStatus po.StageStatus     `json:"analysis_status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Video 只读投影查询相关 SQL
+// 根据 video_id 从投影表查询视频详情（仅返回 ready/published 状态的视频）
+func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (FindVideoByIDRow, error) {
 	row := q.db.QueryRow(ctx, findVideoByID, videoID)
-	var i CatalogVideosReadyView
+	var i FindVideoByIDRow
 	err := row.Scan(
 		&i.VideoID,
 		&i.Title,
@@ -51,19 +64,30 @@ SELECT
     analysis_status,
     created_at,
     updated_at
-FROM catalog.videos_ready_view
+FROM catalog.video_projection
+WHERE status IN ('ready', 'published')
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListReadyVideosForTest(ctx context.Context) ([]CatalogVideosReadyView, error) {
+type ListReadyVideosForTestRow struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	Title          string             `json:"title"`
+	Status         po.VideoStatus     `json:"status"`
+	MediaStatus    po.StageStatus     `json:"media_status"`
+	AnalysisStatus po.StageStatus     `json:"analysis_status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListReadyVideosForTest(ctx context.Context) ([]ListReadyVideosForTestRow, error) {
 	rows, err := q.db.Query(ctx, listReadyVideosForTest)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []CatalogVideosReadyView{}
+	items := []ListReadyVideosForTestRow{}
 	for rows.Next() {
-		var i CatalogVideosReadyView
+		var i ListReadyVideosForTestRow
 		if err := rows.Scan(
 			&i.VideoID,
 			&i.Title,

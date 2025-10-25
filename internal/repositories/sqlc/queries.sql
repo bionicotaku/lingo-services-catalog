@@ -1,7 +1,7 @@
--- Video 只读视图查询相关 SQL
+-- Video 只读投影查询相关 SQL
 
 -- name: FindVideoByID :one
--- 根据 video_id 从只读视图查询视频详情（仅返回 ready/published 状态的视频）
+-- 根据 video_id 从投影表查询视频详情（仅返回 ready/published 状态的视频）
 SELECT
     video_id,
     title,
@@ -10,8 +10,9 @@ SELECT
     analysis_status,
     created_at,
     updated_at
-FROM catalog.videos_ready_view
-WHERE video_id = $1;
+FROM catalog.video_projection
+WHERE video_id = $1
+  AND status IN ('ready', 'published');
 
 -- name: ListReadyVideosForTest :many
 SELECT
@@ -22,5 +23,6 @@ SELECT
     analysis_status,
     created_at,
     updated_at
-FROM catalog.videos_ready_view
+FROM catalog.video_projection
+WHERE status IN ('ready', 'published')
 ORDER BY created_at DESC;

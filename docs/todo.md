@@ -16,7 +16,7 @@
   - [x] `catalog.outbox_events` 表（字段按照方案统一结构，含索引/约束/注释）✅ 2025-10-24
   - [x] 保留单表结构（包含 published_at、delivery_attempts 等字段）✅
   - [x] `catalog.inbox_events` 表（event_id 主键，含 processed_at 索引）✅ 2025-10-24
-  - [x] `catalog.videos_ready_view` 测试视图 ✅ 2025-10-24
+- [x] `catalog.video_projection` 读模型表 ✅ 2025-10-25
 - [x] 更新 `sqlc/schema/catalog.sql` 与查询定义，生成 Outbox、Inbox 的类型安全查询（含 UPSERT）✅ 2025-10-24
 - [x] 执行 `sqlc generate` 并修复生成差异；确保 `go build ./...` 编译通过 ✅ 2025-10-24
 
