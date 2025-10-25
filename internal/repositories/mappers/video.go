@@ -2,8 +2,6 @@
 package mappers
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/bionicotaku/kratos-template/internal/models/po"
@@ -21,23 +19,6 @@ func BuildCreateVideoParams(uploadUserID uuid.UUID, title, rawFileReference stri
 		RawFileReference: rawFileReference,
 		Description:      textFromPtr(description),
 	}
-}
-
-// BuildInsertOutboxEventParams 构造 sqlc InsertOutboxEventParams，确保时间与可空字段一致。
-func BuildInsertOutboxEventParams(eventID uuid.UUID, aggregateType string, aggregateID uuid.UUID, eventType string, payload []byte, headers map[string]string, availableAt time.Time) (catalogsql.InsertOutboxEventParams, error) {
-	encodedHeaders, err := encodeHeaders(headers)
-	if err != nil {
-		return catalogsql.InsertOutboxEventParams{}, err
-	}
-	return catalogsql.InsertOutboxEventParams{
-		EventID:       eventID,
-		AggregateType: aggregateType,
-		AggregateID:   aggregateID,
-		EventType:     eventType,
-		Payload:       payload,
-		Headers:       encodedHeaders,
-		AvailableAt:   timestamptzFromTime(availableAt),
-	}, nil
 }
 
 // BuildUpdateVideoParams 将更新输入转换为 sqlc UpdateVideoParams。
@@ -166,17 +147,6 @@ func timestamptzFromTime(t time.Time) pgtype.Timestamptz {
 		Time:  t.UTC(),
 		Valid: true,
 	}
-}
-
-func encodeHeaders(attrs map[string]string) (string, error) {
-	if attrs == nil {
-		attrs = map[string]string{}
-	}
-	data, err := json.Marshal(attrs)
-	if err != nil {
-		return "", fmt.Errorf("marshal outbox headers: %w", err)
-	}
-	return string(data), nil
 }
 
 // ToPgText 将 string 指针转换为 pgtype.Text。

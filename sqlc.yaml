@@ -5,7 +5,6 @@ sql:
     queries:
       - "internal/repositories/sqlc/commands.sql"
       - "internal/repositories/sqlc/queries.sql"
-      - "internal/repositories/sqlc/events.sql"
       - "internal/repositories/sqlc/projection.sql"
     engine: postgresql
     gen:
@@ -34,6 +33,3 @@ sql:
           - column: "catalog.videos.tags"
             go_type:
               type: "[]string"
-          - column: "catalog.outbox_events.headers"
-            go_type:
-              type: string

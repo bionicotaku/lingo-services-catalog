@@ -11,11 +11,9 @@ import (
 	"time"
 
 	"github.com/bionicotaku/kratos-template/internal/repositories"
-	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -91,16 +89,6 @@ func TestOutboxRepositoryIntegration(t *testing.T) {
 	count, err = repo.CountPending(ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), count)
-
-	queries := catalogsql.New(pool)
-	row, err := queries.ClaimPendingOutboxEvents(ctx, catalogsql.ClaimPendingOutboxEventsParams{
-		AvailableAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
-		LockedAt:    pgtype.Timestamptz{Time: time.Now().Add(-time.Minute), Valid: true},
-		Limit:       1,
-		LockToken:   pgtype.Text{String: uuid.NewString(), Valid: true},
-	})
-	require.NoError(t, err)
-	require.Len(t, row, 0, "no events should remain claimable after publication")
 }
 
 func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
