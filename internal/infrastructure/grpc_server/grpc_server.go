@@ -85,6 +85,7 @@ func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, 
 	}
 	srv := grpc.NewServer(opts...)
 	videov1.RegisterVideoQueryServiceServer(srv, video)
+	videov1.RegisterVideoCommandServiceServer(srv, video)
 	return srv
 }
 

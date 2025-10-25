@@ -45,8 +45,10 @@ func TestOutboxRepositoryIntegration(t *testing.T) {
 		AggregateID:   aggregateID,
 		EventType:     "catalog.video.created",
 		Payload:       []byte(`{"video_id":"` + aggregateID.String() + `"}`),
-		Headers:       []byte(`{"schema_version":"v1"}`),
-		AvailableAt:   time.Now().UTC(),
+		Headers: map[string]string{
+			"schema_version": "v1",
+		},
+		AvailableAt: time.Now().UTC(),
 	}
 
 	require.NoError(t, repo.Enqueue(ctx, nil, msg))

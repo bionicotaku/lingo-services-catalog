@@ -106,11 +106,7 @@ func (uc *VideoUsecase) enqueueOutbox(ctx context.Context, sess txmanager.Sessio
 	}
 
 	// 3) 生成消息属性（含 trace_id、schema_version 等）。
-	headersMap := events.BuildAttributes(event, events.SchemaVersionV1, events.TraceIDFromContext(ctx))
-	headers, hdrErr := events.MarshalAttributes(headersMap)
-	if hdrErr != nil {
-		return fmt.Errorf("encode event headers: %w", hdrErr)
-	}
+	attributes := events.BuildAttributes(event, events.SchemaVersionV1, events.TraceIDFromContext(ctx))
 
 	// 4) availableAt 未设置时使用当前时间，便于调度排序。
 	if availableAt.IsZero() {
@@ -124,7 +120,7 @@ func (uc *VideoUsecase) enqueueOutbox(ctx context.Context, sess txmanager.Sessio
 		AggregateID:   event.AggregateID,
 		EventType:     events.FormatEventType(event.Kind),
 		Payload:       payload,
-		Headers:       headers,
+		Headers:       attributes,
 		AvailableAt:   availableAt,
 	}
 	if err := uc.outboxRepo.Enqueue(ctx, sess, msg); err != nil {

@@ -34,3 +34,6 @@ sql:
           - column: "catalog.videos.tags"
             go_type:
               type: "[]string"
+          - column: "catalog.outbox_events.headers"
+            go_type:
+              type: string

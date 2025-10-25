@@ -98,8 +98,10 @@ func TestPublisherTaskIntegration(t *testing.T) {
 		AggregateID:   aggregateID,
 		EventType:     "catalog.video.created",
 		Payload:       payload,
-		Headers:       []byte(`{"schema_version":"v1"}`),
-		AvailableAt:   time.Now().UTC(),
+		Headers: map[string]string{
+			"schema_version": "v1",
+		},
+		AvailableAt: time.Now().UTC(),
 	}))
 
 	runCtx, cancel := context.WithCancel(ctx)
@@ -236,8 +238,10 @@ func TestPublisherTaskIntegration_PublishFailureReschedules(t *testing.T) {
 		AggregateID:   aggregateID,
 		EventType:     "catalog.video.created",
 		Payload:       []byte(`{"video_id":"` + aggregateID.String() + `"}`),
-		Headers:       []byte(`{"schema_version":"v1"}`),
-		AvailableAt:   time.Now().UTC(),
+		Headers: map[string]string{
+			"schema_version": "v1",
+		},
+		AvailableAt: time.Now().UTC(),
 	}))
 
 	runCtx, cancel := context.WithCancel(ctx)
@@ -372,8 +376,10 @@ func TestPublisherTaskIntegration_FailureThenRecovery(t *testing.T) {
 		AggregateID:   aggregateID,
 		EventType:     "catalog.video.created",
 		Payload:       []byte(`{"video_id":"` + aggregateID.String() + `"}`),
-		Headers:       []byte(`{"schema_version":"v1"}`),
-		AvailableAt:   time.Now().UTC(),
+		Headers: map[string]string{
+			"schema_version": "v1",
+		},
+		AvailableAt: time.Now().UTC(),
 	}))
 
 	runCtx, cancel := context.WithCancel(ctx)

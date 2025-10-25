@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync/atomic"
 	"time"
@@ -86,7 +85,7 @@ func newPublisherMetrics(meter metric.Meter, helper *log.Helper) *publisherMetri
 	if err != nil {
 		helper.Warnw("msg", "outbox metrics register backlog gauge", "err", err)
 	} else {
-		reg, regErr := meter.RegisterCallback(func(ctx context.Context, observer metric.Observer) error {
+		reg, regErr := meter.RegisterCallback(func(_ context.Context, observer metric.Observer) error {
 			observer.ObserveInt64(m.backlogGauge, m.backlog.Load())
 			return nil
 		}, m.backlogGauge)
@@ -323,12 +322,9 @@ func (t *PublisherTask) publishOnce(ctx context.Context, event repositories.Outb
 		defer cancel()
 	}
 
-	attributes := make(map[string]string)
-	if len(event.Headers) > 0 {
-		if err := json.Unmarshal(event.Headers, &attributes); err != nil {
-			t.log.WithContext(ctx).Warnf("decode outbox headers: event_id=%s err=%v", event.EventID, err)
-			attributes = map[string]string{}
-		}
+	attributes := event.Headers
+	if attributes == nil {
+		attributes = map[string]string{}
 	}
 
 	msg := gcpubsub.Message{

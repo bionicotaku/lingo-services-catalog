@@ -4,7 +4,6 @@ package events
 
 import (
 	"context"
-	"encoding/json"
 	"strconv"
 	"time"
 
@@ -34,11 +33,6 @@ func BuildAttributes(event *DomainEvent, schemaVersion string, traceID string) m
 		attrs["trace_id"] = traceID
 	}
 	return attrs
-}
-
-// MarshalAttributes 将 attributes 编码为 JSON，供 outbox.headers 字段使用。
-func MarshalAttributes(attrs map[string]string) ([]byte, error) {
-	return json.Marshal(attrs)
 }
 
 // TraceIDFromContext 提取 OTel Trace ID，若不存在返回空字符串。

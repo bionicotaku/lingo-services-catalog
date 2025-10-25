@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -21,7 +22,7 @@ type OutboxMessage struct {
 	AggregateID   uuid.UUID
 	EventType     string
 	Payload       []byte
-	Headers       []byte
+	Headers       map[string]string
 	AvailableAt   time.Time
 }
 
@@ -32,7 +33,7 @@ type OutboxEvent struct {
 	AggregateID      uuid.UUID
 	EventType        string
 	Payload          []byte
-	Headers          []byte
+	Headers          map[string]string
 	OccurredAt       time.Time
 	AvailableAt      time.Time
 	PublishedAt      *time.Time
@@ -72,7 +73,7 @@ func (r *OutboxRepository) Enqueue(ctx context.Context, sess txmanager.Session, 
 	}
 
 	// 组装 sqlc 所需参数，包含事件头、载荷与聚合标识。
-	params := mappers.BuildInsertOutboxEventParams(
+	params, err := mappers.BuildInsertOutboxEventParams(
 		msg.EventID,
 		msg.AggregateType,
 		msg.AggregateID,
@@ -81,6 +82,9 @@ func (r *OutboxRepository) Enqueue(ctx context.Context, sess txmanager.Session, 
 		msg.Headers,
 		availableAt,
 	)
+	if err != nil {
+		return fmt.Errorf("encode outbox headers: %w", err)
+	}
 
 	// 调用 sqlc 生成的 InsertOutboxEvent，确保失败时返回带上下文的错误。
 	if _, err := queries.InsertOutboxEvent(ctx, params); err != nil {
@@ -183,7 +187,7 @@ func outboxEventFromRecord(rec catalogsql.CatalogOutboxEvent) OutboxEvent {
 		AggregateID:      rec.AggregateID,
 		EventType:        rec.EventType,
 		Payload:          rec.Payload,
-		Headers:          rec.Headers,
+		Headers:          decodeHeaders(rec.Headers),
 		OccurredAt:       mustTimestamp(rec.OccurredAt),
 		AvailableAt:      mustTimestamp(rec.AvailableAt),
 		PublishedAt:      publishedAt,
@@ -217,4 +221,15 @@ func textFromString(value string) pgtype.Text {
 
 func textFromNullableString(value string) pgtype.Text {
 	return pgtype.Text{String: value, Valid: value != ""}
+}
+
+func decodeHeaders(value string) map[string]string {
+	if value == "" {
+		return map[string]string{}
+	}
+	var attrs map[string]string
+	if err := json.Unmarshal([]byte(value), &attrs); err != nil {
+		return map[string]string{}
+	}
+	return attrs
 }
