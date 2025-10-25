@@ -42,7 +42,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		gclog.ProviderSet,        // 结构化日志
 		gcjwt.ProviderSet,        // JWT 认证中间件
 		obswire.ProviderSet,      // OpenTelemetry 追踪和指标
-		pgxpoolx.ProviderSet,    // PostgreSQL 连接池
+		pgxpoolx.ProviderSet,     // PostgreSQL 连接池
 		txmanager.ProviderSet,    // 事务管理器
 		gcpubsub.ProviderSet,     // Pub/Sub 发布与订阅
 		grpcserver.ProviderSet,   // gRPC Server
@@ -54,7 +54,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		provideOutboxTask,
-		newApp,                  // 组装 Kratos 应用
+		newApp, // 组装 Kratos 应用
 	))
 }
 

@@ -84,6 +84,11 @@ SET delivery_attempts = delivery_attempts + 1,
     locked_at = NULL
 WHERE event_id = $1 AND lock_token = $2;
 
+-- name: CountPendingOutboxEvents :one
+SELECT COUNT(*)::bigint
+FROM catalog.outbox_events
+WHERE published_at IS NULL;
+
 -- ============================================
 -- Inbox 相关查询
 -- ============================================

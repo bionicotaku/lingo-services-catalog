@@ -52,8 +52,9 @@ message Data {
 
     // Supabase 特定配置
     string schema = 7;  // 默认 schema (如 "kratos_template")
-    bool enable_prepared_statements = 8;  // Pooler 模式建议设为 false
+    bool prepared_statements_enabled = 8;  // Pooler 模式建议设为 false
     Transaction transaction = 9;
+    optional bool pool_metrics_enabled = 10;
   }
 
   // gRPC Client 配置（可选，用于服务间调用）
@@ -117,8 +118,8 @@ message PubSub {
   string topic_id = 2;
   string subscription_id = 3;
   bool ordering_key_enabled = 4;
-  bool enable_logging = 5;
-  bool enable_metrics = 6;
+  bool logging_enabled = 5;
+  bool metrics_enabled = 6;
   string emulator_endpoint = 7;
   google.protobuf.Duration publish_timeout = 8;
   Receive receive = 9;
@@ -141,4 +142,5 @@ message OutboxPublisher {
   int32 max_attempts = 5;
   google.protobuf.Duration publish_timeout = 6;
   int32 workers = 7;
+  google.protobuf.Duration lock_ttl = 8;
 }

@@ -64,7 +64,8 @@ data:
     max_conn_idle_time: 1800s
     health_check_period: 60s
     schema: test_schema
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
+    pool_metrics_enabled: true
   grpc_client:
     target: "dns:///127.0.0.1:9000"
 observability:
@@ -575,7 +576,8 @@ data:
     max_conn_idle_time: 1800s
     health_check_period: 60s
     schema: "kratos_template"
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
+    pool_metrics_enabled: true
   grpc_client:
     target: "dns:///remote:9000"
 `
@@ -603,8 +605,11 @@ data:
 	if pg.GetSchema() != "kratos_template" {
 		t.Errorf("expected schema 'kratos_template', got %s", pg.GetSchema())
 	}
-	if pg.GetEnablePreparedStatements() != false {
-		t.Errorf("expected enable_prepared_statements false, got %v", pg.GetEnablePreparedStatements())
+	if pg.GetPreparedStatementsEnabled() != false {
+		t.Errorf("expected prepared_statements_enabled false, got %v", pg.GetPreparedStatementsEnabled())
+	}
+	if pg.GetPoolMetricsEnabled() != true {
+		t.Errorf("expected pool_metrics_enabled true, got %v", pg.GetPoolMetricsEnabled())
 	}
 
 	// 验证 gRPC Client
@@ -865,6 +870,7 @@ data:
 		})
 	}
 }
+
 func rootConfigsPath(t testing.TB) string {
 	t.Helper()
 	path := filepath.Join("..", "..", "..", "..", "configs")

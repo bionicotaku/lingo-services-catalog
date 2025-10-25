@@ -150,14 +150,12 @@ func toPgxpoolConfig(pg *configpb.Data_PostgreSQL) pgxpoolx.Config {
 		cfg.MaxConnIdleTime = d.AsDuration()
 	}
 
-	prepared := pg.GetEnablePreparedStatements()
+	prepared := pg.GetPreparedStatementsEnabled()
 	cfg.EnablePreparedStmt = &prepared
 
-	if tx := pg.GetTransaction(); tx != nil {
-		if tx.MetricsEnabled != nil {
-			metrics := tx.GetMetricsEnabled()
-			cfg.MetricsEnabled = &metrics
-		}
+	if pg.PoolMetricsEnabled != nil {
+		value := pg.GetPoolMetricsEnabled()
+		cfg.MetricsEnabled = &value
 	}
 
 	return cfg

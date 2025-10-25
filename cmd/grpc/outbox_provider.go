@@ -6,6 +6,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/tasks/outbox"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/go-kratos/kratos/v2/log"
+	"go.opentelemetry.io/otel"
 )
 
 func provideOutboxTask(
@@ -29,7 +30,10 @@ func provideOutboxTask(
 		MaxBackoff:     cfg.MaxBackoff,
 		MaxAttempts:    cfg.MaxAttempts,
 		PublishTimeout: cfg.PublishTimeout,
+		Workers:        cfg.Workers,
+		LockTTL:        cfg.LockTTL,
 	}
 
-	return outbox.NewPublisherTask(repo, publisher, taskCfg, logger)
+	meter := otel.GetMeterProvider().Meter("kratos-template.outbox")
+	return outbox.NewPublisherTask(repo, publisher, taskCfg, logger, meter)
 }

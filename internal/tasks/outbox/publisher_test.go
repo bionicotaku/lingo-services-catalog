@@ -28,6 +28,9 @@ func TestSanitizeConfig(t *testing.T) {
 	if cfg.Workers != defaultWorkers {
 		t.Fatalf("expected default workers, got %d", cfg.Workers)
 	}
+	if cfg.LockTTL != defaultLockTTL {
+		t.Fatalf("expected default lock ttl, got %v", cfg.LockTTL)
+	}
 }
 
 func TestBackoffDuration(t *testing.T) {

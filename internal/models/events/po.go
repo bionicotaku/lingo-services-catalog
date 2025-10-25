@@ -12,14 +12,14 @@ type Kind int
 
 // 领域事件类型常量。
 const (
-    // KindUnknown 表示未识别的事件类型。
-    KindUnknown Kind = iota
-    // KindVideoCreated 表示视频创建事件。
-    KindVideoCreated
-    // KindVideoUpdated 表示视频更新事件。
-    KindVideoUpdated
-    // KindVideoDeleted 表示视频删除事件。
-    KindVideoDeleted
+	// KindUnknown 表示未识别的事件类型。
+	KindUnknown Kind = iota
+	// KindVideoCreated 表示视频创建事件。
+	KindVideoCreated
+	// KindVideoUpdated 表示视频更新事件。
+	KindVideoUpdated
+	// KindVideoDeleted 表示视频删除事件。
+	KindVideoDeleted
 )
 
 func (k Kind) String() string {

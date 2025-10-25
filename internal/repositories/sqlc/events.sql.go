@@ -90,6 +90,19 @@ func (q *Queries) ClaimPendingOutboxEvents(ctx context.Context, arg ClaimPending
 	return items, nil
 }
 
+const countPendingOutboxEvents = `-- name: CountPendingOutboxEvents :one
+SELECT COUNT(*)::bigint
+FROM catalog.outbox_events
+WHERE published_at IS NULL
+`
+
+func (q *Queries) CountPendingOutboxEvents(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPendingOutboxEvents)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const getInboxEvent = `-- name: GetInboxEvent :one
 SELECT
     event_id,

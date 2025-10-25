@@ -38,6 +38,8 @@ type OutboxEvent struct {
 	PublishedAt      *time.Time
 	DeliveryAttempts int32
 	LastError        *string
+	LockToken        *string
+	LockedAt         *time.Time
 }
 
 // OutboxRepository 提供写入 Outbox 表的能力，确保与 TxManager Session 协作。
@@ -92,10 +94,12 @@ func (r *OutboxRepository) Enqueue(ctx context.Context, sess txmanager.Session, 
 }
 
 // ClaimPending 返回一批待发布的 Outbox 事件。
-func (r *OutboxRepository) ClaimPending(ctx context.Context, availableBefore time.Time, limit int) ([]OutboxEvent, error) {
+func (r *OutboxRepository) ClaimPending(ctx context.Context, availableBefore, staleBefore time.Time, limit int, lockToken string) ([]OutboxEvent, error) {
 	params := catalogsql.ClaimPendingOutboxEventsParams{
 		AvailableAt: timestamptzFromTime(availableBefore),
+		LockedAt:    timestamptzFromTime(staleBefore),
 		Limit:       int32(limit),
+		LockToken:   textFromString(lockToken),
 	}
 	records, err := r.baseQueries.ClaimPendingOutboxEvents(ctx, params)
 	if err != nil {
@@ -109,13 +113,14 @@ func (r *OutboxRepository) ClaimPending(ctx context.Context, availableBefore tim
 }
 
 // MarkPublished 更新事件状态为已发布。
-func (r *OutboxRepository) MarkPublished(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, publishedAt time.Time) error {
+func (r *OutboxRepository) MarkPublished(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, lockToken string, publishedAt time.Time) error {
 	queries := r.baseQueries
 	if sess != nil {
 		queries = queries.WithTx(sess.Tx())
 	}
 	params := catalogsql.MarkOutboxEventPublishedParams{
 		EventID:     eventID,
+		LockToken:   textFromString(lockToken),
 		PublishedAt: timestamptzFromTime(publishedAt),
 	}
 	if err := queries.MarkOutboxEventPublished(ctx, params); err != nil {
@@ -125,20 +130,30 @@ func (r *OutboxRepository) MarkPublished(ctx context.Context, sess txmanager.Ses
 }
 
 // Reschedule 将事件重新安排在未来时间发布，并记录错误信息。
-func (r *OutboxRepository) Reschedule(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, nextAvailable time.Time, lastErr string) error {
+func (r *OutboxRepository) Reschedule(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, lockToken string, nextAvailable time.Time, lastErr string) error {
 	queries := r.baseQueries
 	if sess != nil {
 		queries = queries.WithTx(sess.Tx())
 	}
 	params := catalogsql.RescheduleOutboxEventParams{
 		EventID:     eventID,
-		LastError:   textFromString(lastErr),
+		LockToken:   textFromString(lockToken),
+		LastError:   textFromNullableString(lastErr),
 		AvailableAt: timestamptzFromTime(nextAvailable),
 	}
 	if err := queries.RescheduleOutboxEvent(ctx, params); err != nil {
 		return fmt.Errorf("reschedule outbox event: %w", err)
 	}
 	return nil
+}
+
+// CountPending 返回当前未发布的 Outbox 事件数量。
+func (r *OutboxRepository) CountPending(ctx context.Context) (int64, error) {
+	count, err := r.baseQueries.CountPendingOutboxEvents(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count pending outbox events: %w", err)
+	}
+	return count, nil
 }
 
 func outboxEventFromRecord(rec catalogsql.CatalogOutboxEvent) OutboxEvent {
@@ -152,6 +167,16 @@ func outboxEventFromRecord(rec catalogsql.CatalogOutboxEvent) OutboxEvent {
 		value := rec.LastError.String
 		lastErr = &value
 	}
+	var lockToken *string
+	if rec.LockToken.Valid {
+		value := rec.LockToken.String
+		lockToken = &value
+	}
+	var lockedAt *time.Time
+	if rec.LockedAt.Valid {
+		value := rec.LockedAt.Time
+		lockedAt = &value
+	}
 	return OutboxEvent{
 		EventID:          rec.EventID,
 		AggregateType:    rec.AggregateType,
@@ -164,6 +189,8 @@ func outboxEventFromRecord(rec catalogsql.CatalogOutboxEvent) OutboxEvent {
 		PublishedAt:      publishedAt,
 		DeliveryAttempts: rec.DeliveryAttempts,
 		LastError:        lastErr,
+		LockToken:        lockToken,
+		LockedAt:         lockedAt,
 	}
 }
 
@@ -186,4 +213,8 @@ func textFromString(value string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: value, Valid: true}
+}
+
+func textFromNullableString(value string) pgtype.Text {
+	return pgtype.Text{String: value, Valid: value != ""}
 }

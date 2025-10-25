@@ -38,7 +38,9 @@ data:
     # 默认 schema（Supabase 推荐使用 catalog）
     schema: catalog
     # Supabase Pooler 模式要求禁用 prepared statements
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
+    # 是否上报连接池指标
+    pool_metrics_enabled: true
     # 事务管理默认参数（TxManager 使用）
     transaction:
       # 默认隔离级别：read_committed / serializable / repeatable_read / read_uncommitted
@@ -107,8 +109,8 @@ messaging:
     topic_id: catalog.video.events
     subscription_id: catalog.video.events.catalog-reader
     ordering_key_enabled: true
-    enable_logging: true
-    enable_metrics: true
+    logging_enabled: true
+    metrics_enabled: true
     emulator_endpoint: localhost:8085
     publish_timeout: 5s
     receive:
@@ -126,3 +128,4 @@ messaging:
     max_attempts: 20
     publish_timeout: 10s
     workers: 4
+    lock_ttl: 120s

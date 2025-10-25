@@ -62,6 +62,7 @@ const (
 	defaultOutboxMaxAttempts    = 20
 	defaultOutboxPublishTimeout = 10 * time.Second
 	defaultOutboxWorkers        = 4
+	defaultOutboxLockTTL        = 2 * time.Minute
 )
 
 // ProvideBundle 从运行时参数构造配置 Bundle。
@@ -255,8 +256,8 @@ func ProvidePubsubConfig(msg *configpb.Messaging) gcpubsub.Config {
 		SubscriptionID:      pc.GetSubscriptionId(),
 		PublishTimeout:      durationFromProto(pc.GetPublishTimeout()),
 		OrderingKeyEnabled:  boolPtr(pc.GetOrderingKeyEnabled()),
-		EnableLogging:       boolPtr(pc.GetEnableLogging()),
-		EnableMetrics:       boolPtr(pc.GetEnableMetrics()),
+		EnableLogging:       boolPtr(pc.GetLoggingEnabled()),
+		EnableMetrics:       boolPtr(pc.GetMetricsEnabled()),
 		MeterName:           "kratos-template.gcpubsub",
 		EmulatorEndpoint:    pc.GetEmulatorEndpoint(),
 		Receive:             receiveCfg,
@@ -282,6 +283,7 @@ type OutboxPublisherConfig struct {
 	MaxAttempts    int
 	PublishTimeout time.Duration
 	Workers        int
+	LockTTL        time.Duration
 }
 
 // ProvideOutboxPublisherConfig 返回 Outbox 发布器配置，使用默认值兜底。
@@ -294,6 +296,7 @@ func ProvideOutboxPublisherConfig(msg *configpb.Messaging) OutboxPublisherConfig
 		MaxAttempts:    defaultOutboxMaxAttempts,
 		PublishTimeout: defaultOutboxPublishTimeout,
 		Workers:        defaultOutboxWorkers,
+		LockTTL:        defaultOutboxLockTTL,
 	}
 	if msg == nil || msg.GetOutbox() == nil {
 		return cfg
@@ -320,6 +323,9 @@ func ProvideOutboxPublisherConfig(msg *configpb.Messaging) OutboxPublisherConfig
 	}
 	if ob.GetWorkers() > 0 {
 		cfg.Workers = int(ob.GetWorkers())
+	}
+	if d := durationFromProto(ob.GetLockTtl()); d > 0 {
+		cfg.LockTTL = d
 	}
 	return cfg
 }

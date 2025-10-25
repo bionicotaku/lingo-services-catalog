@@ -313,8 +313,8 @@ type PubSub struct {
 	TopicId             string                 `protobuf:"bytes,2,opt,name=topic_id,json=topicId,proto3" json:"topic_id,omitempty"`
 	SubscriptionId      string                 `protobuf:"bytes,3,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
 	OrderingKeyEnabled  bool                   `protobuf:"varint,4,opt,name=ordering_key_enabled,json=orderingKeyEnabled,proto3" json:"ordering_key_enabled,omitempty"`
-	EnableLogging       bool                   `protobuf:"varint,5,opt,name=enable_logging,json=enableLogging,proto3" json:"enable_logging,omitempty"`
-	EnableMetrics       bool                   `protobuf:"varint,6,opt,name=enable_metrics,json=enableMetrics,proto3" json:"enable_metrics,omitempty"`
+	LoggingEnabled      bool                   `protobuf:"varint,5,opt,name=logging_enabled,json=loggingEnabled,proto3" json:"logging_enabled,omitempty"`
+	MetricsEnabled      bool                   `protobuf:"varint,6,opt,name=metrics_enabled,json=metricsEnabled,proto3" json:"metrics_enabled,omitempty"`
 	EmulatorEndpoint    string                 `protobuf:"bytes,7,opt,name=emulator_endpoint,json=emulatorEndpoint,proto3" json:"emulator_endpoint,omitempty"`
 	PublishTimeout      *durationpb.Duration   `protobuf:"bytes,8,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
 	Receive             *Receive               `protobuf:"bytes,9,opt,name=receive,proto3" json:"receive,omitempty"`
@@ -381,16 +381,16 @@ func (x *PubSub) GetOrderingKeyEnabled() bool {
 	return false
 }
 
-func (x *PubSub) GetEnableLogging() bool {
+func (x *PubSub) GetLoggingEnabled() bool {
 	if x != nil {
-		return x.EnableLogging
+		return x.LoggingEnabled
 	}
 	return false
 }
 
-func (x *PubSub) GetEnableMetrics() bool {
+func (x *PubSub) GetMetricsEnabled() bool {
 	if x != nil {
-		return x.EnableMetrics
+		return x.MetricsEnabled
 	}
 	return false
 }
@@ -508,6 +508,7 @@ type OutboxPublisher struct {
 	MaxAttempts    int32                  `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
 	PublishTimeout *durationpb.Duration   `protobuf:"bytes,6,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
 	Workers        int32                  `protobuf:"varint,7,opt,name=workers,proto3" json:"workers,omitempty"`
+	LockTtl        *durationpb.Duration   `protobuf:"bytes,8,opt,name=lock_ttl,json=lockTtl,proto3" json:"lock_ttl,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -589,6 +590,13 @@ func (x *OutboxPublisher) GetWorkers() int32 {
 		return x.Workers
 	}
 	return 0
+}
+
+func (x *OutboxPublisher) GetLockTtl() *durationpb.Duration {
+	if x != nil {
+		return x.LockTtl
+	}
+	return nil
 }
 
 type Server_GRPC struct {
@@ -731,11 +739,12 @@ type Data_PostgreSQL struct {
 	MaxConnIdleTime   *durationpb.Duration `protobuf:"bytes,5,opt,name=max_conn_idle_time,json=maxConnIdleTime,proto3" json:"max_conn_idle_time,omitempty"`
 	HealthCheckPeriod *durationpb.Duration `protobuf:"bytes,6,opt,name=health_check_period,json=healthCheckPeriod,proto3" json:"health_check_period,omitempty"`
 	// Supabase 特定配置
-	Schema                   string                       `protobuf:"bytes,7,opt,name=schema,proto3" json:"schema,omitempty"`                                                                        // 默认 schema (如 "kratos_template")
-	EnablePreparedStatements bool                         `protobuf:"varint,8,opt,name=enable_prepared_statements,json=enablePreparedStatements,proto3" json:"enable_prepared_statements,omitempty"` // Pooler 模式建议设为 false
-	Transaction              *Data_PostgreSQL_Transaction `protobuf:"bytes,9,opt,name=transaction,proto3" json:"transaction,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	Schema                    string                       `protobuf:"bytes,7,opt,name=schema,proto3" json:"schema,omitempty"`                                                                           // 默认 schema (如 "kratos_template")
+	PreparedStatementsEnabled bool                         `protobuf:"varint,8,opt,name=prepared_statements_enabled,json=preparedStatementsEnabled,proto3" json:"prepared_statements_enabled,omitempty"` // Pooler 模式建议设为 false
+	Transaction               *Data_PostgreSQL_Transaction `protobuf:"bytes,9,opt,name=transaction,proto3" json:"transaction,omitempty"`
+	PoolMetricsEnabled        *bool                        `protobuf:"varint,10,opt,name=pool_metrics_enabled,json=poolMetricsEnabled,proto3,oneof" json:"pool_metrics_enabled,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Data_PostgreSQL) Reset() {
@@ -817,9 +826,9 @@ func (x *Data_PostgreSQL) GetSchema() string {
 	return ""
 }
 
-func (x *Data_PostgreSQL) GetEnablePreparedStatements() bool {
+func (x *Data_PostgreSQL) GetPreparedStatementsEnabled() bool {
 	if x != nil {
-		return x.EnablePreparedStatements
+		return x.PreparedStatementsEnabled
 	}
 	return false
 }
@@ -829,6 +838,13 @@ func (x *Data_PostgreSQL) GetTransaction() *Data_PostgreSQL_Transaction {
 		return x.Transaction
 	}
 	return nil
+}
+
+func (x *Data_PostgreSQL) GetPoolMetricsEnabled() bool {
+	if x != nil && x.PoolMetricsEnabled != nil {
+		return *x.PoolMetricsEnabled
+	}
+	return false
 }
 
 // gRPC Client 配置（可选，用于服务间调用）
@@ -1323,11 +1339,11 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\rskip_validate\x18\x02 \x01(\bR\fskipValidate\x12\x1a\n" +
 	"\brequired\x18\x03 \x01(\bR\brequired\x12\x1d\n" +
 	"\n" +
-	"header_key\x18\x04 \x01(\tR\theaderKey\"\xef\b\n" +
+	"header_key\x18\x04 \x01(\tR\theaderKey\"\xc1\t\n" +
 	"\x04Data\x12?\n" +
 	"\bpostgres\x18\x01 \x01(\v2\x1b.kratos.api.Data.PostgreSQLB\x06\xbaH\x03\xc8\x01\x01R\bpostgres\x128\n" +
 	"\vgrpc_client\x18\x02 \x01(\v2\x17.kratos.api.Data.ClientR\n" +
-	"grpcClient\x1a\xbb\x06\n" +
+	"grpcClient\x1a\x8d\a\n" +
 	"\n" +
 	"PostgreSQL\x12.\n" +
 	"\x03dsn\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17\x10\x012\x13^postgres(ql)?://.*R\x03dsn\x12/\n" +
@@ -1336,9 +1352,11 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x11max_conn_lifetime\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\x0fmaxConnLifetime\x12F\n" +
 	"\x12max_conn_idle_time\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x0fmaxConnIdleTime\x12I\n" +
 	"\x13health_check_period\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x11healthCheckPeriod\x12\x16\n" +
-	"\x06schema\x18\a \x01(\tR\x06schema\x12<\n" +
-	"\x1aenable_prepared_statements\x18\b \x01(\bR\x18enablePreparedStatements\x12I\n" +
-	"\vtransaction\x18\t \x01(\v2'.kratos.api.Data.PostgreSQL.TransactionR\vtransaction\x1a\x9f\x02\n" +
+	"\x06schema\x18\a \x01(\tR\x06schema\x12>\n" +
+	"\x1bprepared_statements_enabled\x18\b \x01(\bR\x19preparedStatementsEnabled\x12I\n" +
+	"\vtransaction\x18\t \x01(\v2'.kratos.api.Data.PostgreSQL.TransactionR\vtransaction\x125\n" +
+	"\x14pool_metrics_enabled\x18\n" +
+	" \x01(\bH\x00R\x12poolMetricsEnabled\x88\x01\x01\x1a\x9f\x02\n" +
 	"\vTransaction\x12+\n" +
 	"\x11default_isolation\x18\x01 \x01(\tR\x10defaultIsolation\x12B\n" +
 	"\x0fdefault_timeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x0edefaultTimeout\x12<\n" +
@@ -1346,7 +1364,8 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\vmax_retries\x18\x04 \x01(\x05R\n" +
 	"maxRetries\x12,\n" +
 	"\x0fmetrics_enabled\x18\x05 \x01(\bH\x00R\x0emetricsEnabled\x88\x01\x01B\x12\n" +
-	"\x10_metrics_enabled\x1a\xad\x01\n" +
+	"\x10_metrics_enabledB\x17\n" +
+	"\x15_pool_metrics_enabled\x1a\xad\x01\n" +
 	"\x06Client\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12-\n" +
 	"\x03jwt\x18\x02 \x01(\v2\x1b.kratos.api.Data.Client.JWTR\x03jwt\x1a\\\n" +
@@ -1410,15 +1429,15 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"l\n" +
 	"\tMessaging\x12*\n" +
 	"\x06pubsub\x18\x01 \x01(\v2\x12.kratos.api.PubSubR\x06pubsub\x123\n" +
-	"\x06outbox\x18\x02 \x01(\v2\x1b.kratos.api.OutboxPublisherR\x06outbox\"\xbf\x03\n" +
+	"\x06outbox\x18\x02 \x01(\v2\x1b.kratos.api.OutboxPublisherR\x06outbox\"\xc3\x03\n" +
 	"\x06PubSub\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x19\n" +
 	"\btopic_id\x18\x02 \x01(\tR\atopicId\x12'\n" +
 	"\x0fsubscription_id\x18\x03 \x01(\tR\x0esubscriptionId\x120\n" +
-	"\x14ordering_key_enabled\x18\x04 \x01(\bR\x12orderingKeyEnabled\x12%\n" +
-	"\x0eenable_logging\x18\x05 \x01(\bR\renableLogging\x12%\n" +
-	"\x0eenable_metrics\x18\x06 \x01(\bR\renableMetrics\x12+\n" +
+	"\x14ordering_key_enabled\x18\x04 \x01(\bR\x12orderingKeyEnabled\x12'\n" +
+	"\x0flogging_enabled\x18\x05 \x01(\bR\x0eloggingEnabled\x12'\n" +
+	"\x0fmetrics_enabled\x18\x06 \x01(\bR\x0emetricsEnabled\x12+\n" +
 	"\x11emulator_endpoint\x18\a \x01(\tR\x10emulatorEndpoint\x12B\n" +
 	"\x0fpublish_timeout\x18\b \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeout\x12-\n" +
 	"\areceive\x18\t \x01(\v2\x13.kratos.api.ReceiveR\areceive\x122\n" +
@@ -1429,7 +1448,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x18max_outstanding_messages\x18\x02 \x01(\x05R\x16maxOutstandingMessages\x122\n" +
 	"\x15max_outstanding_bytes\x18\x03 \x01(\x05R\x13maxOutstandingBytes\x12>\n" +
 	"\rmax_extension\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fmaxExtension\x12K\n" +
-	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xf1\x02\n" +
+	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xa7\x03\n" +
 	"\x0fOutboxPublisher\x12\x1d\n" +
 	"\n" +
 	"batch_size\x18\x01 \x01(\x05R\tbatchSize\x12>\n" +
@@ -1439,7 +1458,8 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"maxBackoff\x12!\n" +
 	"\fmax_attempts\x18\x05 \x01(\x05R\vmaxAttempts\x12B\n" +
 	"\x0fpublish_timeout\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeout\x12\x18\n" +
-	"\aworkers\x18\a \x01(\x05R\aworkersBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
+	"\aworkers\x18\a \x01(\x05R\aworkers\x124\n" +
+	"\block_ttl\x18\b \x01(\v2\x19.google.protobuf.DurationR\alockTtlBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
 
 var (
 	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce sync.Once
@@ -1500,26 +1520,27 @@ var file_internal_infrastructure_config_loader_pb_conf_proto_depIdxs = []int32{
 	21, // 18: kratos.api.OutboxPublisher.initial_backoff:type_name -> google.protobuf.Duration
 	21, // 19: kratos.api.OutboxPublisher.max_backoff:type_name -> google.protobuf.Duration
 	21, // 20: kratos.api.OutboxPublisher.publish_timeout:type_name -> google.protobuf.Duration
-	21, // 21: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
-	21, // 22: kratos.api.Data.PostgreSQL.max_conn_lifetime:type_name -> google.protobuf.Duration
-	21, // 23: kratos.api.Data.PostgreSQL.max_conn_idle_time:type_name -> google.protobuf.Duration
-	21, // 24: kratos.api.Data.PostgreSQL.health_check_period:type_name -> google.protobuf.Duration
-	12, // 25: kratos.api.Data.PostgreSQL.transaction:type_name -> kratos.api.Data.PostgreSQL.Transaction
-	13, // 26: kratos.api.Data.Client.jwt:type_name -> kratos.api.Data.Client.JWT
-	21, // 27: kratos.api.Data.PostgreSQL.Transaction.default_timeout:type_name -> google.protobuf.Duration
-	21, // 28: kratos.api.Data.PostgreSQL.Transaction.lock_timeout:type_name -> google.protobuf.Duration
-	17, // 29: kratos.api.Observability.Tracing.headers:type_name -> kratos.api.Observability.Tracing.HeadersEntry
-	21, // 30: kratos.api.Observability.Tracing.batch_timeout:type_name -> google.protobuf.Duration
-	21, // 31: kratos.api.Observability.Tracing.export_timeout:type_name -> google.protobuf.Duration
-	18, // 32: kratos.api.Observability.Tracing.attributes:type_name -> kratos.api.Observability.Tracing.AttributesEntry
-	19, // 33: kratos.api.Observability.Metrics.headers:type_name -> kratos.api.Observability.Metrics.HeadersEntry
-	21, // 34: kratos.api.Observability.Metrics.interval:type_name -> google.protobuf.Duration
-	20, // 35: kratos.api.Observability.Metrics.resource_attributes:type_name -> kratos.api.Observability.Metrics.ResourceAttributesEntry
-	36, // [36:36] is the sub-list for method output_type
-	36, // [36:36] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	21, // 21: kratos.api.OutboxPublisher.lock_ttl:type_name -> google.protobuf.Duration
+	21, // 22: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
+	21, // 23: kratos.api.Data.PostgreSQL.max_conn_lifetime:type_name -> google.protobuf.Duration
+	21, // 24: kratos.api.Data.PostgreSQL.max_conn_idle_time:type_name -> google.protobuf.Duration
+	21, // 25: kratos.api.Data.PostgreSQL.health_check_period:type_name -> google.protobuf.Duration
+	12, // 26: kratos.api.Data.PostgreSQL.transaction:type_name -> kratos.api.Data.PostgreSQL.Transaction
+	13, // 27: kratos.api.Data.Client.jwt:type_name -> kratos.api.Data.Client.JWT
+	21, // 28: kratos.api.Data.PostgreSQL.Transaction.default_timeout:type_name -> google.protobuf.Duration
+	21, // 29: kratos.api.Data.PostgreSQL.Transaction.lock_timeout:type_name -> google.protobuf.Duration
+	17, // 30: kratos.api.Observability.Tracing.headers:type_name -> kratos.api.Observability.Tracing.HeadersEntry
+	21, // 31: kratos.api.Observability.Tracing.batch_timeout:type_name -> google.protobuf.Duration
+	21, // 32: kratos.api.Observability.Tracing.export_timeout:type_name -> google.protobuf.Duration
+	18, // 33: kratos.api.Observability.Tracing.attributes:type_name -> kratos.api.Observability.Tracing.AttributesEntry
+	19, // 34: kratos.api.Observability.Metrics.headers:type_name -> kratos.api.Observability.Metrics.HeadersEntry
+	21, // 35: kratos.api.Observability.Metrics.interval:type_name -> google.protobuf.Duration
+	20, // 36: kratos.api.Observability.Metrics.resource_attributes:type_name -> kratos.api.Observability.Metrics.ResourceAttributesEntry
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_internal_infrastructure_config_loader_pb_conf_proto_init() }
@@ -1527,6 +1548,7 @@ func file_internal_infrastructure_config_loader_pb_conf_proto_init() {
 	if File_internal_infrastructure_config_loader_pb_conf_proto != nil {
 		return
 	}
+	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10].OneofWrappers = []any{}
 	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12].OneofWrappers = []any{}
 	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}

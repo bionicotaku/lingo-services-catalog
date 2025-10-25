@@ -156,7 +156,8 @@ data:
     max_open_conns: 10
     min_open_conns: 2
     schema: "kratos_template"
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
+    pool_metrics_enabled: true
   grpc_client:
     target: "dns:///remote:9000"
 `
@@ -299,7 +300,7 @@ data:
     max_open_conns: 1
     min_open_conns: 0
     schema: "test"
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
   grpc_client:
     target: "dns:///downstream:9000"
     jwt:
@@ -373,7 +374,7 @@ data:
     max_open_conns: 1
     min_open_conns: 0
     schema: "test"
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
 `
 	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -419,7 +420,7 @@ data:
     max_open_conns: 1
     min_open_conns: 0
     schema: "test"
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
   grpc_client:
     target: "dns:///downstream:9000"
     jwt:
@@ -470,7 +471,7 @@ data:
     max_open_conns: 1
     min_open_conns: 0
     schema: "test"
-    enable_prepared_statements: false
+    prepared_statements_enabled: false
 `
 	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)

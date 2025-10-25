@@ -267,7 +267,8 @@ func startKratosServer(t *testing.T, srv interface {
 	Start(context.Context) error
 	Stop(context.Context) error
 	Endpoint() (*url.URL, error)
-}) (addr string, stop func()) {
+},
+) (addr string, stop func()) {
 	t.Helper()
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()
