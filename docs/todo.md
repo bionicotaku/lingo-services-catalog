@@ -70,35 +70,35 @@
   - `internal/repositories/test/outbox_repo_integration_test.go` 使用 Postgres Testcontainers 验证租约、重试与发布状态。
   - `internal/tasks/outbox/test/publisher_integration_test.go` 结合 pstest + OTel 手动 meter 校验成功路径、指标与消息入站。
 
-## 阶段 5｜StreamingPull 消费者与投影（进行中）
-- [ ] 规划订阅命名 `<topic>.catalog-reader`，配置 DLQ、Ack deadline、Exactly-once（可选）。
-- [ ] 在 `internal/tasks/projection_consumer` 实现 StreamingPull handler：
-  - [ ] 反序列化事件，校验 schema_version、version 单调性。
-  - [ ] 数据库事务内执行 `Inbox INSERT ON CONFLICT DO NOTHING` 与投影 `UPSERT ... WHERE version < excluded.version`。
-  - [ ] 成功后 Ack；失败时 Nack 或返回错误（触发重投）；记录 DeliveryAttempt。
-  - [ ] metrics：处理耗时、nack 次数、滞后版本（事件 version - 投影 version）。
-- [ ] 通过 Wire 将消费者注册为后台 goroutine；支持 graceful shutdown。
-- [ ] 添加消费者配置项：订阅 ID、MaxOutstandingMessages/Bytes、NumGoroutines、ExactlyOnce flag 等。
-- [ ] 编写单元/集成测试验证幂等（重复消息、乱序版本、毒消息进入 DLQ）。
+## 阶段 5｜StreamingPull 消费者与投影 ✅
+- [x] 规划订阅命名 `<topic>.catalog-reader`，配置 DLQ、Ack deadline、Exactly-once（可选）。
+- [x] 在 `internal/tasks/projection` 实现 StreamingPull handler：
+  - [x] 反序列化事件，校验 schema_version、version 单调性。
+  - [x] 数据库事务内执行 `Inbox INSERT ON CONFLICT DO NOTHING` 与投影 `UPSERT ... WHERE version < excluded.version`。
+  - [x] 成功后 Ack；失败时 Nack 或返回错误（触发重投）；记录 DeliveryAttempt。
+  - [x] metrics：处理耗时/失败次数、滞后版本（事件 version - 投影 version）。
+- [x] 通过 Wire 将消费者注册为后台 goroutine；支持 graceful shutdown。
+- [x] 添加消费者配置项：订阅 ID、MaxOutstandingMessages/Bytes、NumGoroutines、ExactlyOnce flag 等。
+- [x] 编写集成测试验证幂等（重复消息、乱序版本、Exactly-once 配置、删除场景，自动跳过无 Docker 环境）。
 
 ## 阶段 6｜配置、部署与文档
 - [ ] 扩展 `configs/config.yaml`：
   - [x] `pubsub.project_id/topic_id/subscription_id/exactly_once` 等参数。
   - [ ] Outbox 扫描批次、退避基础时长、最大尝试次数。
-  - [ ] 投影消费者并发、Ack deadline、重试策略。
+  - [x] 投影消费者并发、Ack deadline、重试策略。
 - [ ] 更新 `internal/infrastructure/config_loader` 解析新配置，提供默认值与校验。
 - [ ] Makefile 新增快捷命令（运行发布器/消费者、启动 emulator 文档链接）。
 - [ ] 更新 README 或专属文档，补充运行手册、验证步骤、监控面板指标说明。
 
 ## 阶段 7｜观测、回放与运维
-- [ ] 在发布器/消费者中打 `log/slog` 结构化日志（event_id, aggregate_id, version, message_id）。
+- [x] 在发布器/消费者中打 `log/slog` 结构化日志（event_id, aggregate_id, version, message_id）。
 - [x] 导出 OTel 指标与 tracing span（Outbox publish、Projection apply）。
 - [ ] 提供回放脚本：调用 Pub/Sub Seek 或扫描 Outbox 重新发布（文档化流程）。
 - [ ] 设计告警阈值：Outbox 累积、订阅滞后、DLQ 消息计数、连续退避上限。
 
 ## 阶段 8｜测试矩阵与验收
 - [ ] 单元测试覆盖：Outbox 写入、发布器重试策略、消费者 UPSERT 幂等。
-- [ ] 集成测试：本地 Postgres + Pub/Sub emulator，验证端到端写读一致性。
+- [x] 集成测试：本地 Postgres + Pub/Sub emulator，验证端到端写读一致性（见 `internal/tasks/projection/test/projection_integration_test.go`）。
 - [ ] 混沌演练：模拟发布器崩溃、Ack 失败、长事务、毒消息，确保恢复策略生效。
 - [ ] 手工 QA checklist：API 写入→Outbox→Pub/Sub→Projection 数据与事件版本对齐。
 
