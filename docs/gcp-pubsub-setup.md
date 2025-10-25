@@ -25,6 +25,7 @@
 ## 2. 构建并注册 Schema
 1. 创建 Pub/Sub Schema（类型为 Protocol Buffer，`--definition-file` 需要传入文本 proto 而非 `.desc` 二进制）：
    ```bash
+   gcloud pubsub schemas delete video-events
    gcloud pubsub schemas create video-events \
        --project=smiling-landing-472320-q0 \
        --type=protocol-buffer \
@@ -163,7 +164,7 @@ messaging:
   if err != nil {
       return fmt.Errorf("marshal event: %w", err)
   }
-
+  
   msg := &pubsub.Message{
       Data:        data,
       OrderingKey: evt.AggregateID.String(),

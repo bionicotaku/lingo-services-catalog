@@ -10,6 +10,7 @@ message Bootstrap {
   Server server = 1;
   Data data = 2;
   Observability observability = 3;
+  Messaging messaging = 4;
 }
 
 message Server {
@@ -104,4 +105,39 @@ message Observability {
   map<string, string> global_attributes = 1;
   Tracing tracing = 2;
   Metrics metrics = 3;
+}
+
+message Messaging {
+  PubSub pubsub = 1;
+  OutboxPublisher outbox = 2;
+}
+
+message PubSub {
+  string project_id = 1;
+  string topic_id = 2;
+  string subscription_id = 3;
+  bool ordering_key_enabled = 4;
+  bool enable_logging = 5;
+  bool enable_metrics = 6;
+  string emulator_endpoint = 7;
+  google.protobuf.Duration publish_timeout = 8;
+  Receive receive = 9;
+  bool exactly_once_delivery = 10;
+}
+
+message Receive {
+  int32 num_goroutines = 1;
+  int32 max_outstanding_messages = 2;
+  int32 max_outstanding_bytes = 3;
+  google.protobuf.Duration max_extension = 4;
+  google.protobuf.Duration max_extension_period = 5;
+}
+
+message OutboxPublisher {
+  int32 batch_size = 1;
+  google.protobuf.Duration tick_interval = 2;
+  google.protobuf.Duration initial_backoff = 3;
+  google.protobuf.Duration max_backoff = 4;
+  int32 max_attempts = 5;
+  google.protobuf.Duration publish_timeout = 6;
 }

@@ -7,7 +7,6 @@
 package videov1
 
 import (
-	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -601,30 +600,30 @@ var File_api_video_v1_events_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/video/v1/events.proto\x12\bvideo.v1\x1a\x1bbuf/validate/validate.proto\"\xca\x0f\n" +
-	"\x05Event\x12#\n" +
-	"\bevent_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\aeventId\x122\n" +
+	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\xab\x0e\n" +
+	"\x05Event\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x122\n" +
 	"\n" +
-	"event_type\x18\x02 \x01(\x0e2\x13.video.v1.EventTypeR\teventType\x12+\n" +
-	"\faggregate_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vaggregateId\x12%\n" +
-	"\x0eaggregate_type\x18\x04 \x01(\tR\raggregateType\x12!\n" +
-	"\aversion\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\aversion\x12(\n" +
-	"\voccurred_at\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"event_type\x18\x02 \x01(\x0e2\x13.video.v1.EventTypeR\teventType\x12!\n" +
+	"\faggregate_id\x18\x03 \x01(\tR\vaggregateId\x12%\n" +
+	"\x0eaggregate_type\x18\x04 \x01(\tR\raggregateType\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\x06 \x01(\tR\n" +
 	"occurredAt\x128\n" +
 	"\acreated\x18\n" +
 	" \x01(\v2\x1c.video.v1.Event.VideoCreatedH\x00R\acreated\x128\n" +
 	"\aupdated\x18\v \x01(\v2\x1c.video.v1.Event.VideoUpdatedH\x00R\aupdated\x128\n" +
-	"\adeleted\x18\f \x01(\v2\x1c.video.v1.Event.VideoDeletedH\x00R\adeleted\x1a\xe9\x03\n" +
-	"\fVideoCreated\x12#\n" +
-	"\bvideo_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\avideoId\x12)\n" +
-	"\vuploader_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"uploaderId\x12\x1d\n" +
-	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x125\n" +
-	"\x0fduration_micros\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x01R\x0edurationMicros\x88\x01\x01\x12&\n" +
-	"\fpublished_at\x18\x06 \x01(\tH\x02R\vpublishedAt\x88\x01\x01\x12!\n" +
-	"\aversion\x18\a \x01(\x03B\a\xbaH\x04\"\x02(\x00R\aversion\x12(\n" +
-	"\voccurred_at\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"\adeleted\x18\f \x01(\v2\x1c.video.v1.Event.VideoDeletedH\x00R\adeleted\x1a\xb1\x03\n" +
+	"\fVideoCreated\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x1f\n" +
+	"\vuploader_id\x18\x02 \x01(\tR\n" +
+	"uploaderId\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12%\n" +
+	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12,\n" +
+	"\x0fduration_micros\x18\x05 \x01(\x03H\x01R\x0edurationMicros\x88\x01\x01\x12&\n" +
+	"\fpublished_at\x18\x06 \x01(\tH\x02R\vpublishedAt\x88\x01\x01\x12\x18\n" +
+	"\aversion\x18\a \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\b \x01(\tR\n" +
 	"occurredAt\x12\x16\n" +
 	"\x06status\x18\t \x01(\tR\x06status\x12!\n" +
 	"\fmedia_status\x18\n" +
@@ -632,16 +631,16 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\x0fanalysis_status\x18\v \x01(\tR\x0eanalysisStatusB\x0e\n" +
 	"\f_descriptionB\x12\n" +
 	"\x10_duration_microsB\x0f\n" +
-	"\r_published_at\x1a\xc3\x06\n" +
-	"\fVideoUpdated\x12#\n" +
-	"\bvideo_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\avideoId\x12!\n" +
-	"\aversion\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\aversion\x12(\n" +
-	"\voccurred_at\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"\r_published_at\x1a\x9e\x06\n" +
+	"\fVideoUpdated\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
 	"occurredAt\x12\x19\n" +
 	"\x05title\x18\n" +
 	" \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\v \x01(\tH\x01R\vdescription\x88\x01\x01\x125\n" +
-	"\x0fduration_micros\x18\f \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x02R\x0edurationMicros\x88\x01\x01\x12\x1b\n" +
+	"\vdescription\x18\v \x01(\tH\x01R\vdescription\x88\x01\x01\x12,\n" +
+	"\x0fduration_micros\x18\f \x01(\x03H\x02R\x0edurationMicros\x88\x01\x01\x12\x1b\n" +
 	"\x06status\x18\r \x01(\tH\x03R\x06status\x88\x01\x01\x12&\n" +
 	"\fmedia_status\x18\x0e \x01(\tH\x04R\vmediaStatus\x88\x01\x01\x12,\n" +
 	"\x0fanalysis_status\x18\x0f \x01(\tH\x05R\x0eanalysisStatus\x88\x01\x01\x12(\n" +
@@ -667,13 +666,13 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\b_summaryB\x13\n" +
 	"\x11_raw_subtitle_urlB\x0f\n" +
-	"\r_published_at\x1a\xdb\x01\n" +
-	"\fVideoDeleted\x12#\n" +
-	"\bvideo_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\avideoId\x12!\n" +
-	"\aversion\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\aversion\x12\"\n" +
+	"\r_published_at\x1a\xbf\x01\n" +
+	"\fVideoDeleted\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\"\n" +
 	"\n" +
-	"deleted_at\x18\x03 \x01(\tH\x00R\tdeletedAt\x88\x01\x01\x12(\n" +
-	"\voccurred_at\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"deleted_at\x18\x03 \x01(\tH\x00R\tdeletedAt\x88\x01\x01\x12\x1f\n" +
+	"\voccurred_at\x18\x04 \x01(\tR\n" +
 	"occurredAt\x12\x1b\n" +
 	"\x06reason\x18\x05 \x01(\tH\x01R\x06reason\x88\x01\x01B\r\n" +
 	"\v_deleted_atB\t\n" +

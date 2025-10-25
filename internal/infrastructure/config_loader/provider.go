@@ -1,12 +1,17 @@
 package loader
 
 import (
+	"time"
+
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
+	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // ProviderSet 向 Wire 依赖图暴露配置相关的所有 Provider 函数。
@@ -41,6 +46,9 @@ var ProviderSet = wire.NewSet(
 	ProvideLoggerConfig,
 	ProvideJWTConfig,
 	ProvideTxManagerConfig,
+	ProvideMessagingConfig,
+	ProvidePubsubConfig,
+	ProvidePubsubDependencies,
 )
 
 // ProvideBundle 从运行时参数构造配置 Bundle。
@@ -201,6 +209,67 @@ func ProvideObservabilityConfig(b *Bundle) obswire.ObservabilityConfig {
 //   - ServiceMetadata -> ServiceInfo -> observability.Component
 func ProvideObservabilityInfo(meta ServiceMetadata) obswire.ServiceInfo {
 	return meta.ObservabilityInfo()
+}
+
+// ProvideMessagingConfig 提取 Messaging 配置节点。
+func ProvideMessagingConfig(bc *configpb.Bootstrap) *configpb.Messaging {
+	if bc == nil {
+		return nil
+	}
+	return bc.GetMessaging()
+}
+
+// ProvidePubsubConfig 将 protobuf 配置转换为 gcpubsub.Config 并填充默认值。
+func ProvidePubsubConfig(msg *configpb.Messaging) gcpubsub.Config {
+	if msg == nil || msg.GetPubsub() == nil {
+		return gcpubsub.Config{}
+	}
+
+	pc := msg.GetPubsub()
+	receive := pc.GetReceive()
+	receiveCfg := gcpubsub.ReceiveConfig{}
+	if receive != nil {
+		receiveCfg.NumGoroutines = int(receive.GetNumGoroutines())
+		receiveCfg.MaxOutstandingMessages = int(receive.GetMaxOutstandingMessages())
+		receiveCfg.MaxOutstandingBytes = int(receive.GetMaxOutstandingBytes())
+		receiveCfg.MaxExtension = durationFromProto(receive.GetMaxExtension())
+		receiveCfg.MaxExtensionPeriod = durationFromProto(receive.GetMaxExtensionPeriod())
+	}
+
+	cfg := gcpubsub.Config{
+		ProjectID:           pc.GetProjectId(),
+		TopicID:             pc.GetTopicId(),
+		SubscriptionID:      pc.GetSubscriptionId(),
+		PublishTimeout:      durationFromProto(pc.GetPublishTimeout()),
+		OrderingKeyEnabled:  boolPtr(pc.GetOrderingKeyEnabled()),
+		EnableLogging:       boolPtr(pc.GetEnableLogging()),
+		EnableMetrics:       boolPtr(pc.GetEnableMetrics()),
+		MeterName:           "kratos-template.gcpubsub",
+		EmulatorEndpoint:    pc.GetEmulatorEndpoint(),
+		Receive:             receiveCfg,
+		ExactlyOnceDelivery: pc.GetExactlyOnceDelivery(),
+	}
+
+	return cfg.Normalize()
+}
+
+// ProvidePubsubDependencies 构造 gcpubsub.Dependencies。
+func ProvidePubsubDependencies(logger log.Logger) gcpubsub.Dependencies {
+	return gcpubsub.Dependencies{
+		Logger: logger,
+	}
+}
+
+func durationFromProto(d *durationpb.Duration) time.Duration {
+	if d == nil {
+		return 0
+	}
+	return d.AsDuration()
+}
+
+func boolPtr(b bool) *bool {
+	v := b
+	return &v
 }
 
 // ProvideLoggerConfig 将服务元信息转换为日志组件所需格式。

@@ -19,6 +19,7 @@ import (
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
+	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
@@ -43,6 +44,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		obswire.ProviderSet,      // OpenTelemetry 追踪和指标
 		database.ProviderSet,     // PostgreSQL 连接池
 		txmanager.ProviderSet,    // 事务管理器
+		gcpubsub.ProviderSet,     // Pub/Sub 发布与订阅
 		grpcserver.ProviderSet,   // gRPC Server
 		// grpcclient.ProviderSet, // 暂时不使用, 未来需要调用外部 gRPC 服务时再启用
 		// clients.ProviderSet,    // 暂时不使用, 未来需要调用外部服务时再启用

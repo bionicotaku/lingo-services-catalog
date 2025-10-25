@@ -4,8 +4,6 @@ package video.v1;
 
 option go_package = "github.com/bionicotaku/kratos-template/api/video/v1;videov1";
 
-import "buf/validate/validate.proto";
-
 // EventType 定义事件类型枚举
 enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
@@ -17,12 +15,12 @@ enum EventType {
 // Event 是通用事件信封（Envelope）
 // 用于统一封装不同类型的事件，便于序列化、传输和处理
 message Event {
-  string event_id = 1 [(buf.validate.field).string.uuid = true]; // 事件唯一标识 (UUID)
+  string event_id = 1;                               // 事件唯一标识 (UUID)
   EventType event_type = 2;                          // 事件类型
-  string aggregate_id = 3 [(buf.validate.field).string.uuid = true]; // 聚合根 ID (通常是 video_id)
+  string aggregate_id = 3;                           // 聚合根 ID (通常是 video_id)
   string aggregate_type = 4;                         // 聚合类型（如 "video"）
-  int64 version = 5 [(buf.validate.field).int64.gte = 0]; // 聚合版本号
-  string occurred_at = 6 [(buf.validate.field).string.min_len = 1]; // 事件发生时间（UTC RFC3339）
+  int64 version = 5;                                 // 聚合版本号
+  string occurred_at = 6;                            // 事件发生时间（UTC RFC3339）
 
   // 使用 oneof 实现多态，根据 event_type 包含对应的 payload
   oneof payload {
@@ -34,14 +32,14 @@ message Event {
   // VideoCreated 表示视频创建事件
   // 当一个新视频元数据被创建时发布此事件
   message VideoCreated {
-    string video_id = 1 [(buf.validate.field).string.uuid = true]; // 视频唯一标识 (UUID)
-    string uploader_id = 2 [(buf.validate.field).string.uuid = true]; // 上传者标识 (UUID)
-    string title = 3 [(buf.validate.field).string.min_len = 1];    // 视频标题
+    string video_id = 1;                               // 视频唯一标识 (UUID)
+    string uploader_id = 2;                            // 上传者标识 (UUID)
+    string title = 3;                                  // 视频标题
     optional string description = 4;                   // 视频描述（可选）
-    optional int64 duration_micros = 5 [(buf.validate.field).int64.gte = 0]; // 视频时长（微秒，可选）
+    optional int64 duration_micros = 5;                // 视频时长（微秒，可选）
     optional string published_at = 6;                  // 视频发布时间（UTC RFC3339，可选）
-    int64 version = 7 [(buf.validate.field).int64.gte = 0]; // 聚合版本号
-    string occurred_at = 8 [(buf.validate.field).string.min_len = 1]; // 事件发生时间（UTC RFC3339）
+    int64 version = 7;                                 // 聚合版本号
+    string occurred_at = 8;                            // 事件发生时间（UTC RFC3339）
     string status = 9;                                 // 视频状态
     string media_status = 10;                          // 媒体处理状态
     string analysis_status = 11;                       // 分析状态
@@ -51,14 +49,14 @@ message Event {
   // 当视频元数据被更新时发布此事件
   // 只包含被更新的字段（部分更新语义）
   message VideoUpdated {
-    string video_id = 1 [(buf.validate.field).string.uuid = true]; // 视频唯一标识 (UUID)
-    int64 version = 2 [(buf.validate.field).int64.gte = 0];        // 新版本号
-    string occurred_at = 3 [(buf.validate.field).string.min_len = 1]; // 事件发生时间（UTC RFC3339）
+    string video_id = 1;                               // 视频唯一标识 (UUID)
+    int64 version = 2;                                 // 新版本号
+    string occurred_at = 3;                            // 事件发生时间（UTC RFC3339）
 
     // 以下字段为可选，仅包含实际被更新的字段
     optional string title = 10;
     optional string description = 11;
-    optional int64 duration_micros = 12 [(buf.validate.field).int64.gte = 0];
+    optional int64 duration_micros = 12;
     optional string status = 13;
     optional string media_status = 14;
     optional string analysis_status = 15;
@@ -74,10 +72,10 @@ message Event {
   // VideoDeleted 表示视频删除事件
   // 当视频被删除时发布此事件
   message VideoDeleted {
-    string video_id = 1 [(buf.validate.field).string.uuid = true]; // 视频唯一标识 (UUID)
-    int64 version = 2 [(buf.validate.field).int64.gte = 0];        // 版本号
+    string video_id = 1;                               // 视频唯一标识 (UUID)
+    int64 version = 2;                                 // 版本号
     optional string deleted_at = 3;                    // 删除时间（UTC RFC3339，可选）
-    string occurred_at = 4 [(buf.validate.field).string.min_len = 1]; // 事件发生时间（UTC RFC3339）
+    string occurred_at = 4;                            // 事件发生时间（UTC RFC3339）
     optional string reason = 5;                        // 删除原因（可选）
   }
 }

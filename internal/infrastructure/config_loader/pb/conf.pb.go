@@ -28,6 +28,7 @@ type Bootstrap struct {
 	Server        *Server                `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
 	Data          *Data                  `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	Observability *Observability         `protobuf:"bytes,3,opt,name=observability,proto3" json:"observability,omitempty"`
+	Messaging     *Messaging             `protobuf:"bytes,4,opt,name=messaging,proto3" json:"messaging,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -79,6 +80,13 @@ func (x *Bootstrap) GetData() *Data {
 func (x *Bootstrap) GetObservability() *Observability {
 	if x != nil {
 		return x.Observability
+	}
+	return nil
+}
+
+func (x *Bootstrap) GetMessaging() *Messaging {
+	if x != nil {
+		return x.Messaging
 	}
 	return nil
 }
@@ -247,6 +255,334 @@ func (x *Observability) GetMetrics() *Observability_Metrics {
 	return nil
 }
 
+type Messaging struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pubsub        *PubSub                `protobuf:"bytes,1,opt,name=pubsub,proto3" json:"pubsub,omitempty"`
+	Outbox        *OutboxPublisher       `protobuf:"bytes,2,opt,name=outbox,proto3" json:"outbox,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Messaging) Reset() {
+	*x = Messaging{}
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Messaging) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Messaging) ProtoMessage() {}
+
+func (x *Messaging) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Messaging.ProtoReflect.Descriptor instead.
+func (*Messaging) Descriptor() ([]byte, []int) {
+	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Messaging) GetPubsub() *PubSub {
+	if x != nil {
+		return x.Pubsub
+	}
+	return nil
+}
+
+func (x *Messaging) GetOutbox() *OutboxPublisher {
+	if x != nil {
+		return x.Outbox
+	}
+	return nil
+}
+
+type PubSub struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId           string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TopicId             string                 `protobuf:"bytes,2,opt,name=topic_id,json=topicId,proto3" json:"topic_id,omitempty"`
+	SubscriptionId      string                 `protobuf:"bytes,3,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	OrderingKeyEnabled  bool                   `protobuf:"varint,4,opt,name=ordering_key_enabled,json=orderingKeyEnabled,proto3" json:"ordering_key_enabled,omitempty"`
+	EnableLogging       bool                   `protobuf:"varint,5,opt,name=enable_logging,json=enableLogging,proto3" json:"enable_logging,omitempty"`
+	EnableMetrics       bool                   `protobuf:"varint,6,opt,name=enable_metrics,json=enableMetrics,proto3" json:"enable_metrics,omitempty"`
+	EmulatorEndpoint    string                 `protobuf:"bytes,7,opt,name=emulator_endpoint,json=emulatorEndpoint,proto3" json:"emulator_endpoint,omitempty"`
+	PublishTimeout      *durationpb.Duration   `protobuf:"bytes,8,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
+	Receive             *Receive               `protobuf:"bytes,9,opt,name=receive,proto3" json:"receive,omitempty"`
+	ExactlyOnceDelivery bool                   `protobuf:"varint,10,opt,name=exactly_once_delivery,json=exactlyOnceDelivery,proto3" json:"exactly_once_delivery,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PubSub) Reset() {
+	*x = PubSub{}
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PubSub) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PubSub) ProtoMessage() {}
+
+func (x *PubSub) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PubSub.ProtoReflect.Descriptor instead.
+func (*PubSub) Descriptor() ([]byte, []int) {
+	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PubSub) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *PubSub) GetTopicId() string {
+	if x != nil {
+		return x.TopicId
+	}
+	return ""
+}
+
+func (x *PubSub) GetSubscriptionId() string {
+	if x != nil {
+		return x.SubscriptionId
+	}
+	return ""
+}
+
+func (x *PubSub) GetOrderingKeyEnabled() bool {
+	if x != nil {
+		return x.OrderingKeyEnabled
+	}
+	return false
+}
+
+func (x *PubSub) GetEnableLogging() bool {
+	if x != nil {
+		return x.EnableLogging
+	}
+	return false
+}
+
+func (x *PubSub) GetEnableMetrics() bool {
+	if x != nil {
+		return x.EnableMetrics
+	}
+	return false
+}
+
+func (x *PubSub) GetEmulatorEndpoint() string {
+	if x != nil {
+		return x.EmulatorEndpoint
+	}
+	return ""
+}
+
+func (x *PubSub) GetPublishTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.PublishTimeout
+	}
+	return nil
+}
+
+func (x *PubSub) GetReceive() *Receive {
+	if x != nil {
+		return x.Receive
+	}
+	return nil
+}
+
+func (x *PubSub) GetExactlyOnceDelivery() bool {
+	if x != nil {
+		return x.ExactlyOnceDelivery
+	}
+	return false
+}
+
+type Receive struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	NumGoroutines          int32                  `protobuf:"varint,1,opt,name=num_goroutines,json=numGoroutines,proto3" json:"num_goroutines,omitempty"`
+	MaxOutstandingMessages int32                  `protobuf:"varint,2,opt,name=max_outstanding_messages,json=maxOutstandingMessages,proto3" json:"max_outstanding_messages,omitempty"`
+	MaxOutstandingBytes    int32                  `protobuf:"varint,3,opt,name=max_outstanding_bytes,json=maxOutstandingBytes,proto3" json:"max_outstanding_bytes,omitempty"`
+	MaxExtension           *durationpb.Duration   `protobuf:"bytes,4,opt,name=max_extension,json=maxExtension,proto3" json:"max_extension,omitempty"`
+	MaxExtensionPeriod     *durationpb.Duration   `protobuf:"bytes,5,opt,name=max_extension_period,json=maxExtensionPeriod,proto3" json:"max_extension_period,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *Receive) Reset() {
+	*x = Receive{}
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Receive) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Receive) ProtoMessage() {}
+
+func (x *Receive) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Receive.ProtoReflect.Descriptor instead.
+func (*Receive) Descriptor() ([]byte, []int) {
+	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Receive) GetNumGoroutines() int32 {
+	if x != nil {
+		return x.NumGoroutines
+	}
+	return 0
+}
+
+func (x *Receive) GetMaxOutstandingMessages() int32 {
+	if x != nil {
+		return x.MaxOutstandingMessages
+	}
+	return 0
+}
+
+func (x *Receive) GetMaxOutstandingBytes() int32 {
+	if x != nil {
+		return x.MaxOutstandingBytes
+	}
+	return 0
+}
+
+func (x *Receive) GetMaxExtension() *durationpb.Duration {
+	if x != nil {
+		return x.MaxExtension
+	}
+	return nil
+}
+
+func (x *Receive) GetMaxExtensionPeriod() *durationpb.Duration {
+	if x != nil {
+		return x.MaxExtensionPeriod
+	}
+	return nil
+}
+
+type OutboxPublisher struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	BatchSize      int32                  `protobuf:"varint,1,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
+	TickInterval   *durationpb.Duration   `protobuf:"bytes,2,opt,name=tick_interval,json=tickInterval,proto3" json:"tick_interval,omitempty"`
+	InitialBackoff *durationpb.Duration   `protobuf:"bytes,3,opt,name=initial_backoff,json=initialBackoff,proto3" json:"initial_backoff,omitempty"`
+	MaxBackoff     *durationpb.Duration   `protobuf:"bytes,4,opt,name=max_backoff,json=maxBackoff,proto3" json:"max_backoff,omitempty"`
+	MaxAttempts    int32                  `protobuf:"varint,5,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	PublishTimeout *durationpb.Duration   `protobuf:"bytes,6,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *OutboxPublisher) Reset() {
+	*x = OutboxPublisher{}
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OutboxPublisher) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OutboxPublisher) ProtoMessage() {}
+
+func (x *OutboxPublisher) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OutboxPublisher.ProtoReflect.Descriptor instead.
+func (*OutboxPublisher) Descriptor() ([]byte, []int) {
+	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *OutboxPublisher) GetBatchSize() int32 {
+	if x != nil {
+		return x.BatchSize
+	}
+	return 0
+}
+
+func (x *OutboxPublisher) GetTickInterval() *durationpb.Duration {
+	if x != nil {
+		return x.TickInterval
+	}
+	return nil
+}
+
+func (x *OutboxPublisher) GetInitialBackoff() *durationpb.Duration {
+	if x != nil {
+		return x.InitialBackoff
+	}
+	return nil
+}
+
+func (x *OutboxPublisher) GetMaxBackoff() *durationpb.Duration {
+	if x != nil {
+		return x.MaxBackoff
+	}
+	return nil
+}
+
+func (x *OutboxPublisher) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *OutboxPublisher) GetPublishTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.PublishTimeout
+	}
+	return nil
+}
+
 type Server_GRPC struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Network       string                 `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
@@ -258,7 +594,7 @@ type Server_GRPC struct {
 
 func (x *Server_GRPC) Reset() {
 	*x = Server_GRPC{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[4]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +606,7 @@ func (x *Server_GRPC) String() string {
 func (*Server_GRPC) ProtoMessage() {}
 
 func (x *Server_GRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[4]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -319,7 +655,7 @@ type Server_JWT struct {
 
 func (x *Server_JWT) Reset() {
 	*x = Server_JWT{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[5]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +667,7 @@ func (x *Server_JWT) String() string {
 func (*Server_JWT) ProtoMessage() {}
 
 func (x *Server_JWT) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[5]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -396,7 +732,7 @@ type Data_PostgreSQL struct {
 
 func (x *Data_PostgreSQL) Reset() {
 	*x = Data_PostgreSQL{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[6]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -408,7 +744,7 @@ func (x *Data_PostgreSQL) String() string {
 func (*Data_PostgreSQL) ProtoMessage() {}
 
 func (x *Data_PostgreSQL) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[6]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -498,7 +834,7 @@ type Data_Client struct {
 
 func (x *Data_Client) Reset() {
 	*x = Data_Client{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +846,7 @@ func (x *Data_Client) String() string {
 func (*Data_Client) ProtoMessage() {}
 
 func (x *Data_Client) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -553,7 +889,7 @@ type Data_PostgreSQL_Transaction struct {
 
 func (x *Data_PostgreSQL_Transaction) Reset() {
 	*x = Data_PostgreSQL_Transaction{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +901,7 @@ func (x *Data_PostgreSQL_Transaction) String() string {
 func (*Data_PostgreSQL_Transaction) ProtoMessage() {}
 
 func (x *Data_PostgreSQL_Transaction) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +963,7 @@ type Data_Client_JWT struct {
 
 func (x *Data_Client_JWT) Reset() {
 	*x = Data_Client_JWT{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -639,7 +975,7 @@ func (x *Data_Client_JWT) String() string {
 func (*Data_Client_JWT) ProtoMessage() {}
 
 func (x *Data_Client_JWT) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -699,7 +1035,7 @@ type Observability_Tracing struct {
 
 func (x *Observability_Tracing) Reset() {
 	*x = Observability_Tracing{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +1047,7 @@ func (x *Observability_Tracing) String() string {
 func (*Observability_Tracing) ProtoMessage() {}
 
 func (x *Observability_Tracing) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -851,7 +1187,7 @@ type Observability_Metrics struct {
 
 func (x *Observability_Metrics) Reset() {
 	*x = Observability_Metrics{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +1199,7 @@ func (x *Observability_Metrics) String() string {
 func (*Observability_Metrics) ProtoMessage() {}
 
 func (x *Observability_Metrics) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11]
+	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,11 +1297,12 @@ var File_internal_infrastructure_config_loader_pb_conf_proto protoreflect.FileDe
 const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\n" +
 	"3internal/infrastructure/config_loader/pb/conf.proto\x12\n" +
-	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\"\x9e\x01\n" +
+	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\"\xd3\x01\n" +
 	"\tBootstrap\x12*\n" +
 	"\x06server\x18\x01 \x01(\v2\x12.kratos.api.ServerR\x06server\x12$\n" +
 	"\x04data\x18\x02 \x01(\v2\x10.kratos.api.DataR\x04data\x12?\n" +
-	"\robservability\x18\x03 \x01(\v2\x19.kratos.api.ObservabilityR\robservability\"\xdf\x02\n" +
+	"\robservability\x18\x03 \x01(\v2\x19.kratos.api.ObservabilityR\robservability\x123\n" +
+	"\tmessaging\x18\x04 \x01(\v2\x15.kratos.api.MessagingR\tmessaging\"\xdf\x02\n" +
 	"\x06Server\x12+\n" +
 	"\x04grpc\x18\x01 \x01(\v2\x17.kratos.api.Server.GRPCR\x04grpc\x12(\n" +
 	"\x03jwt\x18\x02 \x01(\v2\x16.kratos.api.Server.JWTR\x03jwt\x1ai\n" +
@@ -1062,7 +1399,38 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x14_grpc_include_health\x1aC\n" +
 	"\x15GlobalAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"l\n" +
+	"\tMessaging\x12*\n" +
+	"\x06pubsub\x18\x01 \x01(\v2\x12.kratos.api.PubSubR\x06pubsub\x123\n" +
+	"\x06outbox\x18\x02 \x01(\v2\x1b.kratos.api.OutboxPublisherR\x06outbox\"\xbf\x03\n" +
+	"\x06PubSub\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x19\n" +
+	"\btopic_id\x18\x02 \x01(\tR\atopicId\x12'\n" +
+	"\x0fsubscription_id\x18\x03 \x01(\tR\x0esubscriptionId\x120\n" +
+	"\x14ordering_key_enabled\x18\x04 \x01(\bR\x12orderingKeyEnabled\x12%\n" +
+	"\x0eenable_logging\x18\x05 \x01(\bR\renableLogging\x12%\n" +
+	"\x0eenable_metrics\x18\x06 \x01(\bR\renableMetrics\x12+\n" +
+	"\x11emulator_endpoint\x18\a \x01(\tR\x10emulatorEndpoint\x12B\n" +
+	"\x0fpublish_timeout\x18\b \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeout\x12-\n" +
+	"\areceive\x18\t \x01(\v2\x13.kratos.api.ReceiveR\areceive\x122\n" +
+	"\x15exactly_once_delivery\x18\n" +
+	" \x01(\bR\x13exactlyOnceDelivery\"\xab\x02\n" +
+	"\aReceive\x12%\n" +
+	"\x0enum_goroutines\x18\x01 \x01(\x05R\rnumGoroutines\x128\n" +
+	"\x18max_outstanding_messages\x18\x02 \x01(\x05R\x16maxOutstandingMessages\x122\n" +
+	"\x15max_outstanding_bytes\x18\x03 \x01(\x05R\x13maxOutstandingBytes\x12>\n" +
+	"\rmax_extension\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fmaxExtension\x12K\n" +
+	"\x14max_extension_period\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x12maxExtensionPeriod\"\xd7\x02\n" +
+	"\x0fOutboxPublisher\x12\x1d\n" +
+	"\n" +
+	"batch_size\x18\x01 \x01(\x05R\tbatchSize\x12>\n" +
+	"\rtick_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\ftickInterval\x12B\n" +
+	"\x0finitial_backoff\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x0einitialBackoff\x12:\n" +
+	"\vmax_backoff\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"maxBackoff\x12!\n" +
+	"\fmax_attempts\x18\x05 \x01(\x05R\vmaxAttempts\x12B\n" +
+	"\x0fpublish_timeout\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeoutBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
 
 var (
 	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce sync.Once
@@ -1076,58 +1444,73 @@ func file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP() []by
 	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescData
 }
 
-var file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_internal_infrastructure_config_loader_pb_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),                   // 0: kratos.api.Bootstrap
 	(*Server)(nil),                      // 1: kratos.api.Server
 	(*Data)(nil),                        // 2: kratos.api.Data
 	(*Observability)(nil),               // 3: kratos.api.Observability
-	(*Server_GRPC)(nil),                 // 4: kratos.api.Server.GRPC
-	(*Server_JWT)(nil),                  // 5: kratos.api.Server.JWT
-	(*Data_PostgreSQL)(nil),             // 6: kratos.api.Data.PostgreSQL
-	(*Data_Client)(nil),                 // 7: kratos.api.Data.Client
-	(*Data_PostgreSQL_Transaction)(nil), // 8: kratos.api.Data.PostgreSQL.Transaction
-	(*Data_Client_JWT)(nil),             // 9: kratos.api.Data.Client.JWT
-	(*Observability_Tracing)(nil),       // 10: kratos.api.Observability.Tracing
-	(*Observability_Metrics)(nil),       // 11: kratos.api.Observability.Metrics
-	nil,                                 // 12: kratos.api.Observability.GlobalAttributesEntry
-	nil,                                 // 13: kratos.api.Observability.Tracing.HeadersEntry
-	nil,                                 // 14: kratos.api.Observability.Tracing.AttributesEntry
-	nil,                                 // 15: kratos.api.Observability.Metrics.HeadersEntry
-	nil,                                 // 16: kratos.api.Observability.Metrics.ResourceAttributesEntry
-	(*durationpb.Duration)(nil),         // 17: google.protobuf.Duration
+	(*Messaging)(nil),                   // 4: kratos.api.Messaging
+	(*PubSub)(nil),                      // 5: kratos.api.PubSub
+	(*Receive)(nil),                     // 6: kratos.api.Receive
+	(*OutboxPublisher)(nil),             // 7: kratos.api.OutboxPublisher
+	(*Server_GRPC)(nil),                 // 8: kratos.api.Server.GRPC
+	(*Server_JWT)(nil),                  // 9: kratos.api.Server.JWT
+	(*Data_PostgreSQL)(nil),             // 10: kratos.api.Data.PostgreSQL
+	(*Data_Client)(nil),                 // 11: kratos.api.Data.Client
+	(*Data_PostgreSQL_Transaction)(nil), // 12: kratos.api.Data.PostgreSQL.Transaction
+	(*Data_Client_JWT)(nil),             // 13: kratos.api.Data.Client.JWT
+	(*Observability_Tracing)(nil),       // 14: kratos.api.Observability.Tracing
+	(*Observability_Metrics)(nil),       // 15: kratos.api.Observability.Metrics
+	nil,                                 // 16: kratos.api.Observability.GlobalAttributesEntry
+	nil,                                 // 17: kratos.api.Observability.Tracing.HeadersEntry
+	nil,                                 // 18: kratos.api.Observability.Tracing.AttributesEntry
+	nil,                                 // 19: kratos.api.Observability.Metrics.HeadersEntry
+	nil,                                 // 20: kratos.api.Observability.Metrics.ResourceAttributesEntry
+	(*durationpb.Duration)(nil),         // 21: google.protobuf.Duration
 }
 var file_internal_infrastructure_config_loader_pb_conf_proto_depIdxs = []int32{
 	1,  // 0: kratos.api.Bootstrap.server:type_name -> kratos.api.Server
 	2,  // 1: kratos.api.Bootstrap.data:type_name -> kratos.api.Data
 	3,  // 2: kratos.api.Bootstrap.observability:type_name -> kratos.api.Observability
-	4,  // 3: kratos.api.Server.grpc:type_name -> kratos.api.Server.GRPC
-	5,  // 4: kratos.api.Server.jwt:type_name -> kratos.api.Server.JWT
-	6,  // 5: kratos.api.Data.postgres:type_name -> kratos.api.Data.PostgreSQL
-	7,  // 6: kratos.api.Data.grpc_client:type_name -> kratos.api.Data.Client
-	12, // 7: kratos.api.Observability.global_attributes:type_name -> kratos.api.Observability.GlobalAttributesEntry
-	10, // 8: kratos.api.Observability.tracing:type_name -> kratos.api.Observability.Tracing
-	11, // 9: kratos.api.Observability.metrics:type_name -> kratos.api.Observability.Metrics
-	17, // 10: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
-	17, // 11: kratos.api.Data.PostgreSQL.max_conn_lifetime:type_name -> google.protobuf.Duration
-	17, // 12: kratos.api.Data.PostgreSQL.max_conn_idle_time:type_name -> google.protobuf.Duration
-	17, // 13: kratos.api.Data.PostgreSQL.health_check_period:type_name -> google.protobuf.Duration
-	8,  // 14: kratos.api.Data.PostgreSQL.transaction:type_name -> kratos.api.Data.PostgreSQL.Transaction
-	9,  // 15: kratos.api.Data.Client.jwt:type_name -> kratos.api.Data.Client.JWT
-	17, // 16: kratos.api.Data.PostgreSQL.Transaction.default_timeout:type_name -> google.protobuf.Duration
-	17, // 17: kratos.api.Data.PostgreSQL.Transaction.lock_timeout:type_name -> google.protobuf.Duration
-	13, // 18: kratos.api.Observability.Tracing.headers:type_name -> kratos.api.Observability.Tracing.HeadersEntry
-	17, // 19: kratos.api.Observability.Tracing.batch_timeout:type_name -> google.protobuf.Duration
-	17, // 20: kratos.api.Observability.Tracing.export_timeout:type_name -> google.protobuf.Duration
-	14, // 21: kratos.api.Observability.Tracing.attributes:type_name -> kratos.api.Observability.Tracing.AttributesEntry
-	15, // 22: kratos.api.Observability.Metrics.headers:type_name -> kratos.api.Observability.Metrics.HeadersEntry
-	17, // 23: kratos.api.Observability.Metrics.interval:type_name -> google.protobuf.Duration
-	16, // 24: kratos.api.Observability.Metrics.resource_attributes:type_name -> kratos.api.Observability.Metrics.ResourceAttributesEntry
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	4,  // 3: kratos.api.Bootstrap.messaging:type_name -> kratos.api.Messaging
+	8,  // 4: kratos.api.Server.grpc:type_name -> kratos.api.Server.GRPC
+	9,  // 5: kratos.api.Server.jwt:type_name -> kratos.api.Server.JWT
+	10, // 6: kratos.api.Data.postgres:type_name -> kratos.api.Data.PostgreSQL
+	11, // 7: kratos.api.Data.grpc_client:type_name -> kratos.api.Data.Client
+	16, // 8: kratos.api.Observability.global_attributes:type_name -> kratos.api.Observability.GlobalAttributesEntry
+	14, // 9: kratos.api.Observability.tracing:type_name -> kratos.api.Observability.Tracing
+	15, // 10: kratos.api.Observability.metrics:type_name -> kratos.api.Observability.Metrics
+	5,  // 11: kratos.api.Messaging.pubsub:type_name -> kratos.api.PubSub
+	7,  // 12: kratos.api.Messaging.outbox:type_name -> kratos.api.OutboxPublisher
+	21, // 13: kratos.api.PubSub.publish_timeout:type_name -> google.protobuf.Duration
+	6,  // 14: kratos.api.PubSub.receive:type_name -> kratos.api.Receive
+	21, // 15: kratos.api.Receive.max_extension:type_name -> google.protobuf.Duration
+	21, // 16: kratos.api.Receive.max_extension_period:type_name -> google.protobuf.Duration
+	21, // 17: kratos.api.OutboxPublisher.tick_interval:type_name -> google.protobuf.Duration
+	21, // 18: kratos.api.OutboxPublisher.initial_backoff:type_name -> google.protobuf.Duration
+	21, // 19: kratos.api.OutboxPublisher.max_backoff:type_name -> google.protobuf.Duration
+	21, // 20: kratos.api.OutboxPublisher.publish_timeout:type_name -> google.protobuf.Duration
+	21, // 21: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
+	21, // 22: kratos.api.Data.PostgreSQL.max_conn_lifetime:type_name -> google.protobuf.Duration
+	21, // 23: kratos.api.Data.PostgreSQL.max_conn_idle_time:type_name -> google.protobuf.Duration
+	21, // 24: kratos.api.Data.PostgreSQL.health_check_period:type_name -> google.protobuf.Duration
+	12, // 25: kratos.api.Data.PostgreSQL.transaction:type_name -> kratos.api.Data.PostgreSQL.Transaction
+	13, // 26: kratos.api.Data.Client.jwt:type_name -> kratos.api.Data.Client.JWT
+	21, // 27: kratos.api.Data.PostgreSQL.Transaction.default_timeout:type_name -> google.protobuf.Duration
+	21, // 28: kratos.api.Data.PostgreSQL.Transaction.lock_timeout:type_name -> google.protobuf.Duration
+	17, // 29: kratos.api.Observability.Tracing.headers:type_name -> kratos.api.Observability.Tracing.HeadersEntry
+	21, // 30: kratos.api.Observability.Tracing.batch_timeout:type_name -> google.protobuf.Duration
+	21, // 31: kratos.api.Observability.Tracing.export_timeout:type_name -> google.protobuf.Duration
+	18, // 32: kratos.api.Observability.Tracing.attributes:type_name -> kratos.api.Observability.Tracing.AttributesEntry
+	19, // 33: kratos.api.Observability.Metrics.headers:type_name -> kratos.api.Observability.Metrics.HeadersEntry
+	21, // 34: kratos.api.Observability.Metrics.interval:type_name -> google.protobuf.Duration
+	20, // 35: kratos.api.Observability.Metrics.resource_attributes:type_name -> kratos.api.Observability.Metrics.ResourceAttributesEntry
+	36, // [36:36] is the sub-list for method output_type
+	36, // [36:36] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_internal_infrastructure_config_loader_pb_conf_proto_init() }
@@ -1135,15 +1518,15 @@ func file_internal_infrastructure_config_loader_pb_conf_proto_init() {
 	if File_internal_infrastructure_config_loader_pb_conf_proto != nil {
 		return
 	}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8].OneofWrappers = []any{}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11].OneofWrappers = []any{}
+	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12].OneofWrappers = []any{}
+	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc), len(file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

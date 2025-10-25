@@ -99,3 +99,29 @@ observability:
     grpc_enabled: true
     # 是否包含健康检查 RPC 指标
     grpc_include_health: false
+
+# 消息系统配置：Pub/Sub 与 Outbox 发布器
+messaging:
+  pubsub:
+    project_id: local-project
+    topic_id: catalog.video.events
+    subscription_id: catalog.video.events.catalog-reader
+    ordering_key_enabled: true
+    enable_logging: true
+    enable_metrics: true
+    emulator_endpoint: localhost:8085
+    publish_timeout: 5s
+    receive:
+      num_goroutines: 1
+      max_outstanding_messages: 100
+      max_outstanding_bytes: 26214400   # 25 MiB
+      max_extension: 60s
+      max_extension_period: 600s
+    exactly_once_delivery: false
+  outbox:
+    batch_size: 100
+    tick_interval: 1s
+    initial_backoff: 2s
+    max_backoff: 120s
+    max_attempts: 20
+    publish_timeout: 10s
