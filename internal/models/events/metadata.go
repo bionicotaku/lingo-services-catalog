@@ -61,3 +61,11 @@ func TraceIDFromContext(ctx context.Context) string {
 	}
 	return spanCtx.TraceID().String()
 }
+
+// VersionFromTime 根据时间戳计算聚合版本号，采用 UTC 微秒时间，保证单调递增。
+func VersionFromTime(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UTC().UnixMicro()
+}

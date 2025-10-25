@@ -20,4 +20,10 @@ enum ErrorReason {
 
   // 查询超时
   ERROR_REASON_QUERY_TIMEOUT = 4;
+
+  // 更新请求无效（缺少字段或取值非法）
+  ERROR_REASON_VIDEO_UPDATE_INVALID = 5;
+
+  // 删除请求无效
+  ERROR_REASON_VIDEO_DELETE_INVALID = 6;
 }

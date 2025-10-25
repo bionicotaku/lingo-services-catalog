@@ -44,6 +44,23 @@ type CreateVideoInput struct {
 	RawFileReference string
 }
 
+// UpdateVideoInput 表示可选更新字段的集合。
+type UpdateVideoInput struct {
+	VideoID           uuid.UUID
+	Title             *string
+	Description       *string
+	Status            *po.VideoStatus
+	MediaStatus       *po.StageStatus
+	AnalysisStatus    *po.StageStatus
+	DurationMicros    *int64
+	ThumbnailURL      *string
+	HLSMasterPlaylist *string
+	Difficulty        *string
+	Summary           *string
+	RawSubtitleURL    *string
+	ErrorMessage      *string
+}
+
 // Create 创建新视频记录，video_id 由数据库自动生成。
 func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, input CreateVideoInput) (*po.Video, error) {
 	params := mappers.BuildCreateVideoParams(
@@ -65,6 +82,60 @@ func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, in
 	}
 
 	r.log.WithContext(ctx).Infof("video created: video_id=%s title=%s", record.VideoID, record.Title)
+	return mappers.VideoFromCatalog(record), nil
+}
+
+// Update 根据输入字段对视频进行部分更新，返回更新后的实体。
+func (r *VideoRepository) Update(ctx context.Context, sess txmanager.Session, input UpdateVideoInput) (*po.Video, error) {
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	record, err := queries.UpdateVideo(ctx, mappers.BuildUpdateVideoParams(
+		input.VideoID,
+		input.Title,
+		input.Description,
+		input.ThumbnailURL,
+		input.HLSMasterPlaylist,
+		input.Difficulty,
+		input.Summary,
+		input.RawSubtitleURL,
+		input.ErrorMessage,
+		input.Status,
+		input.MediaStatus,
+		input.AnalysisStatus,
+		input.DurationMicros,
+	))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrVideoNotFound
+		}
+		r.log.WithContext(ctx).Errorf("update video failed: video_id=%s err=%v", input.VideoID, err)
+		return nil, fmt.Errorf("update video: %w", err)
+	}
+
+	r.log.WithContext(ctx).Infof("video updated: video_id=%s", record.VideoID)
+	return mappers.VideoFromCatalog(record), nil
+}
+
+// Delete 删除视频记录并返回被删除的实体快照。
+func (r *VideoRepository) Delete(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error) {
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	record, err := queries.DeleteVideo(ctx, videoID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrVideoNotFound
+		}
+		r.log.WithContext(ctx).Errorf("delete video failed: video_id=%s err=%v", videoID, err)
+		return nil, fmt.Errorf("delete video: %w", err)
+	}
+
+	r.log.WithContext(ctx).Infof("video deleted: video_id=%s", record.VideoID)
 	return mappers.VideoFromCatalog(record), nil
 }
 

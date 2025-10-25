@@ -128,6 +128,8 @@ var VideoQueryService_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	VideoCommandService_CreateVideo_FullMethodName = "/video.v1.VideoCommandService/CreateVideo"
+	VideoCommandService_UpdateVideo_FullMethodName = "/video.v1.VideoCommandService/UpdateVideo"
+	VideoCommandService_DeleteVideo_FullMethodName = "/video.v1.VideoCommandService/DeleteVideo"
 )
 
 // VideoCommandServiceClient is the client API for VideoCommandService service.
@@ -138,6 +140,10 @@ const (
 type VideoCommandServiceClient interface {
 	// CreateVideo 创建新视频记录
 	CreateVideo(ctx context.Context, in *CreateVideoRequest, opts ...grpc.CallOption) (*CreateVideoResponse, error)
+	// UpdateVideo 更新视频元数据
+	UpdateVideo(ctx context.Context, in *UpdateVideoRequest, opts ...grpc.CallOption) (*UpdateVideoResponse, error)
+	// DeleteVideo 删除视频记录
+	DeleteVideo(ctx context.Context, in *DeleteVideoRequest, opts ...grpc.CallOption) (*DeleteVideoResponse, error)
 }
 
 type videoCommandServiceClient struct {
@@ -158,6 +164,26 @@ func (c *videoCommandServiceClient) CreateVideo(ctx context.Context, in *CreateV
 	return out, nil
 }
 
+func (c *videoCommandServiceClient) UpdateVideo(ctx context.Context, in *UpdateVideoRequest, opts ...grpc.CallOption) (*UpdateVideoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateVideoResponse)
+	err := c.cc.Invoke(ctx, VideoCommandService_UpdateVideo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *videoCommandServiceClient) DeleteVideo(ctx context.Context, in *DeleteVideoRequest, opts ...grpc.CallOption) (*DeleteVideoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteVideoResponse)
+	err := c.cc.Invoke(ctx, VideoCommandService_DeleteVideo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VideoCommandServiceServer is the server API for VideoCommandService service.
 // All implementations must embed UnimplementedVideoCommandServiceServer
 // for forward compatibility.
@@ -166,6 +192,10 @@ func (c *videoCommandServiceClient) CreateVideo(ctx context.Context, in *CreateV
 type VideoCommandServiceServer interface {
 	// CreateVideo 创建新视频记录
 	CreateVideo(context.Context, *CreateVideoRequest) (*CreateVideoResponse, error)
+	// UpdateVideo 更新视频元数据
+	UpdateVideo(context.Context, *UpdateVideoRequest) (*UpdateVideoResponse, error)
+	// DeleteVideo 删除视频记录
+	DeleteVideo(context.Context, *DeleteVideoRequest) (*DeleteVideoResponse, error)
 	mustEmbedUnimplementedVideoCommandServiceServer()
 }
 
@@ -178,6 +208,12 @@ type UnimplementedVideoCommandServiceServer struct{}
 
 func (UnimplementedVideoCommandServiceServer) CreateVideo(context.Context, *CreateVideoRequest) (*CreateVideoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVideo not implemented")
+}
+func (UnimplementedVideoCommandServiceServer) UpdateVideo(context.Context, *UpdateVideoRequest) (*UpdateVideoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateVideo not implemented")
+}
+func (UnimplementedVideoCommandServiceServer) DeleteVideo(context.Context, *DeleteVideoRequest) (*DeleteVideoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteVideo not implemented")
 }
 func (UnimplementedVideoCommandServiceServer) mustEmbedUnimplementedVideoCommandServiceServer() {}
 func (UnimplementedVideoCommandServiceServer) testEmbeddedByValue()                             {}
@@ -218,6 +254,42 @@ func _VideoCommandService_CreateVideo_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VideoCommandService_UpdateVideo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateVideoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VideoCommandServiceServer).UpdateVideo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VideoCommandService_UpdateVideo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VideoCommandServiceServer).UpdateVideo(ctx, req.(*UpdateVideoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _VideoCommandService_DeleteVideo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteVideoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VideoCommandServiceServer).DeleteVideo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VideoCommandService_DeleteVideo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VideoCommandServiceServer).DeleteVideo(ctx, req.(*DeleteVideoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // VideoCommandService_ServiceDesc is the grpc.ServiceDesc for VideoCommandService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +300,14 @@ var VideoCommandService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateVideo",
 			Handler:    _VideoCommandService_CreateVideo_Handler,
+		},
+		{
+			MethodName: "UpdateVideo",
+			Handler:    _VideoCommandService_UpdateVideo_Handler,
+		},
+		{
+			MethodName: "DeleteVideo",
+			Handler:    _VideoCommandService_DeleteVideo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

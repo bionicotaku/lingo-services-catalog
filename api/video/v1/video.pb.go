@@ -285,6 +285,9 @@ type CreateVideoResponse struct {
 	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`                                       // 视频状态
 	MediaStatus    string                 `protobuf:"bytes,4,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`          // 媒体处理状态
 	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"` // 分析状态
+	EventId        string                 `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`                      // 事件 ID（用于客户端幂等与回放）
+	Version        int64                  `protobuf:"varint,7,opt,name=version,proto3" json:"version,omitempty"`                                    // 聚合版本号
+	OccurredAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`             // 事件发生时间
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -354,6 +357,400 @@ func (x *CreateVideoResponse) GetAnalysisStatus() string {
 	return ""
 }
 
+func (x *CreateVideoResponse) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *CreateVideoResponse) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *CreateVideoResponse) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+// UpdateVideoRequest 表示对视频元数据的部分更新请求。
+// 仅填充需要更新的字段，其余字段保持不变。
+type UpdateVideoRequest struct {
+	state             protoimpl.MessageState  `protogen:"open.v1"`
+	VideoId           string                  `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`                                 // 视频 ID（必填）
+	Title             *wrapperspb.StringValue `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`                                                    // 标题
+	Description       *wrapperspb.StringValue `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`                                        // 描述
+	Status            *wrapperspb.StringValue `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`                                                  // 视频状态
+	MediaStatus       *wrapperspb.StringValue `protobuf:"bytes,5,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`                     // 媒体阶段状态
+	AnalysisStatus    *wrapperspb.StringValue `protobuf:"bytes,6,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`            // 分析阶段状态
+	DurationMicros    *wrapperspb.Int64Value  `protobuf:"bytes,7,opt,name=duration_micros,json=durationMicros,proto3" json:"duration_micros,omitempty"`            // 视频时长（微秒）
+	ThumbnailUrl      *wrapperspb.StringValue `protobuf:"bytes,8,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`                  // 缩略图 URL
+	HlsMasterPlaylist *wrapperspb.StringValue `protobuf:"bytes,9,opt,name=hls_master_playlist,json=hlsMasterPlaylist,proto3" json:"hls_master_playlist,omitempty"` // HLS 主清单
+	Difficulty        *wrapperspb.StringValue `protobuf:"bytes,10,opt,name=difficulty,proto3" json:"difficulty,omitempty"`                                         // 难度
+	Summary           *wrapperspb.StringValue `protobuf:"bytes,11,opt,name=summary,proto3" json:"summary,omitempty"`                                               // 摘要
+	RawSubtitleUrl    *wrapperspb.StringValue `protobuf:"bytes,12,opt,name=raw_subtitle_url,json=rawSubtitleUrl,proto3" json:"raw_subtitle_url,omitempty"`         // 原始字幕
+	ErrorMessage      *wrapperspb.StringValue `protobuf:"bytes,13,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`                 // 错误信息
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateVideoRequest) Reset() {
+	*x = UpdateVideoRequest{}
+	mi := &file_api_video_v1_video_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateVideoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateVideoRequest) ProtoMessage() {}
+
+func (x *UpdateVideoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateVideoRequest.ProtoReflect.Descriptor instead.
+func (*UpdateVideoRequest) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *UpdateVideoRequest) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *UpdateVideoRequest) GetTitle() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Title
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetDescription() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Description
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetStatus() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetMediaStatus() *wrapperspb.StringValue {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetAnalysisStatus() *wrapperspb.StringValue {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetDurationMicros() *wrapperspb.Int64Value {
+	if x != nil {
+		return x.DurationMicros
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetThumbnailUrl() *wrapperspb.StringValue {
+	if x != nil {
+		return x.ThumbnailUrl
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetHlsMasterPlaylist() *wrapperspb.StringValue {
+	if x != nil {
+		return x.HlsMasterPlaylist
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetDifficulty() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Difficulty
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetSummary() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetRawSubtitleUrl() *wrapperspb.StringValue {
+	if x != nil {
+		return x.RawSubtitleUrl
+	}
+	return nil
+}
+
+func (x *UpdateVideoRequest) GetErrorMessage() *wrapperspb.StringValue {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return nil
+}
+
+// UpdateVideoResponse 返回更新后的核心字段与事件元数据。
+type UpdateVideoResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`                      // 视频 ID
+	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                // 更新时间
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`                                       // 视频状态
+	MediaStatus    string                 `protobuf:"bytes,4,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`          // 媒体阶段状态
+	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"` // 分析阶段状态
+	EventId        string                 `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`                      // 事件 ID
+	Version        int64                  `protobuf:"varint,7,opt,name=version,proto3" json:"version,omitempty"`                                    // 聚合版本号
+	OccurredAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`             // 事件发生时间
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpdateVideoResponse) Reset() {
+	*x = UpdateVideoResponse{}
+	mi := &file_api_video_v1_video_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateVideoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateVideoResponse) ProtoMessage() {}
+
+func (x *UpdateVideoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateVideoResponse.ProtoReflect.Descriptor instead.
+func (*UpdateVideoResponse) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UpdateVideoResponse) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *UpdateVideoResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *UpdateVideoResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *UpdateVideoResponse) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+func (x *UpdateVideoResponse) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
+func (x *UpdateVideoResponse) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *UpdateVideoResponse) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *UpdateVideoResponse) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+// DeleteVideoRequest 表示删除视频的请求。
+type DeleteVideoRequest struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	VideoId       string                  `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"` // 视频 ID（必填）
+	Reason        *wrapperspb.StringValue `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`                  // 删除原因（可选）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteVideoRequest) Reset() {
+	*x = DeleteVideoRequest{}
+	mi := &file_api_video_v1_video_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteVideoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteVideoRequest) ProtoMessage() {}
+
+func (x *DeleteVideoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteVideoRequest.ProtoReflect.Descriptor instead.
+func (*DeleteVideoRequest) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteVideoRequest) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *DeleteVideoRequest) GetReason() *wrapperspb.StringValue {
+	if x != nil {
+		return x.Reason
+	}
+	return nil
+}
+
+// DeleteVideoResponse 返回删除操作的事件元数据。
+type DeleteVideoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VideoId       string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`          // 被删除的视频 ID
+	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`    // 删除时间
+	EventId       string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`          // 事件 ID
+	Version       int64                  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`                        // 聚合版本号
+	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"` // 事件发生时间
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteVideoResponse) Reset() {
+	*x = DeleteVideoResponse{}
+	mi := &file_api_video_v1_video_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteVideoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteVideoResponse) ProtoMessage() {}
+
+func (x *DeleteVideoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteVideoResponse.ProtoReflect.Descriptor instead.
+func (*DeleteVideoResponse) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeleteVideoResponse) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *DeleteVideoResponse) GetDeletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeletedAt
+	}
+	return nil
+}
+
+func (x *DeleteVideoResponse) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *DeleteVideoResponse) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *DeleteVideoResponse) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
 var File_api_video_v1_video_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_video_proto_rawDesc = "" +
@@ -377,18 +774,63 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\x0eupload_user_id\x18\x01 \x01(\tR\fuploadUserId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12>\n" +
 	"\vdescription\x18\x03 \x01(\v2\x1c.google.protobuf.StringValueR\vdescription\x12,\n" +
-	"\x12raw_file_reference\x18\x04 \x01(\tR\x10rawFileReference\"\xcf\x01\n" +
+	"\x12raw_file_reference\x18\x04 \x01(\tR\x10rawFileReference\"\xc1\x02\n" +
 	"\x13CreateVideoResponse\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
 	"\fmedia_status\x18\x04 \x01(\tR\vmediaStatus\x12'\n" +
-	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus2h\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus\x12\x19\n" +
+	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12\x18\n" +
+	"\aversion\x18\a \x01(\x03R\aversion\x12;\n" +
+	"\voccurred_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\"\xb9\x06\n" +
+	"\x12UpdateVideoRequest\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x122\n" +
+	"\x05title\x18\x02 \x01(\v2\x1c.google.protobuf.StringValueR\x05title\x12>\n" +
+	"\vdescription\x18\x03 \x01(\v2\x1c.google.protobuf.StringValueR\vdescription\x124\n" +
+	"\x06status\x18\x04 \x01(\v2\x1c.google.protobuf.StringValueR\x06status\x12?\n" +
+	"\fmedia_status\x18\x05 \x01(\v2\x1c.google.protobuf.StringValueR\vmediaStatus\x12E\n" +
+	"\x0fanalysis_status\x18\x06 \x01(\v2\x1c.google.protobuf.StringValueR\x0eanalysisStatus\x12D\n" +
+	"\x0fduration_micros\x18\a \x01(\v2\x1b.google.protobuf.Int64ValueR\x0edurationMicros\x12A\n" +
+	"\rthumbnail_url\x18\b \x01(\v2\x1c.google.protobuf.StringValueR\fthumbnailUrl\x12L\n" +
+	"\x13hls_master_playlist\x18\t \x01(\v2\x1c.google.protobuf.StringValueR\x11hlsMasterPlaylist\x12<\n" +
+	"\n" +
+	"difficulty\x18\n" +
+	" \x01(\v2\x1c.google.protobuf.StringValueR\n" +
+	"difficulty\x126\n" +
+	"\asummary\x18\v \x01(\v2\x1c.google.protobuf.StringValueR\asummary\x12F\n" +
+	"\x10raw_subtitle_url\x18\f \x01(\v2\x1c.google.protobuf.StringValueR\x0erawSubtitleUrl\x12A\n" +
+	"\rerror_message\x18\r \x01(\v2\x1c.google.protobuf.StringValueR\ferrorMessage\"\xc1\x02\n" +
+	"\x13UpdateVideoResponse\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x129\n" +
+	"\n" +
+	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\x04 \x01(\tR\vmediaStatus\x12'\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus\x12\x19\n" +
+	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12\x18\n" +
+	"\aversion\x18\a \x01(\x03R\aversion\x12;\n" +
+	"\voccurred_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\"e\n" +
+	"\x12DeleteVideoRequest\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x124\n" +
+	"\x06reason\x18\x02 \x01(\v2\x1c.google.protobuf.StringValueR\x06reason\"\xdd\x01\n" +
+	"\x13DeleteVideoResponse\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x129\n" +
+	"\n" +
+	"deleted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12\x19\n" +
+	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\x03R\aversion\x12;\n" +
+	"\voccurred_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt2h\n" +
 	"\x11VideoQueryService\x12S\n" +
-	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponse2a\n" +
+	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponse2\xf9\x01\n" +
 	"\x13VideoCommandService\x12J\n" +
-	"\vCreateVideo\x12\x1c.video.v1.CreateVideoRequest\x1a\x1d.video.v1.CreateVideoResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"\vCreateVideo\x12\x1c.video.v1.CreateVideoRequest\x1a\x1d.video.v1.CreateVideoResponse\x12J\n" +
+	"\vUpdateVideo\x12\x1c.video.v1.UpdateVideoRequest\x1a\x1d.video.v1.UpdateVideoResponse\x12J\n" +
+	"\vDeleteVideo\x12\x1c.video.v1.DeleteVideoRequest\x1a\x1d.video.v1.DeleteVideoResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_video_proto_rawDescOnce sync.Once
@@ -402,31 +844,58 @@ func file_api_video_v1_video_proto_rawDescGZIP() []byte {
 	return file_api_video_v1_video_proto_rawDescData
 }
 
-var file_api_video_v1_video_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_api_video_v1_video_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_api_video_v1_video_proto_goTypes = []any{
 	(*GetVideoDetailRequest)(nil),  // 0: video.v1.GetVideoDetailRequest
 	(*GetVideoDetailResponse)(nil), // 1: video.v1.GetVideoDetailResponse
 	(*VideoDetail)(nil),            // 2: video.v1.VideoDetail
 	(*CreateVideoRequest)(nil),     // 3: video.v1.CreateVideoRequest
 	(*CreateVideoResponse)(nil),    // 4: video.v1.CreateVideoResponse
-	(*timestamppb.Timestamp)(nil),  // 5: google.protobuf.Timestamp
-	(*wrapperspb.StringValue)(nil), // 6: google.protobuf.StringValue
+	(*UpdateVideoRequest)(nil),     // 5: video.v1.UpdateVideoRequest
+	(*UpdateVideoResponse)(nil),    // 6: video.v1.UpdateVideoResponse
+	(*DeleteVideoRequest)(nil),     // 7: video.v1.DeleteVideoRequest
+	(*DeleteVideoResponse)(nil),    // 8: video.v1.DeleteVideoResponse
+	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
+	(*wrapperspb.StringValue)(nil), // 10: google.protobuf.StringValue
+	(*wrapperspb.Int64Value)(nil),  // 11: google.protobuf.Int64Value
 }
 var file_api_video_v1_video_proto_depIdxs = []int32{
-	2, // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
-	5, // 1: video.v1.VideoDetail.created_at:type_name -> google.protobuf.Timestamp
-	5, // 2: video.v1.VideoDetail.updated_at:type_name -> google.protobuf.Timestamp
-	6, // 3: video.v1.CreateVideoRequest.description:type_name -> google.protobuf.StringValue
-	5, // 4: video.v1.CreateVideoResponse.created_at:type_name -> google.protobuf.Timestamp
-	0, // 5: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
-	3, // 6: video.v1.VideoCommandService.CreateVideo:input_type -> video.v1.CreateVideoRequest
-	1, // 7: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
-	4, // 8: video.v1.VideoCommandService.CreateVideo:output_type -> video.v1.CreateVideoResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	2,  // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
+	9,  // 1: video.v1.VideoDetail.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 2: video.v1.VideoDetail.updated_at:type_name -> google.protobuf.Timestamp
+	10, // 3: video.v1.CreateVideoRequest.description:type_name -> google.protobuf.StringValue
+	9,  // 4: video.v1.CreateVideoResponse.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 5: video.v1.CreateVideoResponse.occurred_at:type_name -> google.protobuf.Timestamp
+	10, // 6: video.v1.UpdateVideoRequest.title:type_name -> google.protobuf.StringValue
+	10, // 7: video.v1.UpdateVideoRequest.description:type_name -> google.protobuf.StringValue
+	10, // 8: video.v1.UpdateVideoRequest.status:type_name -> google.protobuf.StringValue
+	10, // 9: video.v1.UpdateVideoRequest.media_status:type_name -> google.protobuf.StringValue
+	10, // 10: video.v1.UpdateVideoRequest.analysis_status:type_name -> google.protobuf.StringValue
+	11, // 11: video.v1.UpdateVideoRequest.duration_micros:type_name -> google.protobuf.Int64Value
+	10, // 12: video.v1.UpdateVideoRequest.thumbnail_url:type_name -> google.protobuf.StringValue
+	10, // 13: video.v1.UpdateVideoRequest.hls_master_playlist:type_name -> google.protobuf.StringValue
+	10, // 14: video.v1.UpdateVideoRequest.difficulty:type_name -> google.protobuf.StringValue
+	10, // 15: video.v1.UpdateVideoRequest.summary:type_name -> google.protobuf.StringValue
+	10, // 16: video.v1.UpdateVideoRequest.raw_subtitle_url:type_name -> google.protobuf.StringValue
+	10, // 17: video.v1.UpdateVideoRequest.error_message:type_name -> google.protobuf.StringValue
+	9,  // 18: video.v1.UpdateVideoResponse.updated_at:type_name -> google.protobuf.Timestamp
+	9,  // 19: video.v1.UpdateVideoResponse.occurred_at:type_name -> google.protobuf.Timestamp
+	10, // 20: video.v1.DeleteVideoRequest.reason:type_name -> google.protobuf.StringValue
+	9,  // 21: video.v1.DeleteVideoResponse.deleted_at:type_name -> google.protobuf.Timestamp
+	9,  // 22: video.v1.DeleteVideoResponse.occurred_at:type_name -> google.protobuf.Timestamp
+	0,  // 23: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
+	3,  // 24: video.v1.VideoCommandService.CreateVideo:input_type -> video.v1.CreateVideoRequest
+	5,  // 25: video.v1.VideoCommandService.UpdateVideo:input_type -> video.v1.UpdateVideoRequest
+	7,  // 26: video.v1.VideoCommandService.DeleteVideo:input_type -> video.v1.DeleteVideoRequest
+	1,  // 27: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
+	4,  // 28: video.v1.VideoCommandService.CreateVideo:output_type -> video.v1.CreateVideoResponse
+	6,  // 29: video.v1.VideoCommandService.UpdateVideo:output_type -> video.v1.UpdateVideoResponse
+	8,  // 30: video.v1.VideoCommandService.DeleteVideo:output_type -> video.v1.DeleteVideoResponse
+	27, // [27:31] is the sub-list for method output_type
+	23, // [23:27] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_api_video_v1_video_proto_init() }
@@ -440,7 +909,7 @@ func file_api_video_v1_video_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_video_v1_video_proto_rawDesc), len(file_api_video_v1_video_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

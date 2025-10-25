@@ -33,6 +33,14 @@ func (videoRepoStub) Create(context.Context, txmanager.Session, repositories.Cre
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (videoRepoStub) Update(context.Context, txmanager.Session, repositories.UpdateVideoInput) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
+func (videoRepoStub) Delete(context.Context, txmanager.Session, uuid.UUID) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
 func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }

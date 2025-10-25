@@ -179,8 +179,17 @@ data:
 ### 4. 执行数据库迁移
 
 ```bash
-# 创建数据库 schema
-psql $DATABASE_URL < migrations/001_create_catalog_schema.sql
+# 创建 catalog 基线
+psql $DATABASE_URL < migrations/001_init_catalog_schema.sql
+
+# 创建事件表（Outbox/Inbox）
+psql $DATABASE_URL < migrations/002_create_catalog_event_tables.sql
+
+# 创建视频主表及索引/触发器
+psql $DATABASE_URL < migrations/003_create_catalog_videos_table.sql
+
+# 创建只读视图
+psql $DATABASE_URL < migrations/004_create_catalog_videos_ready_view.sql
 ```
 
 ### 5. 生成代码
@@ -189,11 +198,8 @@ psql $DATABASE_URL < migrations/001_create_catalog_schema.sql
 # 生成 Proto 代码
 make api
 
-# 生成 SQL 代码
-make sqlc
-
-# 生成 Wire 依赖注入代码
-make wire
+# 生成 sqlc（含 sqlc generate）+ go generate（含 wire）+ go mod tidy
+make generate
 ```
 
 ### 6. 运行服务
@@ -740,8 +746,8 @@ buf breaking --against .git#branch=main
 4. **实现 Repository 层（如需）**
 
    ```sql
-   -- internal/repositories/sqlc/video.sql
-   -- name: InsertVideo :one
+   -- internal/repositories/sqlc/video_write.sql
+   -- name: CreateVideo :one
    INSERT INTO catalog.videos (...) VALUES (...) RETURNING *;
    ```
 

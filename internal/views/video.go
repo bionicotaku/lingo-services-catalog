@@ -20,6 +20,9 @@ func NewCreateVideoResponse(created *vo.VideoCreated) *videov1.CreateVideoRespon
 		Status:         created.Status,
 		MediaStatus:    created.MediaStatus,
 		AnalysisStatus: created.AnalysisStatus,
+		EventId:        created.EventID.String(),
+		Version:        created.Version,
+		OccurredAt:     timestamppb.New(created.OccurredAt),
 	}
 }
 
@@ -43,5 +46,36 @@ func NewVideoDetail(detail *vo.VideoDetail) *videov1.VideoDetail {
 		AnalysisStatus: detail.AnalysisStatus,
 		CreatedAt:      timestamppb.New(detail.CreatedAt),
 		UpdatedAt:      timestamppb.New(detail.UpdatedAt),
+	}
+}
+
+// NewUpdateVideoResponse 将更新后的 VO 转换为 gRPC 响应。
+func NewUpdateVideoResponse(updated *vo.VideoUpdated) *videov1.UpdateVideoResponse {
+	if updated == nil {
+		return &videov1.UpdateVideoResponse{}
+	}
+	return &videov1.UpdateVideoResponse{
+		VideoId:        updated.VideoID.String(),
+		UpdatedAt:      timestamppb.New(updated.UpdatedAt),
+		Status:         updated.Status,
+		MediaStatus:    updated.MediaStatus,
+		AnalysisStatus: updated.AnalysisStatus,
+		EventId:        updated.EventID.String(),
+		Version:        updated.Version,
+		OccurredAt:     timestamppb.New(updated.OccurredAt),
+	}
+}
+
+// NewDeleteVideoResponse 将删除结果转换为 gRPC 响应。
+func NewDeleteVideoResponse(deleted *vo.VideoDeleted) *videov1.DeleteVideoResponse {
+	if deleted == nil {
+		return &videov1.DeleteVideoResponse{}
+	}
+	return &videov1.DeleteVideoResponse{
+		VideoId:    deleted.VideoID.String(),
+		DeletedAt:  timestamppb.New(deleted.DeletedAt),
+		EventId:    deleted.EventID.String(),
+		Version:    deleted.Version,
+		OccurredAt: timestamppb.New(deleted.OccurredAt),
 	}
 }

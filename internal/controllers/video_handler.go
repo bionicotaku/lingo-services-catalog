@@ -74,6 +74,107 @@ func (h *VideoHandler) CreateVideo(ctx context.Context, req *videov1.CreateVideo
 	return views.NewCreateVideoResponse(created), nil
 }
 
+// UpdateVideo 实现 VideoCommandService.UpdateVideo RPC。
+func (h *VideoHandler) UpdateVideo(ctx context.Context, req *videov1.UpdateVideoRequest) (*videov1.UpdateVideoResponse, error) {
+	if req.GetVideoId() == "" {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "video_id is required")
+	}
+	videoID, err := uuid.Parse(req.GetVideoId())
+	if err != nil {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
+	}
+
+	input := services.UpdateVideoInput{
+		VideoID: videoID,
+	}
+	if req.Title != nil {
+		value := req.Title.Value
+		input.Title = &value
+	}
+	if req.Description != nil {
+		value := req.Description.Value
+		input.Description = &value
+	}
+	if req.Status != nil {
+		value := req.Status.Value
+		input.Status = &value
+	}
+	if req.MediaStatus != nil {
+		value := req.MediaStatus.Value
+		input.MediaStatus = &value
+	}
+	if req.AnalysisStatus != nil {
+		value := req.AnalysisStatus.Value
+		input.AnalysisStatus = &value
+	}
+	if req.DurationMicros != nil {
+		value := req.DurationMicros.Value
+		input.DurationMicros = &value
+	}
+	if req.ThumbnailUrl != nil {
+		value := req.ThumbnailUrl.Value
+		input.ThumbnailURL = &value
+	}
+	if req.HlsMasterPlaylist != nil {
+		value := req.HlsMasterPlaylist.Value
+		input.HLSMasterPlaylist = &value
+	}
+	if req.Difficulty != nil {
+		value := req.Difficulty.Value
+		input.Difficulty = &value
+	}
+	if req.Summary != nil {
+		value := req.Summary.Value
+		input.Summary = &value
+	}
+	if req.RawSubtitleUrl != nil {
+		value := req.RawSubtitleUrl.Value
+		input.RawSubtitleURL = &value
+	}
+	if req.ErrorMessage != nil {
+		value := req.ErrorMessage.Value
+		input.ErrorMessage = &value
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	updated, err := h.uc.UpdateVideo(timeoutCtx, input)
+	if err != nil {
+		return nil, err
+	}
+	return views.NewUpdateVideoResponse(updated), nil
+}
+
+// DeleteVideo 实现 VideoCommandService.DeleteVideo RPC。
+func (h *VideoHandler) DeleteVideo(ctx context.Context, req *videov1.DeleteVideoRequest) (*videov1.DeleteVideoResponse, error) {
+	if req.GetVideoId() == "" {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "video_id is required")
+	}
+	videoID, err := uuid.Parse(req.GetVideoId())
+	if err != nil {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), fmt.Sprintf("invalid video_id: %v", err))
+	}
+
+	var reason *string
+	if req.Reason != nil {
+		value := req.Reason.Value
+		reason = &value
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	deleted, err := h.uc.DeleteVideo(timeoutCtx, services.DeleteVideoInput{
+		VideoID: videoID,
+		Reason:  reason,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return views.NewDeleteVideoResponse(deleted), nil
+}
+
 // GetVideoDetail 实现 VideoQueryService.GetVideoDetail RPC。
 func (h *VideoHandler) GetVideoDetail(ctx context.Context, req *videov1.GetVideoDetailRequest) (*videov1.GetVideoDetailResponse, error) {
 	if req.GetVideoId() == "" {

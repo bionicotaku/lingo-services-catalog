@@ -17,6 +17,10 @@ service VideoQueryService {
 service VideoCommandService {
   // CreateVideo 创建新视频记录
   rpc CreateVideo(CreateVideoRequest) returns (CreateVideoResponse);
+  // UpdateVideo 更新视频元数据
+  rpc UpdateVideo(UpdateVideoRequest) returns (UpdateVideoResponse);
+  // DeleteVideo 删除视频记录
+  rpc DeleteVideo(DeleteVideoRequest) returns (DeleteVideoResponse);
 }
 
 // GetVideoDetailRequest 表示查询参数。
@@ -57,4 +61,52 @@ message CreateVideoResponse {
   string status = 3;                                           // 视频状态
   string media_status = 4;                                     // 媒体处理状态
   string analysis_status = 5;                                  // 分析状态
+  string event_id = 6;                                         // 事件 ID（用于客户端幂等与回放）
+  int64 version = 7;                                           // 聚合版本号
+  google.protobuf.Timestamp occurred_at = 8;                   // 事件发生时间
+}
+
+// UpdateVideoRequest 表示对视频元数据的部分更新请求。
+// 仅填充需要更新的字段，其余字段保持不变。
+message UpdateVideoRequest {
+  string video_id = 1;                                         // 视频 ID（必填）
+  google.protobuf.StringValue title = 2;                       // 标题
+  google.protobuf.StringValue description = 3;                 // 描述
+  google.protobuf.StringValue status = 4;                      // 视频状态
+  google.protobuf.StringValue media_status = 5;                // 媒体阶段状态
+  google.protobuf.StringValue analysis_status = 6;             // 分析阶段状态
+  google.protobuf.Int64Value duration_micros = 7;              // 视频时长（微秒）
+  google.protobuf.StringValue thumbnail_url = 8;               // 缩略图 URL
+  google.protobuf.StringValue hls_master_playlist = 9;         // HLS 主清单
+  google.protobuf.StringValue difficulty = 10;                 // 难度
+  google.protobuf.StringValue summary = 11;                    // 摘要
+  google.protobuf.StringValue raw_subtitle_url = 12;           // 原始字幕
+  google.protobuf.StringValue error_message = 13;              // 错误信息
+}
+
+// UpdateVideoResponse 返回更新后的核心字段与事件元数据。
+message UpdateVideoResponse {
+  string video_id = 1;                                         // 视频 ID
+  google.protobuf.Timestamp updated_at = 2;                    // 更新时间
+  string status = 3;                                           // 视频状态
+  string media_status = 4;                                     // 媒体阶段状态
+  string analysis_status = 5;                                  // 分析阶段状态
+  string event_id = 6;                                         // 事件 ID
+  int64 version = 7;                                           // 聚合版本号
+  google.protobuf.Timestamp occurred_at = 8;                   // 事件发生时间
+}
+
+// DeleteVideoRequest 表示删除视频的请求。
+message DeleteVideoRequest {
+  string video_id = 1;                                         // 视频 ID（必填）
+  google.protobuf.StringValue reason = 2;                      // 删除原因（可选）
+}
+
+// DeleteVideoResponse 返回删除操作的事件元数据。
+message DeleteVideoResponse {
+  string video_id = 1;                                         // 被删除的视频 ID
+  google.protobuf.Timestamp deleted_at = 2;                    // 删除时间
+  string event_id = 3;                                         // 事件 ID
+  int64 version = 4;                                           // 聚合版本号
+  google.protobuf.Timestamp occurred_at = 5;                   // 事件发生时间
 }

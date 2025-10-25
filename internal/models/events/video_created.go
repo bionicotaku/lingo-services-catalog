@@ -34,9 +34,13 @@ func NewVideoCreatedEvent(video *po.Video, eventID uuid.UUID, occurredAt time.Ti
 		return nil, ErrInvalidEventID
 	}
 	if occurredAt.IsZero() {
-		occurredAt = time.Now()
+		occurredAt = video.CreatedAt
+		if occurredAt.IsZero() {
+			occurredAt = time.Now()
+		}
 	}
 
+	version := VersionFromTime(occurredAt)
 	ts := timestamppb.New(occurredAt.UTC())
 	payload := &videov1.VideoCreated{
 		VideoId:        video.VideoID.String(),
@@ -45,7 +49,7 @@ func NewVideoCreatedEvent(video *po.Video, eventID uuid.UUID, occurredAt time.Ti
 		Status:         string(video.Status),
 		MediaStatus:    string(video.MediaStatus),
 		AnalysisStatus: string(video.AnalysisStatus),
-		Version:        1,
+		Version:        version,
 		OccurredAt:     ts,
 	}
 
@@ -61,7 +65,7 @@ func NewVideoCreatedEvent(video *po.Video, eventID uuid.UUID, occurredAt time.Ti
 		EventType:     videov1.EventType_EVENT_TYPE_VIDEO_CREATED,
 		AggregateId:   video.VideoID.String(),
 		AggregateType: AggregateTypeVideo,
-		Version:       1,
+		Version:       version,
 		OccurredAt:    ts,
 		Payload:       &videov1.Event_Created{Created: payload},
 	}

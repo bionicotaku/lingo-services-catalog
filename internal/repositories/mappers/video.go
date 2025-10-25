@@ -34,6 +34,31 @@ func BuildInsertOutboxEventParams(eventID uuid.UUID, aggregateType string, aggre
 	}
 }
 
+// BuildUpdateVideoParams 将更新输入转换为 sqlc UpdateVideoParams。
+func BuildUpdateVideoParams(
+	videoID uuid.UUID,
+	title, description, thumbnailURL, hlsMasterPlaylist, difficulty, summary, rawSubtitleURL, errorMessage *string,
+	status *po.VideoStatus,
+	mediaStatus, analysisStatus *po.StageStatus,
+	durationMicros *int64,
+) catalogsql.UpdateVideoParams {
+	return catalogsql.UpdateVideoParams{
+		Title:             ToPgText(title),
+		Description:       ToPgText(description),
+		Status:            ToNullVideoStatus(status),
+		MediaStatus:       ToNullStageStatus(mediaStatus),
+		AnalysisStatus:    ToNullStageStatus(analysisStatus),
+		DurationMicros:    ToPgInt8(durationMicros),
+		ThumbnailUrl:      ToPgText(thumbnailURL),
+		HlsMasterPlaylist: ToPgText(hlsMasterPlaylist),
+		Difficulty:        ToPgText(difficulty),
+		Summary:           ToPgText(summary),
+		RawSubtitleUrl:    ToPgText(rawSubtitleURL),
+		ErrorMessage:      ToPgText(errorMessage),
+		VideoID:           videoID,
+	}
+}
+
 // VideoFromCatalog 将 sqlc 生成的 CatalogVideo 转换为领域实体 po.Video。
 func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
 	return &po.Video{
@@ -121,5 +146,54 @@ func timestamptzFromTime(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{
 		Time:  t.UTC(),
 		Valid: true,
+	}
+}
+
+// ToPgText 将 string 指针转换为 pgtype.Text。
+func ToPgText(value *string) pgtype.Text {
+	return textFromPtr(value)
+}
+
+// ToPgInt8 将 int64 指针转换为 pgtype.Int8。
+func ToPgInt8(value *int64) pgtype.Int8 {
+	if value == nil {
+		return pgtype.Int8{}
+	}
+	return pgtype.Int8{
+		Int64: *value,
+		Valid: true,
+	}
+}
+
+// ToPgInt4 将 int32 指针转换为 pgtype.Int4。
+func ToPgInt4(value *int32) pgtype.Int4 {
+	if value == nil {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{
+		Int32: *value,
+		Valid: true,
+	}
+}
+
+// ToNullVideoStatus 将领域视频状态转换为 sqlc NullCatalogVideoStatus。
+func ToNullVideoStatus(value *po.VideoStatus) catalogsql.NullCatalogVideoStatus {
+	if value == nil {
+		return catalogsql.NullCatalogVideoStatus{}
+	}
+	return catalogsql.NullCatalogVideoStatus{
+		CatalogVideoStatus: catalogsql.CatalogVideoStatus(*value),
+		Valid:              true,
+	}
+}
+
+// ToNullStageStatus 将阶段状态转换为 sqlc NullCatalogStageStatus。
+func ToNullStageStatus(value *po.StageStatus) catalogsql.NullCatalogStageStatus {
+	if value == nil {
+		return catalogsql.NullCatalogStageStatus{}
+	}
+	return catalogsql.NullCatalogStageStatus{
+		CatalogStageStatus: catalogsql.CatalogStageStatus(*value),
+		Valid:              true,
 	}
 }

@@ -35,6 +35,10 @@ const (
 	ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED ErrorReason = 3
 	// 查询超时
 	ErrorReason_ERROR_REASON_QUERY_TIMEOUT ErrorReason = 4
+	// 更新请求无效（缺少字段或取值非法）
+	ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID ErrorReason = 5
+	// 删除请求无效
+	ErrorReason_ERROR_REASON_VIDEO_DELETE_INVALID ErrorReason = 6
 )
 
 // Enum value maps for ErrorReason.
@@ -45,13 +49,17 @@ var (
 		2: "ERROR_REASON_VIDEO_ID_INVALID",
 		3: "ERROR_REASON_QUERY_VIDEO_FAILED",
 		4: "ERROR_REASON_QUERY_TIMEOUT",
+		5: "ERROR_REASON_VIDEO_UPDATE_INVALID",
+		6: "ERROR_REASON_VIDEO_DELETE_INVALID",
 	}
 	ErrorReason_value = map[string]int32{
-		"ERROR_REASON_UNSPECIFIED":        0,
-		"ERROR_REASON_VIDEO_NOT_FOUND":    1,
-		"ERROR_REASON_VIDEO_ID_INVALID":   2,
-		"ERROR_REASON_QUERY_VIDEO_FAILED": 3,
-		"ERROR_REASON_QUERY_TIMEOUT":      4,
+		"ERROR_REASON_UNSPECIFIED":          0,
+		"ERROR_REASON_VIDEO_NOT_FOUND":      1,
+		"ERROR_REASON_VIDEO_ID_INVALID":     2,
+		"ERROR_REASON_QUERY_VIDEO_FAILED":   3,
+		"ERROR_REASON_QUERY_TIMEOUT":        4,
+		"ERROR_REASON_VIDEO_UPDATE_INVALID": 5,
+		"ERROR_REASON_VIDEO_DELETE_INVALID": 6,
 	}
 )
 
@@ -86,13 +94,15 @@ var File_api_video_v1_error_reason_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_error_reason_proto_rawDesc = "" +
 	"\n" +
-	"\x1fapi/video/v1/error_reason.proto\x12\bvideo.v1*\xb5\x01\n" +
+	"\x1fapi/video/v1/error_reason.proto\x12\bvideo.v1*\x83\x02\n" +
 	"\vErrorReason\x12\x1c\n" +
 	"\x18ERROR_REASON_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cERROR_REASON_VIDEO_NOT_FOUND\x10\x01\x12!\n" +
 	"\x1dERROR_REASON_VIDEO_ID_INVALID\x10\x02\x12#\n" +
 	"\x1fERROR_REASON_QUERY_VIDEO_FAILED\x10\x03\x12\x1e\n" +
-	"\x1aERROR_REASON_QUERY_TIMEOUT\x10\x04B=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"\x1aERROR_REASON_QUERY_TIMEOUT\x10\x04\x12%\n" +
+	"!ERROR_REASON_VIDEO_UPDATE_INVALID\x10\x05\x12%\n" +
+	"!ERROR_REASON_VIDEO_DELETE_INVALID\x10\x06B=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_error_reason_proto_rawDescOnce sync.Once

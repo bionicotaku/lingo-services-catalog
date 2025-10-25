@@ -23,11 +23,6 @@ lint:
 	staticcheck -checks=all,-ST1000 ./...
 	revive ./...
 
-.PHONY: api
-# generate api proto
-api:
-	buf generate --path api
-
 .PHONY: build
 # build
 build:
@@ -41,6 +36,7 @@ test:
 .PHONY: generate
 # generate
 generate:
+	buf generate --path api
 	sqlc generate
 	go generate ./...
 	go mod tidy
@@ -48,7 +44,6 @@ generate:
 .PHONY: all
 # generate all
 all:
-	$(MAKE) api
 	$(MAKE) config
 	$(MAKE) generate
 
