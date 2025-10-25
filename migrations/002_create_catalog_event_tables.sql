@@ -6,7 +6,7 @@ create table if not exists catalog.outbox_events (
   aggregate_type      text not null,                               -- 聚合根类型，如 video
   aggregate_id        uuid not null,                               -- 聚合根主键（通常对应业务表主键）
   event_type          text not null,                               -- 领域事件名，如 catalog.video.ready
-  payload             jsonb not null,                              -- 事件负载
+  payload             bytea not null,                              -- 事件负载
   headers             jsonb not null default '{}'::jsonb,          -- 追踪/幂等等头信息
   occurred_at         timestamptz not null default now(),          -- 事件产生时间
   available_at        timestamptz not null default now(),          -- 可发布时间（延迟投递时使用）
@@ -21,7 +21,7 @@ comment on table catalog.outbox_events is 'Outbox 表：与业务事务同库写
 comment on column catalog.outbox_events.aggregate_type    is '聚合根类型，限定于 catalog 服务内的实体（如 video）';
 comment on column catalog.outbox_events.aggregate_id      is '聚合根主键，保持与业务表一致的 UUID';
 comment on column catalog.outbox_events.event_type        is '事件名，使用过去式（如 catalog.video.ready）';
-comment on column catalog.outbox_events.payload           is '事件负载（JSON），包含业务数据快照';
+comment on column catalog.outbox_events.payload           is '事件负载（Protobuf 二进制），包含业务数据快照';
 comment on column catalog.outbox_events.headers           is '事件头部（JSON），用于 trace/idempotency 等';
 comment on column catalog.outbox_events.available_at      is '事件可被 Relay 选择的时间，支持延迟投递';
 comment on column catalog.outbox_events.published_at      is '事件成功发布到消息通道的时间戳';
@@ -53,7 +53,7 @@ create table if not exists catalog.inbox_events (
   event_type       text not null,                        -- 事件名
   aggregate_type   text,                                 -- 来源聚合根类型
   aggregate_id     text,                                 -- 来源聚合根主键（文本以兼容多种类型）
-  payload          jsonb not null default '{}'::jsonb,   -- 原始事件载荷快照
+  payload          bytea not null,                       -- 原始事件载荷快照
   received_at      timestamptz not null default now(),   -- 收到事件时间
   processed_at     timestamptz,                          -- 本服务处理完成时间
   last_error       text                                  -- 最近一次处理失败信息

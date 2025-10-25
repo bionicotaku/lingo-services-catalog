@@ -3,7 +3,7 @@ CREATE TABLE catalog.outbox_events (
   aggregate_type TEXT NOT NULL,
   aggregate_id UUID NOT NULL,
   event_type TEXT NOT NULL,
-  payload JSONB NOT NULL,
+  payload BYTEA NOT NULL,
   headers JSONB NOT NULL DEFAULT '{}'::jsonb,
   occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -28,7 +28,7 @@ CREATE TABLE catalog.inbox_events (
   event_type TEXT NOT NULL,
   aggregate_type TEXT,
   aggregate_id TEXT,
-  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  payload BYTEA NOT NULL,
   received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   processed_at TIMESTAMPTZ,
   last_error TEXT
