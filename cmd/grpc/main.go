@@ -10,6 +10,7 @@ import (
 
 	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
 	"github.com/bionicotaku/kratos-template/internal/tasks/outbox"
+	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -27,7 +28,7 @@ import (
 //   - meta: 服务元信息（Name/Version/Environment/InstanceID）
 //
 // 返回 kratos.App 实例，调用 app.Run() 启动服务并阻塞直到收到停止信号。
-func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata, publisher *outbox.PublisherTask) *kratos.App {
+func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata, publisher *outbox.PublisherTask, projectionTask *projection.Task) *kratos.App {
 	options := []kratos.Option{
 		kratos.ID(meta.InstanceID),
 		kratos.Name(meta.Name),
@@ -37,29 +38,54 @@ func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loade
 		kratos.Server(gs),
 	}
 
-	if publisher != nil {
-		var (
-			wg     sync.WaitGroup
-			cancel context.CancelFunc
-		)
+	type worker struct {
+		name string
+		run  func(context.Context) error
+	}
 
+	var workers []worker
+	if publisher != nil {
+		workers = append(workers, worker{
+			name: "outbox publisher",
+			run:  publisher.Run,
+		})
+	}
+	if projectionTask != nil {
+		workers = append(workers, worker{
+			name: "projection consumer",
+			run:  projectionTask.Run,
+		})
+	}
+
+	if len(workers) > 0 {
+		var (
+			wg      sync.WaitGroup
+			cancels []context.CancelFunc
+		)
 		helper := log.NewHelper(logger)
+
 		options = append(options,
 			kratos.BeforeStart(func(ctx context.Context) error {
-				runCtx, c := context.WithCancel(ctx)
-				cancel = c
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					if err := publisher.Run(runCtx); err != nil && !errors.Is(err, context.Canceled) {
-						helper.Warnf("outbox publisher stopped: %v", err)
-					}
-				}()
+				cancels = make([]context.CancelFunc, len(workers))
+				for i := range workers {
+					runCtx, cancel := context.WithCancel(ctx)
+					cancels[i] = cancel
+					wg.Add(1)
+					worker := workers[i]
+					go func() {
+						defer wg.Done()
+						if err := worker.run(runCtx); err != nil && !errors.Is(err, context.Canceled) {
+							helper.Warnf("%s stopped: %v", worker.name, err)
+						}
+					}()
+				}
 				return nil
 			}),
 			kratos.AfterStop(func(ctx context.Context) error {
-				if cancel != nil {
-					cancel()
+				for _, cancel := range cancels {
+					if cancel != nil {
+						cancel()
+					}
 				}
 				done := make(chan struct{})
 				go func() {

@@ -120,26 +120,26 @@ gcloud pubsub subscriptions add-iam-policy-binding catalog.video.events.catalog-
 ---
 
 ## 6. 配置文件扩展（代码落地 TODO）
-在 `configs/config.yaml` 追加 `messaging.pubsub` 节点（待开发）：
+在 `configs/config.yaml` 更新 `messaging.pubsub` 节点：
 ```yaml
 messaging:
   pubsub:
-    project_id: smiling-landing-472320-q0
+    project_id: smiling-landing-472320-q0          # 替换为实际项目 ID
     topic_id: catalog.video.events
     subscription_id: catalog.video.events.catalog-reader
     dead_letter_topic_id: catalog.video.events.dlq
-    ordering_enabled: true
-    enable_exactly_once: true
-    emulator_host: ""              # 本地使用 emulator 时覆盖为 localhost:8085
-    publisher:
-      claim_batch_size: 200
-      min_backoff: 5s
-      max_backoff: 2m
-      max_attempts: 20
-    consumer:
-      max_goroutines: 4
+    ordering_key_enabled: true
+    logging_enabled: true
+    metrics_enabled: true
+    emulator_endpoint: ""                         # 本地 emulator 填 localhost:8085
+    publish_timeout: 5s
+    receive:
+      num_goroutines: 4
       max_outstanding_messages: 500
-      max_outstanding_bytes: 67108864 # 64 MiB
+      max_outstanding_bytes: 67108864             # 64 MiB
+      max_extension: 60s
+      max_extension_period: 600s
+    exactly_once_delivery: true
 ```
 
 后续需要在 `internal/infrastructure/config_loader` 中解析该结构，并在 Wire 中注入：
@@ -186,6 +186,7 @@ messaging:
   2. 开启数据库事务，执行 `Inbox INSERT ... ON CONFLICT DO NOTHING`，并以 `event.version` 做投影表 UPSERT（`WHERE version < EXCLUDED.version`）
   3. 事务成功后 `msg.Ack()`；失败则 `msg.Nack()` 或直接返回错误让 Pub/Sub 重投。
 - 捕获 `msg.DeliveryAttempt`，对连续失败的消息记录日志、必要时转入人工处理。
+- 应用侧指标：消费者会额外暴露 `projection_apply_success_total`、`projection_apply_failure_total` 以及 `projection_event_lag_ms`，用于观察投影成功率与事件滞后时间。
 
 ---
 
@@ -226,7 +227,7 @@ messaging:
    观察是否为 Protobuf 二进制；如需查看内容，可写临时脚本反序列化。
 3. **DLQ 巡检**：
    ```bash
-   gcloud pubsub subscriptions pull catalog.video.events.dlq-monitor \
+   gcloud pubsub subscriptions pull catalog.video.events.dlq.monitor \
        --project=smiling-landing-472320-q0 \
        --limit=5 --auto-ack
    ```
@@ -234,10 +235,27 @@ messaging:
 
 ---
 
+## 9. DLQ 处理流程
+1. **创建只读订阅**：为死信 Topic 创建独立订阅（示例 `catalog.video.events.dlq.monitor`），仅用于人工巡检：
+   ```bash
+   gcloud pubsub subscriptions create catalog.video.events.dlq.monitor \
+       --project=smiling-landing-472320-q0 \
+       --topic=catalog.video.events.dlq \
+       --ack-deadline=300
+   ```
+2. **分析消息**：定期 `pull` 死信订阅，确认失败原因（如 Schema 不兼容、业务字段缺失、权限错误等）。必要时把 Payload 保存下来供本地复现。
+3. **修复并回放**：
+   - 修复代码/配置后，可将死信消息重新发布到主 Topic（慎重操作，确保消息幂等）。
+   - 或在问题解决后使用 `Seek` 将主订阅回拨到指定时间点进行重放。
+4. **治理指标**：为死信订阅配置告警（如 `num_undelivered_messages` 连续上升、`ack_latency` 异常）并建立 Runbook，确保问题不会长时间积压。
+
+---
+
 ## 10. 运行与运维建议
 - **监控指标**（结合 `docs/pubsub-conventions.md` 中 Prometheus 示例）：
-  - Outbox 发布：`outbox_publish_attempts_total`、`outbox_publish_failures_total`、`outbox_backlog_gauge`
-  - 订阅端：`subscription_num_undelivered_messages`、`ack_latency`、`delivery_attempts`、`dlq_message_count`
+  - Outbox 发布：`outbox_publish_success_total`、`outbox_publish_failure_total`、`outbox_backlog`（Gauge）
+  - 投影消费者：`projection_apply_success_total`、`projection_apply_failure_total`、`projection_event_lag_ms`
+  - Pub/Sub 内置指标：`subscription/num_undelivered_messages`、`subscription/oldest_unacked_message_age`、DLQ 消息计数
 - **回放流程**：当读模型失步时：
   1. 暂停消费者（关闭 Cloud Run 服务或后台 goroutine）。
   2. 执行 `gcloud pubsub subscriptions seek catalog.video.events.catalog-reader --time=<timestamp>`。

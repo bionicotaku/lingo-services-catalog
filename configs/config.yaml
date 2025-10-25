@@ -105,21 +105,22 @@ observability:
 # 消息系统配置：Pub/Sub 与 Outbox 发布器
 messaging:
   pubsub:
-    project_id: local-project
+    project_id: smiling-landing-472320-q0        # TODO: 替换为实际 GCP 项目 ID
     topic_id: catalog.video.events
     subscription_id: catalog.video.events.catalog-reader
+    dead_letter_topic_id: catalog.video.events.dlq
     ordering_key_enabled: true
     logging_enabled: true
     metrics_enabled: true
-    emulator_endpoint: localhost:8085
+    emulator_endpoint: ""                        # 本地使用 emulator 时设置 localhost:8085
     publish_timeout: 5s
     receive:
-      num_goroutines: 1
-      max_outstanding_messages: 100
-      max_outstanding_bytes: 26214400   # 25 MiB
+      num_goroutines: 4
+      max_outstanding_messages: 500
+      max_outstanding_bytes: 67108864   # 64 MiB
       max_extension: 60s
       max_extension_period: 600s
-    exactly_once_delivery: false
+    exactly_once_delivery: true
   outbox:
     batch_size: 100
     tick_interval: 1s

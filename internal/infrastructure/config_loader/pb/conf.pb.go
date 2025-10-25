@@ -319,6 +319,7 @@ type PubSub struct {
 	PublishTimeout      *durationpb.Duration   `protobuf:"bytes,8,opt,name=publish_timeout,json=publishTimeout,proto3" json:"publish_timeout,omitempty"`
 	Receive             *Receive               `protobuf:"bytes,9,opt,name=receive,proto3" json:"receive,omitempty"`
 	ExactlyOnceDelivery bool                   `protobuf:"varint,10,opt,name=exactly_once_delivery,json=exactlyOnceDelivery,proto3" json:"exactly_once_delivery,omitempty"`
+	DeadLetterTopicId   string                 `protobuf:"bytes,11,opt,name=dead_letter_topic_id,json=deadLetterTopicId,proto3" json:"dead_letter_topic_id,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -421,6 +422,13 @@ func (x *PubSub) GetExactlyOnceDelivery() bool {
 		return x.ExactlyOnceDelivery
 	}
 	return false
+}
+
+func (x *PubSub) GetDeadLetterTopicId() string {
+	if x != nil {
+		return x.DeadLetterTopicId
+	}
+	return ""
 }
 
 type Receive struct {
@@ -1429,7 +1437,7 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"l\n" +
 	"\tMessaging\x12*\n" +
 	"\x06pubsub\x18\x01 \x01(\v2\x12.kratos.api.PubSubR\x06pubsub\x123\n" +
-	"\x06outbox\x18\x02 \x01(\v2\x1b.kratos.api.OutboxPublisherR\x06outbox\"\xc3\x03\n" +
+	"\x06outbox\x18\x02 \x01(\v2\x1b.kratos.api.OutboxPublisherR\x06outbox\"\xf4\x03\n" +
 	"\x06PubSub\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x19\n" +
@@ -1442,7 +1450,8 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x0fpublish_timeout\x18\b \x01(\v2\x19.google.protobuf.DurationR\x0epublishTimeout\x12-\n" +
 	"\areceive\x18\t \x01(\v2\x13.kratos.api.ReceiveR\areceive\x122\n" +
 	"\x15exactly_once_delivery\x18\n" +
-	" \x01(\bR\x13exactlyOnceDelivery\"\xab\x02\n" +
+	" \x01(\bR\x13exactlyOnceDelivery\x12/\n" +
+	"\x14dead_letter_topic_id\x18\v \x01(\tR\x11deadLetterTopicId\"\xab\x02\n" +
 	"\aReceive\x12%\n" +
 	"\x0enum_goroutines\x18\x01 \x01(\x05R\rnumGoroutines\x128\n" +
 	"\x18max_outstanding_messages\x18\x02 \x01(\x05R\x16maxOutstandingMessages\x122\n" +

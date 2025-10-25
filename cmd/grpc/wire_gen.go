@@ -114,7 +114,12 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	publisher := gcpubsub.ProvidePublisher(gcpubsubComponent)
 	outboxPublisherConfig := loader.ProvideOutboxPublisherConfig(messaging)
 	publisherTask := provideOutboxTask(outboxRepository, publisher, gcpubsubConfig, outboxPublisherConfig, logger)
-	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata, publisherTask)
+	subscriber := gcpubsub.ProvideSubscriber(gcpubsubComponent)
+	inboxRepository := repositories.NewInboxRepository(pool, logger)
+	videoProjectionRepository := repositories.NewVideoProjectionRepository(pool, logger)
+	projectionConsumerConfig := loader.ProvideProjectionConsumerConfig(messaging)
+	task := provideProjectionTask(subscriber, inboxRepository, videoProjectionRepository, manager, projectionConsumerConfig, logger)
+	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata, publisherTask, task)
 	return app, func() {
 		cleanup6()
 		cleanup5()

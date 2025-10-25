@@ -83,7 +83,7 @@
 
 ## 阶段 6｜配置、部署与文档
 - [ ] 扩展 `configs/config.yaml`：
-  - [ ] `pubsub.project_id/topic_id/subscription_id/exactly_once` 等参数。
+  - [x] `pubsub.project_id/topic_id/subscription_id/exactly_once` 等参数。
   - [ ] Outbox 扫描批次、退避基础时长、最大尝试次数。
   - [ ] 投影消费者并发、Ack deadline、重试策略。
 - [ ] 更新 `internal/infrastructure/config_loader` 解析新配置，提供默认值与校验。
@@ -92,7 +92,7 @@
 
 ## 阶段 7｜观测、回放与运维
 - [ ] 在发布器/消费者中打 `log/slog` 结构化日志（event_id, aggregate_id, version, message_id）。
-- [ ] 导出 OTel 指标与 tracing span（Outbox publish、Projection apply）。
+- [x] 导出 OTel 指标与 tracing span（Outbox publish、Projection apply）。
 - [ ] 提供回放脚本：调用 Pub/Sub Seek 或扫描 Outbox 重新发布（文档化流程）。
 - [ ] 设计告警阈值：Outbox 累积、订阅滞后、DLQ 消息计数、连续退避上限。
 

@@ -174,7 +174,27 @@ data:
   database:
     driver: "postgres"
     source: "postgres://user:password@db.supabase.co:5432/postgres?sslmode=require"
+
+messaging:
+  pubsub:
+    project_id: "smiling-landing-472320-q0"              # 替换为实际 GCP 项目 ID
+    topic_id: "catalog.video.events"
+    subscription_id: "catalog.video.events.catalog-reader"
+    dead_letter_topic_id: "catalog.video.events.dlq"
+    emulator_endpoint: ""                                # 本地使用 emulator 时改为 localhost:8085
+    ordering_key_enabled: true
+    logging_enabled: true
+    metrics_enabled: true
+    exactly_once_delivery: true
+    receive:
+      num_goroutines: 4
+      max_outstanding_messages: 500
+      max_outstanding_bytes: 67108864
+      max_extension: 60s
+      max_extension_period: 600s
 ```
+
+> ⚠️ **注意**：`messaging.pubsub.project_id/topic_id/subscription_id` 均为必填；运行在 GCP 真机环境时必须为这些字段赋值，否则应用将直接启动失败。若使用 Pub/Sub Emulator，请设置 `PUBSUB_EMULATOR_HOST` 环境变量并将 `emulator_endpoint` 填为 `localhost:8085`。
 
 ### 4. 执行数据库迁移
 

@@ -124,6 +124,7 @@ message PubSub {
   google.protobuf.Duration publish_timeout = 8;
   Receive receive = 9;
   bool exactly_once_delivery = 10;
+  string dead_letter_topic_id = 11;
 }
 
 message Receive {

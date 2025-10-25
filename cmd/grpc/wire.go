@@ -54,6 +54,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		provideOutboxTask,
+		provideProjectionTask,
 		newApp, // 组装 Kratos 应用
 	))
 }

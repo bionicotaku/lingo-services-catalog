@@ -1,6 +1,8 @@
 package loader
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
@@ -52,6 +54,7 @@ var ProviderSet = wire.NewSet(
 	ProvidePubsubConfig,
 	ProvidePubsubDependencies,
 	ProvideOutboxPublisherConfig,
+	ProvideProjectionConsumerConfig,
 )
 
 const (
@@ -264,13 +267,41 @@ func ProvidePubsubConfig(msg *configpb.Messaging) gcpubsub.Config {
 		ExactlyOnceDelivery: pc.GetExactlyOnceDelivery(),
 	}
 
-	return cfg.Normalize()
+	cfg = cfg.Normalize()
+
+	required := map[string]string{
+		"messaging.pubsub.project_id":      cfg.ProjectID,
+		"messaging.pubsub.topic_id":        cfg.TopicID,
+		"messaging.pubsub.subscription_id": cfg.SubscriptionID,
+	}
+	for field, value := range required {
+		if strings.TrimSpace(value) == "" {
+			panic(fmt.Errorf("%s is required; please update configs/config.yaml", field))
+		}
+	}
+
+	return cfg
 }
 
 // ProvidePubsubDependencies 构造 gcpubsub.Dependencies。
 func ProvidePubsubDependencies(logger log.Logger) gcpubsub.Dependencies {
 	return gcpubsub.Dependencies{
 		Logger: logger,
+	}
+}
+
+// ProjectionConsumerConfig 描述 StreamingPull 投影消费者需要的附加配置。
+type ProjectionConsumerConfig struct {
+	DeadLetterTopicID string
+}
+
+// ProvideProjectionConsumerConfig 返回投影消费者配置。
+func ProvideProjectionConsumerConfig(msg *configpb.Messaging) ProjectionConsumerConfig {
+	if msg == nil || msg.GetPubsub() == nil {
+		return ProjectionConsumerConfig{}
+	}
+	return ProjectionConsumerConfig{
+		DeadLetterTopicID: msg.GetPubsub().GetDeadLetterTopicId(),
 	}
 }
 
