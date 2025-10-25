@@ -1,3 +1,4 @@
+// Package events 提供领域事件构造与元数据辅助函数，统一事件命名与属性。
 package events
 
 import (

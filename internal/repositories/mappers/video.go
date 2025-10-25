@@ -7,8 +7,32 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+// BuildCreateVideoParams 将仓储层输入转换为 sqlc CreateVideoParams，统一处理可空字段。
+func BuildCreateVideoParams(uploadUserID uuid.UUID, title, rawFileReference string, description *string) catalogsql.CreateVideoParams {
+	return catalogsql.CreateVideoParams{
+		UploadUserID:     uploadUserID,
+		Title:            title,
+		RawFileReference: rawFileReference,
+		Description:      textFromPtr(description),
+	}
+}
+
+// BuildInsertOutboxEventParams 构造 sqlc InsertOutboxEventParams，确保时间与可空字段一致。
+func BuildInsertOutboxEventParams(eventID uuid.UUID, aggregateType string, aggregateID uuid.UUID, eventType string, payload, headers []byte, availableAt time.Time) catalogsql.InsertOutboxEventParams {
+	return catalogsql.InsertOutboxEventParams{
+		EventID:       eventID,
+		AggregateType: aggregateType,
+		AggregateID:   aggregateID,
+		EventType:     eventType,
+		Payload:       payload,
+		Headers:       headers,
+		AvailableAt:   timestamptzFromTime(availableAt),
+	}
+}
 
 // VideoFromCatalog 将 sqlc 生成的 CatalogVideo 转换为领域实体 po.Video。
 func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
@@ -78,4 +102,24 @@ func int4Ptr(i pgtype.Int4) *int32 {
 		return nil
 	}
 	return &i.Int32
+}
+
+func textFromPtr(value *string) pgtype.Text {
+	if value == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{
+		String: *value,
+		Valid:  true,
+	}
+}
+
+func timestamptzFromTime(t time.Time) pgtype.Timestamptz {
+	if t.IsZero() {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{
+		Time:  t.UTC(),
+		Valid: true,
+	}
 }

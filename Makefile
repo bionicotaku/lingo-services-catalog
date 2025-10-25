@@ -41,6 +41,7 @@ test:
 .PHONY: generate
 # generate
 generate:
+	sqlc generate
 	go generate ./...
 	go mod tidy
 

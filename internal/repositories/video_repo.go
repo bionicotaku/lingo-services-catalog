@@ -46,17 +46,12 @@ type CreateVideoInput struct {
 
 // Create 创建新视频记录，video_id 由数据库自动生成。
 func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, input CreateVideoInput) (*po.Video, error) {
-	params := catalogsql.CreateVideoParams{
-		UploadUserID:     input.UploadUserID,
-		Title:            input.Title,
-		RawFileReference: input.RawFileReference,
-	}
-
-	// 处理可选的 description 字段
-	if input.Description != nil {
-		params.Description.String = *input.Description
-		params.Description.Valid = true
-	}
+	params := mappers.BuildCreateVideoParams(
+		input.UploadUserID,
+		input.Title,
+		input.RawFileReference,
+		input.Description,
+	)
 
 	queries := r.queries
 	if sess != nil {

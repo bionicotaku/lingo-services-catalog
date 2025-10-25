@@ -3,7 +3,8 @@ sql:
   - schema:
       - "sqlc/schema/*.sql"
     queries:
-      - "internal/repositories/sqlc/video.sql"
+      - "internal/repositories/sqlc/video_write.sql"
+      - "internal/repositories/sqlc/video_read.sql"
       - "internal/repositories/sqlc/events.sql"
     engine: postgresql
     gen:
