@@ -5,7 +5,7 @@ package grpcclient
 import (
 	"context"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
@@ -41,12 +41,12 @@ import (
 //
 // 特殊处理：
 // - 如果未配置 target，返回 nil conn（不报错），允许服务在无下游依赖时启动
-func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, jwt gcjwt.ClientMiddleware, logger log.Logger) (*grpc.ClientConn, func(), error) {
+func NewGRPCClient(cfg configloader.GRPCClientConfig, metricsCfg *observability.MetricsConfig, jwt gcjwt.ClientMiddleware, logger log.Logger) (*grpc.ClientConn, func(), error) {
 	helper := log.NewHelper(logger)
 
 	// 如果未配置目标地址，返回 nil 连接（不报错）
 	// 这允许服务在开发环境或无远程依赖时正常启动
-	if c == nil || c.GrpcClient == nil || c.GrpcClient.Target == "" {
+	if cfg.Target == "" {
 		helper.Warn("grpc client target not configured; remote calls disabled")
 		return nil, func() {}, nil
 	}
@@ -65,7 +65,7 @@ func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, jw
 		metadata.Client(),
 	}
 	// 按需注入 JWT，中间件只在配置启用时生效。
-	if jwt != nil {
+	if jwt != nil && !cfg.JWT.Disabled {
 		mws = append(mws, middleware.Middleware(jwt))
 	}
 	// 追踪与熔断保留原顺序，保证链路观测与保护能力。
@@ -75,7 +75,7 @@ func NewGRPCClient(c *configpb.Data, metricsCfg *observability.MetricsConfig, jw
 	)
 
 	opts := []kgrpc.ClientOption{
-		kgrpc.WithEndpoint(c.GrpcClient.Target),
+		kgrpc.WithEndpoint(cfg.Target),
 		kgrpc.WithMiddleware(mws...),
 	}
 	if metricsEnabled {

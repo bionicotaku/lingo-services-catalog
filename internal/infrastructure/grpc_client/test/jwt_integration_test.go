@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
@@ -21,11 +21,7 @@ func TestJWTClientMiddleware_NilMiddleware(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	// 配置无下游目标（target 为空）
-	cfg := &configpb.Data{
-		GrpcClient: &configpb.Data_Client{
-			Target: "", // 空 target
-		},
-	}
+	cfg := configloader.GRPCClientConfig{}
 
 	// 传入 nil JWT middleware
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
@@ -170,7 +166,7 @@ func TestJWTClientIntegration_WithNilMiddleware(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	// 配置无下游目标
-	cfg := &configpb.Data{}
+    cfg := configloader.GRPCClientConfig{}
 
 	// 传入 nil JWT middleware
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
@@ -217,7 +213,7 @@ func TestJWTClientIntegration_WithJWTMiddleware(t *testing.T) {
 	}
 
 	// 配置无下游目标（仅测试中间件注入不会导致错误）
-	cfg := &configpb.Data{}
+    cfg := configloader.GRPCClientConfig{}
 
 	// 传入 JWT middleware
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, clientMw, logger)

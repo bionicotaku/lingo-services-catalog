@@ -5,7 +5,7 @@ package grpcserver
 import (
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"
@@ -38,7 +38,7 @@ import (
 // 可选指标采集：
 // - 根据 metricsCfg.GRPCEnabled 决定是否启用 otelgrpc.StatsHandler
 // - 可通过 metricsCfg.GRPCIncludeHealth 控制是否采集健康检查指标
-func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, jwt gcjwt.ServerMiddleware, command *controllers.VideoCommandHandler, query *controllers.VideoQueryHandler, logger log.Logger) *grpc.Server {
+func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.MetricsConfig, jwt gcjwt.ServerMiddleware, command *controllers.VideoCommandHandler, query *controllers.VideoQueryHandler, logger log.Logger) *grpc.Server {
 	// metricsCfg 为可选参数，默认启用指标采集以保持向后兼容。
 	// 调用方可通过配置显式控制指标行为。
 	metricsEnabled := true
@@ -74,14 +74,14 @@ func NewGRPCServer(c *configpb.Server, metricsCfg *observability.MetricsConfig, 
 		handler := newServerHandler(includeHealth)
 		opts = append(opts, grpc.Options(stdgrpc.StatsHandler(handler)))
 	}
-	if c.GetGrpc().GetNetwork() != "" {
-		opts = append(opts, grpc.Network(c.GetGrpc().GetNetwork()))
+	if cfg.Network != "" {
+		opts = append(opts, grpc.Network(cfg.Network))
 	}
-	if c.GetGrpc().GetAddr() != "" {
-		opts = append(opts, grpc.Address(c.GetGrpc().GetAddr()))
+	if cfg.Address != "" {
+		opts = append(opts, grpc.Address(cfg.Address))
 	}
-	if c.GetGrpc().GetTimeout() != nil {
-		opts = append(opts, grpc.Timeout(c.GetGrpc().GetTimeout().AsDuration()))
+	if cfg.Timeout > 0 {
+		opts = append(opts, grpc.Timeout(cfg.Timeout))
 	}
 	srv := grpc.NewServer(opts...)
 	if query != nil {

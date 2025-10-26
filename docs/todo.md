@@ -65,7 +65,7 @@
 - [x] 发布器协程池与状态回写（完成 Publish().Get()、退避重试、释放租约）。
 - [x] 指标与日志（发布成功/失败计数、积压长度、拉取批次）。✅ 2025-10-25
   - 发布器新增 OTel Counter/Histogram/Gauge，日志补充 `backlog_before/backlog_after`、重试计划与发布延迟。
-- [x] 新增 `config_loader` → `gcpubsub.ProviderSet`、`OutboxPublisherConfig`，支持 emulator / 默认值。
+- [x] 新增 `configloader` → `gcpubsub.ProviderSet`、`OutboxPublisherConfig`，支持 emulator / 默认值。
 - [x] 在 `cmd/grpc/wire.go` 将 OutboxPublisher 注入并随 Kratos 生命周期启动后台任务。
 - [x] 编写集成测试或 e2e stub（可使用 Pub/Sub emulator）验证重复发布、退避策略。✅ 2025-10-25
   - `internal/repositories/test/outbox_repo_integration_test.go` 使用 Postgres Testcontainers 验证租约、重试与发布状态。
@@ -87,7 +87,7 @@
   - [x] `pubsub.project_id/topic_id/subscription_id/exactly_once` 等参数。
   - [x] Outbox 扫描批次、退避基础时长、最大尝试次数（默认值已落地，可按环境覆盖）。
   - [x] 投影消费者并发、Ack deadline、重试策略。
-- [x] 更新 `internal/infrastructure/config_loader` 解析新配置，提供默认值与校验。
+- [x] 更新 `internal/infrastructure/configloader` 解析新配置，提供默认值与校验。
 - [ ] Makefile 新增快捷命令（运行发布器/消费者、启动 emulator 文档链接）。
 - [ ] 更新 README 或专属文档，补充运行手册、验证步骤、监控面板指标说明。
 

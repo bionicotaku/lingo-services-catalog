@@ -8,10 +8,10 @@ import (
 	"flag"
 	"sync"
 
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
-	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -28,7 +28,7 @@ import (
 //   - meta: 服务元信息（Name/Version/Environment/InstanceID）
 //
 // 返回 kratos.App 实例，调用 app.Run() 启动服务并阻塞直到收到停止信号。
-func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata, publisher *outboxpublisher.Runner, projectionTask *projection.Task) *kratos.App {
+func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta configloader.ServiceInfo, publisher *outboxpublisher.Runner, projectionTask *projection.Task) *kratos.App {
 	options := []kratos.Option{
 		kratos.ID(meta.InstanceID),
 		kratos.Name(meta.Name),
@@ -112,7 +112,7 @@ func main() {
 	flag.Parse()
 
 	// 2. 构造配置加载参数
-	params := loader.Params{
+	params := configloader.Params{
 		ConfPath: *confFlag, // 配置路径（可为空，使用默认值或环境变量）
 	}
 

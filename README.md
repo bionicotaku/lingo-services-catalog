@@ -299,7 +299,7 @@ kratos-template/
 │   │   └── video.go                  # VO → Proto Response
 │   │
 │   ├── infrastructure/               # 基础设施层
-│   │   ├── config_loader/            # 配置加载
+│   │   ├── configloader/            # 配置加载
 │   │   ├── database/                 # 数据库连接池
 │   │   ├── grpc_server/              # gRPC Server 配置
 │   │   └── grpc_client/              # gRPC Client 配置

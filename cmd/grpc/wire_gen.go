@@ -9,7 +9,7 @@ package main
 import (
 	"context"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	"github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	"github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
@@ -40,30 +40,28 @@ import (
 //  3. 业务层: repositories → services → controllers
 //  4. 服务器: grpc_server.ProviderSet 组装 gRPC Server
 //  5. 应用: newApp 创建 Kratos App
-func wireApp(contextContext context.Context, params loader.Params) (*kratos.App, func(), error) {
-	bundle, err := loader.ProvideBundle(params)
+func wireApp(contextContext context.Context, params configloader.Params) (*kratos.App, func(), error) {
+	runtimeConfig, err := configloader.LoadRuntimeConfig(params)
 	if err != nil {
 		return nil, nil, err
 	}
-	observabilityConfig := loader.ProvideObservabilityConfig(bundle)
-	serviceMetadata := loader.ProvideServiceMetadata(bundle)
-	serviceInfo := loader.ProvideObservabilityInfo(serviceMetadata)
-	config := loader.ProvideLoggerConfig(serviceMetadata)
+	observabilityConfig := configloader.ProvideObservabilityConfig(runtimeConfig)
+	serviceInfo := configloader.ProvideServiceInfo(runtimeConfig)
+	observabilityServiceInfo := configloader.ProvideObservabilityInfo(serviceInfo)
+	config := configloader.ProvideLoggerConfig(serviceInfo)
 	component, cleanup, err := gclog.NewComponent(config)
 	if err != nil {
 		return nil, nil, err
 	}
 	logger := gclog.ProvideLogger(component)
-	observabilityComponent, cleanup2, err := observability.NewComponent(contextContext, observabilityConfig, serviceInfo, logger)
+	observabilityComponent, cleanup2, err := observability.NewComponent(contextContext, observabilityConfig, observabilityServiceInfo, logger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	bootstrap := loader.ProvideBootstrap(bundle)
-	server := loader.ProvideServerConfig(bootstrap)
+	serverConfig := configloader.ProvideServerConfig(runtimeConfig)
 	metricsConfig := observability.ProvideMetricsConfig(observabilityConfig)
-	data := loader.ProvideDataConfig(bootstrap)
-	gcjwtConfig := loader.ProvideJWTConfig(server, data)
+	gcjwtConfig := configloader.ProvideJWTConfig(runtimeConfig)
 	gcjwtComponent, cleanup3, err := gcjwt.NewComponent(gcjwtConfig, logger)
 	if err != nil {
 		cleanup2()
@@ -77,7 +75,8 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		cleanup()
 		return nil, nil, err
 	}
-	pgxpoolxConfig := loader.ProvidePgxPoolConfig(bundle)
+	databaseConfig := configloader.ProvideDatabaseConfig(runtimeConfig)
+	pgxpoolxConfig := configloader.ProvidePgxConfig(databaseConfig)
 	pgxpoolxComponent, cleanup4, err := pgxpoolx.ProvideComponent(contextContext, pgxpoolxConfig, logger)
 	if err != nil {
 		cleanup3()
@@ -87,10 +86,10 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	}
 	pool := pgxpoolx.ProvidePool(pgxpoolxComponent)
 	videoRepository := repositories.NewVideoRepository(pool, logger)
-	messaging := loader.ProvideMessagingConfig(bootstrap)
-	configConfig := loader.ProvideOutboxRuntimeConfig(messaging, data)
+	messagingConfig := configloader.ProvideMessagingConfig(runtimeConfig)
+	configConfig := configloader.ProvideOutboxConfig(messagingConfig)
 	outboxRepository := repositories.NewOutboxRepository(pool, logger, configConfig)
-	txmanagerConfig := loader.ProvideTxManagerConfig(bundle)
+	txmanagerConfig := configloader.ProvideTxConfig(runtimeConfig)
 	txmanagerComponent, cleanup5, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
 		cleanup4()
@@ -104,9 +103,9 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	videoCommandHandler := controllers.NewVideoCommandHandler(videoCommandService)
 	videoQueryService := services.NewVideoQueryService(videoRepository, manager, logger)
 	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService)
-	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoCommandHandler, videoQueryHandler, logger)
-	gcpubsubConfig := loader.ProvidePubsubConfig(messaging)
-	dependencies := loader.ProvidePubsubDependencies(logger)
+	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, videoCommandHandler, videoQueryHandler, logger)
+	gcpubsubConfig := configloader.ProvidePubSubConfig(messagingConfig)
+	dependencies := configloader.ProvidePubSubDependencies(logger)
 	gcpubsubComponent, cleanup6, err := gcpubsub.NewComponent(contextContext, gcpubsubConfig, dependencies)
 	if err != nil {
 		cleanup5()
@@ -122,7 +121,7 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	videoProjectionRepository := repositories.NewVideoProjectionRepository(pool, logger)
 	task := projection.ProvideTask(subscriber, inboxRepository, videoProjectionRepository, manager, configConfig, logger)
-	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata, runner, task)
+	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, task)
 	return app, func() {
 		cleanup6()
 		cleanup5()

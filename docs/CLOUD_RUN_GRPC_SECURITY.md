@@ -312,7 +312,7 @@ panic(wire.Build(
 
 #### 4.2.3 环境变量配置（配置文件已支持）
 
-`gcjwt` 通过 `config_loader` 自动读取环境变量，你只需在部署时设置：
+`gcjwt` 通过 `configloader` 自动读取环境变量，你只需在部署时设置：
 
 **本地开发环境** (`.env`):
 ```bash
@@ -453,7 +453,7 @@ CMD ["./grpc", "-conf", "/app/configs/"]
 |---------|---------|--------|------|
 | **代码** | `grpc_server.go` | **+3 行** | 读取 `$PORT` 环境变量 |
 | **Wire** | `wire.go` | **0 行** | 已包含 `gcjwt.ProviderSet` |
-| **配置** | 环境变量 | **0 行** | `config_loader` 已支持 |
+| **配置** | 环境变量 | **0 行** | `configloader` 已支持 |
 | **依赖** | `go.mod` | **0 行** | `gcjwt` 已在 `lingo-utils` |
 | **总计** | - | **3 行** | **改动量 < 0.1%** |
 

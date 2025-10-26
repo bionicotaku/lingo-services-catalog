@@ -8,7 +8,7 @@ import (
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	clientinfra "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_client"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
@@ -69,7 +69,7 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 	commandHandler := controllers.NewVideoCommandHandler(cmdSvc)
 	queryHandler := controllers.NewVideoQueryHandler(querySvc)
 
-	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
+	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
 	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
@@ -111,7 +111,7 @@ func waitForServer(t *testing.T, addr string) {
 func TestNewGRPCClient_NoTarget(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	conn, cleanup, err := clientinfra.NewGRPCClient(&configpb.Data{}, metricsCfg, nil, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(configloader.GRPCClientConfig{}, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestNewGRPCClient_CallVideo(t *testing.T) {
 
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
+	cfg := configloader.GRPCClientConfig{Target: "dns:///" + addr}
 
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestNewGRPCClient_VideoInvalidID(t *testing.T) {
 
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	cfg := &configpb.Data{GrpcClient: &configpb.Data_Client{Target: "dns:///" + addr}}
+	cfg := configloader.GRPCClientConfig{Target: "dns:///" + addr}
 
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {

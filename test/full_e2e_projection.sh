@@ -2,11 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-if [ -f "$ROOT_DIR/configs/.env" ]; then
+ENV_FILE="$ROOT_DIR/configs/.env"
+if [[ -f "$ENV_FILE" ]]; then
   set -a
-  # shellcheck disable=SC1090
-  source "$ROOT_DIR/configs/.env"
+  source "$ENV_FILE"
   set +a
 fi
 
@@ -40,12 +39,48 @@ touch "$SERVER_LOG"
 
 pushd "$ROOT_DIR" >/dev/null
 
+if command -v lsof >/dev/null 2>&1; then
+  if existing_pids=$(lsof -ti tcp:"$PORT" 2>/dev/null); then
+    for pid in $existing_pids; do
+      if [[ -n "$pid" ]]; then
+        echo "==> 终止占用端口 $PORT 的进程: $pid"
+        kill "$pid" >/dev/null 2>&1 || true
+        wait "$pid" 2>/dev/null || true
+      fi
+    done
+  fi
+fi
+
 PORT="$PORT" DATABASE_URL="$DATABASE_URL" \
   go run ./cmd/grpc -conf configs/config.yaml \
   >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
-sleep 3
+wait_for_port() {
+  python3 - "$GRPC_ENDPOINT" <<'PY'
+import socket, sys, time
+addr = sys.argv[1]
+host, port = addr.split(':')
+host = host or '127.0.0.1'
+port = int(port)
+for _ in range(30):
+    with socket.socket() as s:
+        s.settimeout(1)
+        try:
+            s.connect((host, port))
+        except OSError:
+            time.sleep(1)
+        else:
+            sys.exit(0)
+sys.exit(1)
+PY
+}
+
+if ! wait_for_port; then
+  echo "[ERROR] gRPC 服务在指定时间内未监听端口 $GRPC_ENDPOINT"
+  cat "$SERVER_LOG"
+  exit 1
+fi
 
 if ! kill -0 "$SERVER_PID" 2>/dev/null; then
   echo "[ERROR] gRPC 服务启动失败，日志如下："

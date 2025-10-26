@@ -142,7 +142,7 @@ messaging:
     exactly_once_delivery: true
 ```
 
-后续需要在 `internal/infrastructure/config_loader` 中解析该结构，并在 Wire 中注入：
+后续需要在 `internal/infrastructure/configloader` 中解析该结构，并在 Wire 中注入：
 - `pubsub.Client`
 - Outbox Publisher（后台 goroutine）
 - StreamingPull Consumer（后台 goroutine）

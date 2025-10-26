@@ -9,7 +9,7 @@ import (
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -74,7 +74,7 @@ func newVideoHandlers(t *testing.T) (*controllers.VideoCommandHandler, *controll
 func startServer(t *testing.T) (string, func()) {
 	t.Helper()
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
+	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)

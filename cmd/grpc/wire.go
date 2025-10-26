@@ -11,7 +11,7 @@ import (
 	"context"
 
 	"github.com/bionicotaku/kratos-template/internal/controllers"
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"

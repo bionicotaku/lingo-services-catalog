@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        (unknown)
-// source: internal/infrastructure/config_loader/pb/conf.proto
+// source: internal/infrastructure/configloader/pb/conf.proto
 
 package configpb
 
@@ -35,7 +35,7 @@ type Bootstrap struct {
 
 func (x *Bootstrap) Reset() {
 	*x = Bootstrap{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[0]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +47,7 @@ func (x *Bootstrap) String() string {
 func (*Bootstrap) ProtoMessage() {}
 
 func (x *Bootstrap) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[0]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +60,7 @@ func (x *Bootstrap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bootstrap.ProtoReflect.Descriptor instead.
 func (*Bootstrap) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{0}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Bootstrap) GetServer() *Server {
@@ -101,7 +101,7 @@ type Server struct {
 
 func (x *Server) Reset() {
 	*x = Server{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[1]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -113,7 +113,7 @@ func (x *Server) String() string {
 func (*Server) ProtoMessage() {}
 
 func (x *Server) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[1]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -126,7 +126,7 @@ func (x *Server) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server.ProtoReflect.Descriptor instead.
 func (*Server) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{1}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Server) GetGrpc() *Server_GRPC {
@@ -153,7 +153,7 @@ type Data struct {
 
 func (x *Data) Reset() {
 	*x = Data{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[2]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -165,7 +165,7 @@ func (x *Data) String() string {
 func (*Data) ProtoMessage() {}
 
 func (x *Data) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[2]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -178,7 +178,7 @@ func (x *Data) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data.ProtoReflect.Descriptor instead.
 func (*Data) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{2}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Data) GetPostgres() *Data_PostgreSQL {
@@ -206,7 +206,7 @@ type Observability struct {
 
 func (x *Observability) Reset() {
 	*x = Observability{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[3]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +218,7 @@ func (x *Observability) String() string {
 func (*Observability) ProtoMessage() {}
 
 func (x *Observability) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[3]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +231,7 @@ func (x *Observability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Observability.ProtoReflect.Descriptor instead.
 func (*Observability) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{3}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Observability) GetGlobalAttributes() map[string]string {
@@ -266,7 +266,7 @@ type Messaging struct {
 
 func (x *Messaging) Reset() {
 	*x = Messaging{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[4]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -278,7 +278,7 @@ func (x *Messaging) String() string {
 func (*Messaging) ProtoMessage() {}
 
 func (x *Messaging) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[4]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -291,7 +291,7 @@ func (x *Messaging) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Messaging.ProtoReflect.Descriptor instead.
 func (*Messaging) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{4}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Messaging) GetPubsub() *PubSub {
@@ -334,7 +334,7 @@ type PubSub struct {
 
 func (x *PubSub) Reset() {
 	*x = PubSub{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[5]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +346,7 @@ func (x *PubSub) String() string {
 func (*PubSub) ProtoMessage() {}
 
 func (x *PubSub) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[5]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +359,7 @@ func (x *PubSub) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PubSub.ProtoReflect.Descriptor instead.
 func (*PubSub) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{5}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PubSub) GetProjectId() string {
@@ -452,7 +452,7 @@ type Receive struct {
 
 func (x *Receive) Reset() {
 	*x = Receive{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[6]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -464,7 +464,7 @@ func (x *Receive) String() string {
 func (*Receive) ProtoMessage() {}
 
 func (x *Receive) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[6]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -477,7 +477,7 @@ func (x *Receive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Receive.ProtoReflect.Descriptor instead.
 func (*Receive) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{6}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Receive) GetNumGoroutines() int32 {
@@ -533,7 +533,7 @@ type OutboxPublisher struct {
 
 func (x *OutboxPublisher) Reset() {
 	*x = OutboxPublisher{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -545,7 +545,7 @@ func (x *OutboxPublisher) String() string {
 func (*OutboxPublisher) ProtoMessage() {}
 
 func (x *OutboxPublisher) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,7 +558,7 @@ func (x *OutboxPublisher) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OutboxPublisher.ProtoReflect.Descriptor instead.
 func (*OutboxPublisher) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{7}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *OutboxPublisher) GetBatchSize() int32 {
@@ -643,7 +643,7 @@ type InboxConsumer struct {
 
 func (x *InboxConsumer) Reset() {
 	*x = InboxConsumer{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -655,7 +655,7 @@ func (x *InboxConsumer) String() string {
 func (*InboxConsumer) ProtoMessage() {}
 
 func (x *InboxConsumer) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -668,7 +668,7 @@ func (x *InboxConsumer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InboxConsumer.ProtoReflect.Descriptor instead.
 func (*InboxConsumer) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{8}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *InboxConsumer) GetSourceService() string {
@@ -710,7 +710,7 @@ type Server_GRPC struct {
 
 func (x *Server_GRPC) Reset() {
 	*x = Server_GRPC{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -722,7 +722,7 @@ func (x *Server_GRPC) String() string {
 func (*Server_GRPC) ProtoMessage() {}
 
 func (x *Server_GRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[9]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -735,7 +735,7 @@ func (x *Server_GRPC) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server_GRPC.ProtoReflect.Descriptor instead.
 func (*Server_GRPC) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{1, 0}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{1, 0}
 }
 
 func (x *Server_GRPC) GetNetwork() string {
@@ -771,7 +771,7 @@ type Server_JWT struct {
 
 func (x *Server_JWT) Reset() {
 	*x = Server_JWT{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -783,7 +783,7 @@ func (x *Server_JWT) String() string {
 func (*Server_JWT) ProtoMessage() {}
 
 func (x *Server_JWT) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[10]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -796,7 +796,7 @@ func (x *Server_JWT) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server_JWT.ProtoReflect.Descriptor instead.
 func (*Server_JWT) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{1, 1}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{1, 1}
 }
 
 func (x *Server_JWT) GetExpectedAudience() string {
@@ -849,7 +849,7 @@ type Data_PostgreSQL struct {
 
 func (x *Data_PostgreSQL) Reset() {
 	*x = Data_PostgreSQL{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -861,7 +861,7 @@ func (x *Data_PostgreSQL) String() string {
 func (*Data_PostgreSQL) ProtoMessage() {}
 
 func (x *Data_PostgreSQL) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -874,7 +874,7 @@ func (x *Data_PostgreSQL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data_PostgreSQL.ProtoReflect.Descriptor instead.
 func (*Data_PostgreSQL) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{2, 0}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{2, 0}
 }
 
 func (x *Data_PostgreSQL) GetDsn() string {
@@ -958,7 +958,7 @@ type Data_Client struct {
 
 func (x *Data_Client) Reset() {
 	*x = Data_Client{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +970,7 @@ func (x *Data_Client) String() string {
 func (*Data_Client) ProtoMessage() {}
 
 func (x *Data_Client) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[12]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +983,7 @@ func (x *Data_Client) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data_Client.ProtoReflect.Descriptor instead.
 func (*Data_Client) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{2, 1}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{2, 1}
 }
 
 func (x *Data_Client) GetTarget() string {
@@ -1013,7 +1013,7 @@ type Data_PostgreSQL_Transaction struct {
 
 func (x *Data_PostgreSQL_Transaction) Reset() {
 	*x = Data_PostgreSQL_Transaction{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[13]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1025,7 +1025,7 @@ func (x *Data_PostgreSQL_Transaction) String() string {
 func (*Data_PostgreSQL_Transaction) ProtoMessage() {}
 
 func (x *Data_PostgreSQL_Transaction) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[13]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1038,7 +1038,7 @@ func (x *Data_PostgreSQL_Transaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data_PostgreSQL_Transaction.ProtoReflect.Descriptor instead.
 func (*Data_PostgreSQL_Transaction) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{2, 0, 0}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{2, 0, 0}
 }
 
 func (x *Data_PostgreSQL_Transaction) GetDefaultIsolation() string {
@@ -1087,7 +1087,7 @@ type Data_Client_JWT struct {
 
 func (x *Data_Client_JWT) Reset() {
 	*x = Data_Client_JWT{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[14]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1099,7 +1099,7 @@ func (x *Data_Client_JWT) String() string {
 func (*Data_Client_JWT) ProtoMessage() {}
 
 func (x *Data_Client_JWT) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[14]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1112,7 +1112,7 @@ func (x *Data_Client_JWT) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data_Client_JWT.ProtoReflect.Descriptor instead.
 func (*Data_Client_JWT) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{2, 1, 0}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{2, 1, 0}
 }
 
 func (x *Data_Client_JWT) GetAudience() string {
@@ -1159,7 +1159,7 @@ type Observability_Tracing struct {
 
 func (x *Observability_Tracing) Reset() {
 	*x = Observability_Tracing{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1171,7 +1171,7 @@ func (x *Observability_Tracing) String() string {
 func (*Observability_Tracing) ProtoMessage() {}
 
 func (x *Observability_Tracing) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[15]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1184,7 +1184,7 @@ func (x *Observability_Tracing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Observability_Tracing.ProtoReflect.Descriptor instead.
 func (*Observability_Tracing) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{3, 0}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{3, 0}
 }
 
 func (x *Observability_Tracing) GetEnabled() bool {
@@ -1311,7 +1311,7 @@ type Observability_Metrics struct {
 
 func (x *Observability_Metrics) Reset() {
 	*x = Observability_Metrics{}
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[16]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1323,7 +1323,7 @@ func (x *Observability_Metrics) String() string {
 func (*Observability_Metrics) ProtoMessage() {}
 
 func (x *Observability_Metrics) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[16]
+	mi := &file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1336,7 +1336,7 @@ func (x *Observability_Metrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Observability_Metrics.ProtoReflect.Descriptor instead.
 func (*Observability_Metrics) Descriptor() ([]byte, []int) {
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP(), []int{3, 1}
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP(), []int{3, 1}
 }
 
 func (x *Observability_Metrics) GetEnabled() bool {
@@ -1416,11 +1416,11 @@ func (x *Observability_Metrics) GetGrpcIncludeHealth() bool {
 	return false
 }
 
-var File_internal_infrastructure_config_loader_pb_conf_proto protoreflect.FileDescriptor
+var File_internal_infrastructure_configloader_pb_conf_proto protoreflect.FileDescriptor
 
-const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
+const file_internal_infrastructure_configloader_pb_conf_proto_rawDesc = "" +
 	"\n" +
-	"3internal/infrastructure/config_loader/pb/conf.proto\x12\n" +
+	"2internal/infrastructure/configloader/pb/conf.proto\x12\n" +
 	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\"\xd3\x01\n" +
 	"\tBootstrap\x12*\n" +
 	"\x06server\x18\x01 \x01(\v2\x12.kratos.api.ServerR\x06server\x12$\n" +
@@ -1573,22 +1573,22 @@ const file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc = "" +
 	"\x0flogging_enabled\x18\x03 \x01(\bH\x00R\x0eloggingEnabled\x88\x01\x01\x12,\n" +
 	"\x0fmetrics_enabled\x18\x04 \x01(\bH\x01R\x0emetricsEnabled\x88\x01\x01B\x12\n" +
 	"\x10_logging_enabledB\x12\n" +
-	"\x10_metrics_enabledBZZXgithub.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb;configpbb\x06proto3"
+	"\x10_metrics_enabledBYZWgithub.com/bionicotaku/kratos-template/internal/infrastructure/configloader/pb;configpbb\x06proto3"
 
 var (
-	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce sync.Once
-	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescData []byte
+	file_internal_infrastructure_configloader_pb_conf_proto_rawDescOnce sync.Once
+	file_internal_infrastructure_configloader_pb_conf_proto_rawDescData []byte
 )
 
-func file_internal_infrastructure_config_loader_pb_conf_proto_rawDescGZIP() []byte {
-	file_internal_infrastructure_config_loader_pb_conf_proto_rawDescOnce.Do(func() {
-		file_internal_infrastructure_config_loader_pb_conf_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc), len(file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc)))
+func file_internal_infrastructure_configloader_pb_conf_proto_rawDescGZIP() []byte {
+	file_internal_infrastructure_configloader_pb_conf_proto_rawDescOnce.Do(func() {
+		file_internal_infrastructure_configloader_pb_conf_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_infrastructure_configloader_pb_conf_proto_rawDesc), len(file_internal_infrastructure_configloader_pb_conf_proto_rawDesc)))
 	})
-	return file_internal_infrastructure_config_loader_pb_conf_proto_rawDescData
+	return file_internal_infrastructure_configloader_pb_conf_proto_rawDescData
 }
 
-var file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
-var file_internal_infrastructure_config_loader_pb_conf_proto_goTypes = []any{
+var file_internal_infrastructure_configloader_pb_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_internal_infrastructure_configloader_pb_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),                   // 0: kratos.api.Bootstrap
 	(*Server)(nil),                      // 1: kratos.api.Server
 	(*Data)(nil),                        // 2: kratos.api.Data
@@ -1613,7 +1613,7 @@ var file_internal_infrastructure_config_loader_pb_conf_proto_goTypes = []any{
 	nil,                                 // 21: kratos.api.Observability.Metrics.ResourceAttributesEntry
 	(*durationpb.Duration)(nil),         // 22: google.protobuf.Duration
 }
-var file_internal_infrastructure_config_loader_pb_conf_proto_depIdxs = []int32{
+var file_internal_infrastructure_configloader_pb_conf_proto_depIdxs = []int32{
 	1,  // 0: kratos.api.Bootstrap.server:type_name -> kratos.api.Server
 	2,  // 1: kratos.api.Bootstrap.data:type_name -> kratos.api.Data
 	3,  // 2: kratos.api.Bootstrap.observability:type_name -> kratos.api.Observability
@@ -1659,31 +1659,31 @@ var file_internal_infrastructure_config_loader_pb_conf_proto_depIdxs = []int32{
 	0,  // [0:38] is the sub-list for field type_name
 }
 
-func init() { file_internal_infrastructure_config_loader_pb_conf_proto_init() }
-func file_internal_infrastructure_config_loader_pb_conf_proto_init() {
-	if File_internal_infrastructure_config_loader_pb_conf_proto != nil {
+func init() { file_internal_infrastructure_configloader_pb_conf_proto_init() }
+func file_internal_infrastructure_configloader_pb_conf_proto_init() {
+	if File_internal_infrastructure_configloader_pb_conf_proto != nil {
 		return
 	}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[7].OneofWrappers = []any{}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[8].OneofWrappers = []any{}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[11].OneofWrappers = []any{}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[13].OneofWrappers = []any{}
-	file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes[16].OneofWrappers = []any{}
+	file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[7].OneofWrappers = []any{}
+	file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[8].OneofWrappers = []any{}
+	file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[11].OneofWrappers = []any{}
+	file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[13].OneofWrappers = []any{}
+	file_internal_infrastructure_configloader_pb_conf_proto_msgTypes[16].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc), len(file_internal_infrastructure_config_loader_pb_conf_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_infrastructure_configloader_pb_conf_proto_rawDesc), len(file_internal_infrastructure_configloader_pb_conf_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_internal_infrastructure_config_loader_pb_conf_proto_goTypes,
-		DependencyIndexes: file_internal_infrastructure_config_loader_pb_conf_proto_depIdxs,
-		MessageInfos:      file_internal_infrastructure_config_loader_pb_conf_proto_msgTypes,
+		GoTypes:           file_internal_infrastructure_configloader_pb_conf_proto_goTypes,
+		DependencyIndexes: file_internal_infrastructure_configloader_pb_conf_proto_depIdxs,
+		MessageInfos:      file_internal_infrastructure_configloader_pb_conf_proto_msgTypes,
 	}.Build()
-	File_internal_infrastructure_config_loader_pb_conf_proto = out.File
-	file_internal_infrastructure_config_loader_pb_conf_proto_goTypes = nil
-	file_internal_infrastructure_config_loader_pb_conf_proto_depIdxs = nil
+	File_internal_infrastructure_configloader_pb_conf_proto = out.File
+	file_internal_infrastructure_configloader_pb_conf_proto_goTypes = nil
+	file_internal_infrastructure_configloader_pb_conf_proto_depIdxs = nil
 }

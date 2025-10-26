@@ -6,22 +6,19 @@ import (
 	"testing"
 	"time"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader/pb"
+	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // TestNewGRPCServer_WithNetwork 验证 network 配置。
 func TestNewGRPCServer_WithNetwork(t *testing.T) {
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := &configpb.Server{
-		Grpc: &configpb.Server_GRPC{
-			Network: "tcp",
-			Addr:    "127.0.0.1:0",
-		},
+	cfg := configloader.ServerConfig{
+		Network: "tcp",
+		Address: "127.0.0.1:0",
 	}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: false}
@@ -51,11 +48,9 @@ func TestNewGRPCServer_WithNetwork(t *testing.T) {
 // TestNewGRPCServer_WithTimeout 验证 timeout 配置。
 func TestNewGRPCServer_WithTimeout(t *testing.T) {
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := &configpb.Server{
-		Grpc: &configpb.Server_GRPC{
-			Addr:    "127.0.0.1:0",
-			Timeout: durationpb.New(5 * time.Second),
-		},
+	cfg := configloader.ServerConfig{
+		Address: "127.0.0.1:0",
+		Timeout: 5 * time.Second,
 	}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
@@ -72,11 +67,7 @@ func TestNewGRPCServer_WithTimeout(t *testing.T) {
 // TestNewGRPCServer_MetricsDisabled 验证禁用 metrics 时服务器仍能正常构造。
 func TestNewGRPCServer_MetricsDisabled(t *testing.T) {
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := &configpb.Server{
-		Grpc: &configpb.Server_GRPC{
-			Addr: "127.0.0.1:0",
-		},
-	}
+	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
 	logger := log.NewStdLogger(io.Discard)
 	// 显式禁用 gRPC metrics
 	metricsCfg := &observability.MetricsConfig{
@@ -96,11 +87,7 @@ func TestNewGRPCServer_MetricsDisabled(t *testing.T) {
 // TestNewGRPCServer_NilMetricsConfig 验证 nil metricsCfg 时使用默认值。
 func TestNewGRPCServer_NilMetricsConfig(t *testing.T) {
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := &configpb.Server{
-		Grpc: &configpb.Server_GRPC{
-			Addr: "127.0.0.1:0",
-		},
-	}
+	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
 	logger := log.NewStdLogger(io.Discard)
 
 	// 传入 nil metricsCfg，应使用默认值（metrics enabled）
@@ -116,11 +103,7 @@ func TestNewGRPCServer_NilMetricsConfig(t *testing.T) {
 // TestNewGRPCServer_MetricsIncludeHealth 验证 GRPCIncludeHealth=true 时服务器构造成功。
 func TestNewGRPCServer_MetricsIncludeHealth(t *testing.T) {
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := &configpb.Server{
-		Grpc: &configpb.Server_GRPC{
-			Addr: "127.0.0.1:0",
-		},
-	}
+	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
 	logger := log.NewStdLogger(io.Discard)
 	// 启用健康检查指标采集
 	metricsCfg := &observability.MetricsConfig{
