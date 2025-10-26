@@ -106,6 +106,24 @@ Catalog 服务统一使用 `x-md-*` 前缀的 gRPC metadata 传递身份与操�
 
 `configs/config.yaml` 与 `data.grpc_client.metadata_keys` 已默认包含以上字段，确保在服务间透传；业务代码通过 `internal/metadata` 包统一读取与校验。
 
+### 6. 独立运行 Outbox 发布器
+
+在本地调试或分离式部署场景下，可单独启动 Outbox Runner：
+
+```bash
+go run ./cmd/tasks/outbox -conf configs/config.yaml
+```
+
+该命令会读取与主服务相同的配置，复用 Pub/Sub 参数、数据库连接与观测设置，仅负责扫描 `catalog.outbox_events` 并发布到 `messaging.pubsub.topic_id`。
+
+### 7. 独立运行 Engagement 投影
+
+```bash
+go run ./cmd/tasks/engagement -conf configs/config.yaml
+```
+
+该任务订阅 `messaging.engagement.subscription_id` 中的用户互动事件，持续更新 `catalog.video_user_states` 投影，可单独部署于后台。
+
 ---
 
 ## 项目结构

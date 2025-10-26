@@ -277,6 +277,7 @@ type Messaging struct {
 	Pubsub        *PubSub                `protobuf:"bytes,1,opt,name=pubsub,proto3" json:"pubsub,omitempty"`
 	Outbox        *OutboxPublisher       `protobuf:"bytes,2,opt,name=outbox,proto3" json:"outbox,omitempty"`
 	Inbox         *InboxConsumer         `protobuf:"bytes,3,opt,name=inbox,proto3" json:"inbox,omitempty"`
+	Engagement    *PubSub                `protobuf:"bytes,4,opt,name=engagement,proto3" json:"engagement,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -328,6 +329,13 @@ func (x *Messaging) GetOutbox() *OutboxPublisher {
 func (x *Messaging) GetInbox() *InboxConsumer {
 	if x != nil {
 		return x.Inbox
+	}
+	return nil
+}
+
+func (x *Messaging) GetEngagement() *PubSub {
+	if x != nil {
+		return x.Engagement
 	}
 	return nil
 }
@@ -1618,11 +1626,14 @@ const file_configs_conf_proto_rawDesc = "" +
 	"\x14_grpc_include_health\x1aC\n" +
 	"\x15GlobalAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9d\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd1\x01\n" +
 	"\tMessaging\x12*\n" +
 	"\x06pubsub\x18\x01 \x01(\v2\x12.kratos.api.PubSubR\x06pubsub\x123\n" +
 	"\x06outbox\x18\x02 \x01(\v2\x1b.kratos.api.OutboxPublisherR\x06outbox\x12/\n" +
-	"\x05inbox\x18\x03 \x01(\v2\x19.kratos.api.InboxConsumerR\x05inbox\"\xf4\x03\n" +
+	"\x05inbox\x18\x03 \x01(\v2\x19.kratos.api.InboxConsumerR\x05inbox\x122\n" +
+	"\n" +
+	"engagement\x18\x04 \x01(\v2\x12.kratos.api.PubSubR\n" +
+	"engagement\"\xf4\x03\n" +
 	"\x06PubSub\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x19\n" +
@@ -1722,38 +1733,39 @@ var file_configs_conf_proto_depIdxs = []int32{
 	5,  // 12: kratos.api.Messaging.pubsub:type_name -> kratos.api.PubSub
 	7,  // 13: kratos.api.Messaging.outbox:type_name -> kratos.api.OutboxPublisher
 	8,  // 14: kratos.api.Messaging.inbox:type_name -> kratos.api.InboxConsumer
-	23, // 15: kratos.api.PubSub.publish_timeout:type_name -> google.protobuf.Duration
-	6,  // 16: kratos.api.PubSub.receive:type_name -> kratos.api.Receive
-	23, // 17: kratos.api.Receive.max_extension:type_name -> google.protobuf.Duration
-	23, // 18: kratos.api.Receive.max_extension_period:type_name -> google.protobuf.Duration
-	23, // 19: kratos.api.OutboxPublisher.tick_interval:type_name -> google.protobuf.Duration
-	23, // 20: kratos.api.OutboxPublisher.initial_backoff:type_name -> google.protobuf.Duration
-	23, // 21: kratos.api.OutboxPublisher.max_backoff:type_name -> google.protobuf.Duration
-	23, // 22: kratos.api.OutboxPublisher.publish_timeout:type_name -> google.protobuf.Duration
-	23, // 23: kratos.api.OutboxPublisher.lock_ttl:type_name -> google.protobuf.Duration
-	23, // 24: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
-	23, // 25: kratos.api.Server.Handlers.default_timeout:type_name -> google.protobuf.Duration
-	23, // 26: kratos.api.Server.Handlers.command_timeout:type_name -> google.protobuf.Duration
-	23, // 27: kratos.api.Server.Handlers.query_timeout:type_name -> google.protobuf.Duration
-	23, // 28: kratos.api.Data.PostgreSQL.max_conn_lifetime:type_name -> google.protobuf.Duration
-	23, // 29: kratos.api.Data.PostgreSQL.max_conn_idle_time:type_name -> google.protobuf.Duration
-	23, // 30: kratos.api.Data.PostgreSQL.health_check_period:type_name -> google.protobuf.Duration
-	14, // 31: kratos.api.Data.PostgreSQL.transaction:type_name -> kratos.api.Data.PostgreSQL.Transaction
-	15, // 32: kratos.api.Data.Client.jwt:type_name -> kratos.api.Data.Client.JWT
-	23, // 33: kratos.api.Data.PostgreSQL.Transaction.default_timeout:type_name -> google.protobuf.Duration
-	23, // 34: kratos.api.Data.PostgreSQL.Transaction.lock_timeout:type_name -> google.protobuf.Duration
-	19, // 35: kratos.api.Observability.Tracing.headers:type_name -> kratos.api.Observability.Tracing.HeadersEntry
-	23, // 36: kratos.api.Observability.Tracing.batch_timeout:type_name -> google.protobuf.Duration
-	23, // 37: kratos.api.Observability.Tracing.export_timeout:type_name -> google.protobuf.Duration
-	20, // 38: kratos.api.Observability.Tracing.attributes:type_name -> kratos.api.Observability.Tracing.AttributesEntry
-	21, // 39: kratos.api.Observability.Metrics.headers:type_name -> kratos.api.Observability.Metrics.HeadersEntry
-	23, // 40: kratos.api.Observability.Metrics.interval:type_name -> google.protobuf.Duration
-	22, // 41: kratos.api.Observability.Metrics.resource_attributes:type_name -> kratos.api.Observability.Metrics.ResourceAttributesEntry
-	42, // [42:42] is the sub-list for method output_type
-	42, // [42:42] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	5,  // 15: kratos.api.Messaging.engagement:type_name -> kratos.api.PubSub
+	23, // 16: kratos.api.PubSub.publish_timeout:type_name -> google.protobuf.Duration
+	6,  // 17: kratos.api.PubSub.receive:type_name -> kratos.api.Receive
+	23, // 18: kratos.api.Receive.max_extension:type_name -> google.protobuf.Duration
+	23, // 19: kratos.api.Receive.max_extension_period:type_name -> google.protobuf.Duration
+	23, // 20: kratos.api.OutboxPublisher.tick_interval:type_name -> google.protobuf.Duration
+	23, // 21: kratos.api.OutboxPublisher.initial_backoff:type_name -> google.protobuf.Duration
+	23, // 22: kratos.api.OutboxPublisher.max_backoff:type_name -> google.protobuf.Duration
+	23, // 23: kratos.api.OutboxPublisher.publish_timeout:type_name -> google.protobuf.Duration
+	23, // 24: kratos.api.OutboxPublisher.lock_ttl:type_name -> google.protobuf.Duration
+	23, // 25: kratos.api.Server.GRPC.timeout:type_name -> google.protobuf.Duration
+	23, // 26: kratos.api.Server.Handlers.default_timeout:type_name -> google.protobuf.Duration
+	23, // 27: kratos.api.Server.Handlers.command_timeout:type_name -> google.protobuf.Duration
+	23, // 28: kratos.api.Server.Handlers.query_timeout:type_name -> google.protobuf.Duration
+	23, // 29: kratos.api.Data.PostgreSQL.max_conn_lifetime:type_name -> google.protobuf.Duration
+	23, // 30: kratos.api.Data.PostgreSQL.max_conn_idle_time:type_name -> google.protobuf.Duration
+	23, // 31: kratos.api.Data.PostgreSQL.health_check_period:type_name -> google.protobuf.Duration
+	14, // 32: kratos.api.Data.PostgreSQL.transaction:type_name -> kratos.api.Data.PostgreSQL.Transaction
+	15, // 33: kratos.api.Data.Client.jwt:type_name -> kratos.api.Data.Client.JWT
+	23, // 34: kratos.api.Data.PostgreSQL.Transaction.default_timeout:type_name -> google.protobuf.Duration
+	23, // 35: kratos.api.Data.PostgreSQL.Transaction.lock_timeout:type_name -> google.protobuf.Duration
+	19, // 36: kratos.api.Observability.Tracing.headers:type_name -> kratos.api.Observability.Tracing.HeadersEntry
+	23, // 37: kratos.api.Observability.Tracing.batch_timeout:type_name -> google.protobuf.Duration
+	23, // 38: kratos.api.Observability.Tracing.export_timeout:type_name -> google.protobuf.Duration
+	20, // 39: kratos.api.Observability.Tracing.attributes:type_name -> kratos.api.Observability.Tracing.AttributesEntry
+	21, // 40: kratos.api.Observability.Metrics.headers:type_name -> kratos.api.Observability.Metrics.HeadersEntry
+	23, // 41: kratos.api.Observability.Metrics.interval:type_name -> google.protobuf.Duration
+	22, // 42: kratos.api.Observability.Metrics.resource_attributes:type_name -> kratos.api.Observability.Metrics.ResourceAttributesEntry
+	43, // [43:43] is the sub-list for method output_type
+	43, // [43:43] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_configs_conf_proto_init() }

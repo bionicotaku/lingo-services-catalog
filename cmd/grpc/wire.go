@@ -15,6 +15,7 @@ import (
 	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
+	engagementtasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	outboxtasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/outbox"
 	projectiontasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 
@@ -57,6 +58,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		outboxtasks.ProvideRunner,
+		engagementtasks.ProvideRunner,
 		projectiontasks.ProvideTask,
 		newApp, // 组装 Kratos 应用
 	))

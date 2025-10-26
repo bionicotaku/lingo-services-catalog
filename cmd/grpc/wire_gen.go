@@ -14,6 +14,7 @@ import (
 	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
+	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/outbox"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 	"github.com/bionicotaku/lingo-utils/gcjwt"
@@ -123,8 +124,21 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	videoProjectionRepository := repositories.NewVideoProjectionRepository(pool, logger)
 	task := projection.ProvideTask(subscriber, inboxRepository, videoProjectionRepository, manager, configConfig, logger)
-	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, task)
+	engagementPubSubConfig := configloader.ProvideEngagementConfig(messagingConfig)
+	engagementSubscriber, cleanup7, err := configloader.ProvideEngagementSubscriber(contextContext, engagementPubSubConfig, dependencies)
+	if err != nil {
+		cleanup6()
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	engagementRunner := engagement.ProvideRunner(videoUserStatesRepository, manager, engagementSubscriber, logger)
+	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, task, engagementRunner)
 	return app, func() {
+		cleanup7()
 		cleanup6()
 		cleanup5()
 		cleanup4()

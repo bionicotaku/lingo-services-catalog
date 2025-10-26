@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
@@ -28,7 +29,15 @@ import (
 //   - meta: 服务元信息（Name/Version/Environment/InstanceID）
 //
 // 返回 kratos.App 实例，调用 app.Run() 启动服务并阻塞直到收到停止信号。
-func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta configloader.ServiceInfo, publisher *outboxpublisher.Runner, projectionTask *projection.Task) *kratos.App {
+func newApp(
+	_ *obswire.Component,
+	logger log.Logger,
+	gs *grpc.Server,
+	meta configloader.ServiceInfo,
+	publisher *outboxpublisher.Runner,
+	projectionTask *projection.Task,
+	engagementRunner *engagement.Runner,
+) *kratos.App {
 	options := []kratos.Option{
 		kratos.ID(meta.InstanceID),
 		kratos.Name(meta.Name),
@@ -45,16 +54,13 @@ func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta confi
 
 	var workers []worker
 	if publisher != nil {
-		workers = append(workers, worker{
-			name: "outbox publisher",
-			run:  publisher.Run,
-		})
+		workers = append(workers, worker{name: "outbox publisher", run: publisher.Run})
 	}
 	if projectionTask != nil {
-		workers = append(workers, worker{
-			name: "projection consumer",
-			run:  projectionTask.Run,
-		})
+		workers = append(workers, worker{name: "projection consumer", run: projectionTask.Run})
+	}
+	if engagementRunner != nil {
+		workers = append(workers, worker{name: "engagement consumer", run: engagementRunner.Run})
 	}
 
 	if len(workers) > 0 {

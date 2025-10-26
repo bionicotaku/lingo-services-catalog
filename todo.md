@@ -40,16 +40,21 @@
 ## 4. 事件构建与 Outbox Runner
 - [x] 扩展 `internal/models/outbox_events` 构造器，覆盖 `video.media_ready` 等事件 payload（2025-10-26 完成）
 - [x] 在 Service 层构建事件并调用 `OutboxRepository.Enqueue`（2025-10-26 完成）
-- [ ] 调整 Outbox Runner（`internal/tasks/outbox`）批量参数、logging、metrics；新增 CLI `cmd/tasks/outbox`
+  - [x] 调整 Outbox Runner（`internal/tasks/outbox`）批量参数、logging、metrics；新增 CLI `cmd/tasks/outbox`（2025-10-26：尊重 logging/metrics 开关、输出配置日志，新增独立 Runner CLI）
 - [ ] E2E 测试：创建视频→媒体/AI 回调→发布，确认 Pub/Sub 收到完整事件序列
 
 ## 5. Engagement 投影 Runner
-- [ ] 新增 `internal/tasks/engagement`（或同目录）消费 Engagement 事件
+- [x] 新增 `internal/tasks/engagement`（或同目录）消费 Engagement 事件
+  - [x] 2025-10-27：定义 Runner 结构（Pub/Sub Subscriber + ack/retry），支持 graceful shutdown
 - [ ] 编写 `repositories.VideoUserStatesRepository`，提供 UPSERT/删除能力
-- [ ] 定义事件解码结构，将 liked/bookmarked/watched 写入 `catalog.video_user_states`
-- [ ] 暴露指标 `catalog_engagement_apply_*`, `catalog_engagement_event_lag_ms`
+  - [x] 已具备 Upsert/Get/Delete；Runner 需复用并补齐事务/metrics 包装
+- [x] 定义事件解码结构，将 liked/bookmarked/watched 写入 `catalog.video_user_states`
+  - [x] 2025-10-27：创建 `engagement.Event` 解码器（兼容 JSON/Proto，含版本校验）
+- [x] 暴露指标 `catalog_engagement_apply_*`, `catalog_engagement_event_lag_ms`
+  - [x] 2025-10-27：实现成功/失败计数器、滞后直方图；整合 OTEL Meter
 - [ ] 提供回放/偏移管理方案（可选：测试实现内存 offset）
-- [ ] 新增 CLI `cmd/tasks/engagement` 并在 README 记录启动方式
+  - [ ] 2025-10-28：设计 offsetProvider 接口，可接入持久化（future），当前保留内存实现 + TODO
+- [x] 新增 CLI `cmd/tasks/engagement` 并在 README 记录启动方式
 
 ## 6. 非功能性完善
 - [ ] 日志：统一字段，新增事件日志

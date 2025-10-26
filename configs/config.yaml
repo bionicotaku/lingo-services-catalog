@@ -150,6 +150,18 @@ messaging:
       max_extension: 60s
       max_extension_period: 600s
     exactly_once_delivery: true
+  engagement:
+    project_id: smiling-landing-472320-q0
+    topic_id: engagement.events
+    subscription_id: catalog.engagement.consumer
+    logging_enabled: true
+    metrics_enabled: true
+    receive:
+      num_goroutines: 4
+      max_outstanding_messages: 1000
+      max_outstanding_bytes: 67108864
+      max_extension: 60s
+      max_extension_period: 600s
   outbox:
     batch_size: 100
     tick_interval: 1s

@@ -120,6 +120,7 @@ message Messaging {
   PubSub pubsub = 1;
   OutboxPublisher outbox = 2;
   InboxConsumer inbox = 3;
+  PubSub engagement = 4;
 }
 
 message PubSub {

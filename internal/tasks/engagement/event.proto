@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package engagement.v1;
+
+option go_package = "github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement;engagement";
+
+import "google/protobuf/timestamp.proto";
+
+message EventProto {
+  string user_id = 1;
+  string video_id = 2;
+  optional bool has_liked = 3;
+  optional bool has_bookmarked = 4;
+  optional bool has_watched = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+  string version = 7;
+}

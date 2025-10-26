@@ -1,6 +1,8 @@
 package configloader
 
 import (
+	"context"
+
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
@@ -13,6 +15,12 @@ import (
 
 	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 )
+
+// EngagementPubSubConfig 包装 engagement 订阅所需的 gcpubsub.Config，避免与主 Pub/Sub 冲突。
+type EngagementPubSubConfig gcpubsub.Config
+
+// EngagementSubscriber 标签化 engagement 订阅者实例，避免与主订阅者冲突。
+type EngagementSubscriber gcpubsub.Subscriber
 
 // ProviderSet 暴露配置加载相关的依赖注入入口。
 var ProviderSet = wire.NewSet(
@@ -29,7 +37,9 @@ var ProviderSet = wire.NewSet(
 	ProvideClientConfig,
 	ProvideMessagingConfig,
 	ProvidePubSubConfig,
+	ProvideEngagementConfig,
 	ProvidePubSubDependencies,
+	ProvideEngagementSubscriber,
 	ProvideOutboxConfig,
 	ProvideHandlerTimeouts,
 )
@@ -202,34 +212,56 @@ func ProvideMessagingConfig(cfg RuntimeConfig) MessagingConfig {
 
 // ProvidePubSubConfig 将 MessagingConfig 转换为 gcpubsub.Config。
 func ProvidePubSubConfig(msg MessagingConfig) gcpubsub.Config {
-	if msg.PubSub.ProjectID == "" || msg.PubSub.TopicID == "" || msg.PubSub.SubscriptionID == "" {
+	return toGCPubSubConfig(msg.PubSub)
+}
+
+// ProvideEngagementConfig 返回 engagement Pub/Sub 配置包装。
+func ProvideEngagementConfig(msg MessagingConfig) EngagementPubSubConfig {
+	cfg := toGCPubSubConfig(msg.Engagement)
+	return EngagementPubSubConfig(cfg)
+}
+
+func toGCPubSubConfig(cfg PubSubConfig) gcpubsub.Config {
+	if cfg.ProjectID == "" {
 		return gcpubsub.Config{}
 	}
-
-	cfg := gcpubsub.Config{
-		ProjectID:           msg.PubSub.ProjectID,
-		TopicID:             msg.PubSub.TopicID,
-		SubscriptionID:      msg.PubSub.SubscriptionID,
-		PublishTimeout:      msg.PubSub.PublishTimeout,
-		OrderingKeyEnabled:  boolPtr(msg.PubSub.OrderingKeyEnabled),
-		EnableLogging:       boolPtr(msg.PubSub.LoggingEnabled),
-		EnableMetrics:       boolPtr(msg.PubSub.MetricsEnabled),
-		EmulatorEndpoint:    msg.PubSub.EmulatorEndpoint,
-		ExactlyOnceDelivery: msg.PubSub.ExactlyOnceDelivery,
+	result := gcpubsub.Config{
+		ProjectID:           cfg.ProjectID,
+		TopicID:             cfg.TopicID,
+		SubscriptionID:      cfg.SubscriptionID,
+		PublishTimeout:      cfg.PublishTimeout,
+		OrderingKeyEnabled:  boolPtr(cfg.OrderingKeyEnabled),
+		EnableLogging:       boolPtr(cfg.LoggingEnabled),
+		EnableMetrics:       boolPtr(cfg.MetricsEnabled),
+		EmulatorEndpoint:    cfg.EmulatorEndpoint,
+		ExactlyOnceDelivery: cfg.ExactlyOnceDelivery,
 		Receive: gcpubsub.ReceiveConfig{
-			NumGoroutines:          msg.PubSub.Receive.NumGoroutines,
-			MaxOutstandingMessages: msg.PubSub.Receive.MaxOutstandingMessages,
-			MaxOutstandingBytes:    msg.PubSub.Receive.MaxOutstandingBytes,
-			MaxExtension:           msg.PubSub.Receive.MaxExtension,
-			MaxExtensionPeriod:     msg.PubSub.Receive.MaxExtensionPeriod,
+			NumGoroutines:          cfg.Receive.NumGoroutines,
+			MaxOutstandingMessages: cfg.Receive.MaxOutstandingMessages,
+			MaxOutstandingBytes:    cfg.Receive.MaxOutstandingBytes,
+			MaxExtension:           cfg.Receive.MaxExtension,
+			MaxExtensionPeriod:     cfg.Receive.MaxExtensionPeriod,
 		},
 	}
-	return cfg.Normalize()
+	return result.Normalize()
 }
 
 // ProvidePubSubDependencies 注入 Pub/Sub 依赖。
 func ProvidePubSubDependencies(logger log.Logger) gcpubsub.Dependencies {
 	return gcpubsub.Dependencies{Logger: logger}
+}
+
+// ProvideEngagementSubscriber 构造 engagement Subscriber。
+func ProvideEngagementSubscriber(ctx context.Context, cfg EngagementPubSubConfig, deps gcpubsub.Dependencies) (EngagementSubscriber, func(), error) {
+	base := gcpubsub.Config(cfg)
+	if base.ProjectID == "" || base.SubscriptionID == "" {
+		return EngagementSubscriber(nil), func() {}, nil
+	}
+	comp, cleanup, err := gcpubsub.NewComponent(ctx, base, deps)
+	if err != nil {
+		return EngagementSubscriber(nil), cleanup, err
+	}
+	return EngagementSubscriber(gcpubsub.ProvideSubscriber(comp)), cleanup, nil
 }
 
 // ProvideOutboxConfig 构造 outboxcfg.Config。
