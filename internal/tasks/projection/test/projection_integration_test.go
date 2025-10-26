@@ -17,6 +17,7 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-kratos/kratos/v2/log"
@@ -32,10 +33,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var inboxTestConfig = outboxcfg.InboxConfig{SourceService: "catalog", MaxConcurrency: 4}
+
 func TestProjectionTaskIntegration_CreateUpdateDelete(t *testing.T) {
-    ctx := context.Background()
-    reader, restore := installTestMeterProvider()
-    defer restore()
+	ctx := context.Background()
+	reader, restore := installTestMeterProvider()
+	defer restore()
 
 	env := newProjectionTestEnv(t, ctx)
 	defer env.cleanup()
@@ -188,9 +191,9 @@ func TestProjectionTaskIntegration_OutOfOrderVersionIgnored(t *testing.T) {
 }
 
 func TestProjectionTaskIntegration_ExactlyOnceConfig(t *testing.T) {
-    ctx := context.Background()
-    _, restore := installTestMeterProvider()
-    defer restore()
+	ctx := context.Background()
+	_, restore := installTestMeterProvider()
+	defer restore()
 
 	env := newProjectionTestEnv(t, ctx, projectionTestConfig{ExactlyOnce: true})
 	defer env.cleanup()
@@ -256,7 +259,7 @@ func newProjectionTestEnv(t *testing.T, ctx context.Context, cfgOpt ...projectio
 	txManager, err := txmanager.NewManager(pool, txCfg, txmanager.Dependencies{Logger: logger})
 	require.NoError(t, err)
 
-	inboxRepo := repositories.NewInboxRepository(pool, logger)
+	inboxRepo := repositories.NewInboxRepository(pool, logger, outboxcfg.Config{Schema: "catalog"})
 	projectionRepo := repositories.NewVideoProjectionRepository(pool, logger)
 
 	server := pstest.NewServer()
@@ -303,7 +306,7 @@ func newProjectionTestEnv(t *testing.T, ctx context.Context, cfgOpt ...projectio
 	publisher := gcpubsub.ProvidePublisher(component)
 	subscriber := gcpubsub.ProvideSubscriber(component)
 
-	task := projection.NewTask(subscriber, inboxRepo, projectionRepo, txManager, logger)
+	task := projection.NewTask(subscriber, inboxRepo, projectionRepo, txManager, logger, inboxTestConfig)
 	task.WithClock(time.Now)
 
 	cleanup := func() {

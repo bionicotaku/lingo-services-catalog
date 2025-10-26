@@ -1,24 +1,25 @@
-package main
+package projection
 
 import (
-	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
+
 	"github.com/bionicotaku/kratos-template/internal/repositories"
-	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
-func provideProjectionTask(
+// ProvideTask 根据共享组件构造投影消费者任务。
+func ProvideTask(
 	subscriber gcpubsub.Subscriber,
 	inboxRepo *repositories.InboxRepository,
 	projectionRepo *repositories.VideoProjectionRepository,
 	txManager txmanager.Manager,
-	_ loader.ProjectionConsumerConfig,
+	cfg outboxcfg.Config,
 	logger log.Logger,
-) *projection.Task {
+) *Task {
 	if subscriber == nil || inboxRepo == nil || projectionRepo == nil || txManager == nil || logger == nil {
 		return nil
 	}
-	return projection.NewTask(subscriber, inboxRepo, projectionRepo, txManager, logger)
+	return NewTask(subscriber, inboxRepo, projectionRepo, txManager, logger, cfg.Inbox)
 }

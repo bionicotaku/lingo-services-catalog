@@ -111,6 +111,7 @@ message Observability {
 message Messaging {
   PubSub pubsub = 1;
   OutboxPublisher outbox = 2;
+  InboxConsumer inbox = 3;
 }
 
 message PubSub {
@@ -146,4 +147,11 @@ message OutboxPublisher {
   google.protobuf.Duration lock_ttl = 8;
   optional bool logging_enabled = 9;
   optional bool metrics_enabled = 10;
+}
+
+message InboxConsumer {
+  string source_service = 1;
+  int32 max_concurrency = 2;
+  optional bool logging_enabled = 3;
+  optional bool metrics_enabled = 4;
 }

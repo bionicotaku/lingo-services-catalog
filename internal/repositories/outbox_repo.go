@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	outboxpkg "github.com/bionicotaku/lingo-utils/outbox"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/outbox/store"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
@@ -23,10 +25,13 @@ type OutboxRepository struct {
 }
 
 // NewOutboxRepository 构建 Outbox 仓储，内部复用 lingo-utils/outbox/repository。
-func NewOutboxRepository(db *pgxpool.Pool, logger log.Logger) *OutboxRepository {
-	return &OutboxRepository{
-		delegate: store.NewRepository(db, logger),
+func NewOutboxRepository(db *pgxpool.Pool, logger log.Logger, cfg outboxcfg.Config) *OutboxRepository {
+	storeRepo, err := outboxpkg.NewRepository(db, logger, outboxpkg.RepositoryOptions{Schema: cfg.Schema})
+	if err != nil {
+		log.NewHelper(logger).Errorw("msg", "init outbox repository failed", "error", err)
+		return &OutboxRepository{delegate: store.NewRepository(db, logger)}
 	}
+	return &OutboxRepository{delegate: storeRepo}
 }
 
 // Enqueue 在事务内插入 Outbox 事件。

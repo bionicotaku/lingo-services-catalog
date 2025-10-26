@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	loader "github.com/bionicotaku/kratos-template/internal/infrastructure/config_loader"
-	"github.com/bionicotaku/kratos-template/internal/tasks/outbox"
 	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
+	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -28,7 +28,7 @@ import (
 //   - meta: 服务元信息（Name/Version/Environment/InstanceID）
 //
 // 返回 kratos.App 实例，调用 app.Run() 启动服务并阻塞直到收到停止信号。
-func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata, publisher *outbox.PublisherTask, projectionTask *projection.Task) *kratos.App {
+func newApp(_ *obswire.Component, logger log.Logger, gs *grpc.Server, meta loader.ServiceMetadata, publisher *outboxpublisher.Runner, projectionTask *projection.Task) *kratos.App {
 	options := []kratos.Option{
 		kratos.ID(meta.InstanceID),
 		kratos.Name(meta.Name),

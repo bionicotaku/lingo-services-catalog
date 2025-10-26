@@ -13,6 +13,8 @@ import (
 	"github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
+	"github.com/bionicotaku/kratos-template/internal/tasks/outbox"
+	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
@@ -85,7 +87,9 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	}
 	pool := pgxpoolx.ProvidePool(pgxpoolxComponent)
 	videoRepository := repositories.NewVideoRepository(pool, logger)
-	outboxRepository := repositories.NewOutboxRepository(pool, logger)
+	messaging := loader.ProvideMessagingConfig(bootstrap)
+	configConfig := loader.ProvideOutboxRuntimeConfig(messaging, data)
+	outboxRepository := repositories.NewOutboxRepository(pool, logger, configConfig)
 	txmanagerConfig := loader.ProvideTxManagerConfig(bundle)
 	txmanagerComponent, cleanup5, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
@@ -99,7 +103,6 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 	videoUsecase := services.NewVideoUsecase(videoRepository, outboxRepository, manager, logger)
 	videoHandler := controllers.NewVideoHandler(videoUsecase)
 	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoHandler, logger)
-	messaging := loader.ProvideMessagingConfig(bootstrap)
 	gcpubsubConfig := loader.ProvidePubsubConfig(messaging)
 	dependencies := loader.ProvidePubsubDependencies(logger)
 	gcpubsubComponent, cleanup6, err := gcpubsub.NewComponent(contextContext, gcpubsubConfig, dependencies)
@@ -112,14 +115,12 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		return nil, nil, err
 	}
 	publisher := gcpubsub.ProvidePublisher(gcpubsubComponent)
-	outboxPublisherConfig := loader.ProvideOutboxPublisherConfig(messaging)
-	v := provideOutboxTask(outboxRepository, publisher, gcpubsubConfig, outboxPublisherConfig, logger)
+	runner := outbox.ProvideRunner(outboxRepository, publisher, gcpubsubConfig, configConfig, logger)
 	subscriber := gcpubsub.ProvideSubscriber(gcpubsubComponent)
-	inboxRepository := repositories.NewInboxRepository(pool, logger)
+	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	videoProjectionRepository := repositories.NewVideoProjectionRepository(pool, logger)
-	projectionConsumerConfig := loader.ProvideProjectionConsumerConfig(messaging)
-	task := provideProjectionTask(subscriber, inboxRepository, videoProjectionRepository, manager, projectionConsumerConfig, logger)
-	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata, v, task)
+	task := projection.ProvideTask(subscriber, inboxRepository, videoProjectionRepository, manager, configConfig, logger)
+	app := newApp(observabilityComponent, logger, grpcServer, serviceMetadata, runner, task)
 	return app, func() {
 		cleanup6()
 		cleanup5()

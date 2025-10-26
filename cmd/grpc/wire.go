@@ -15,6 +15,8 @@ import (
 	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/kratos-template/internal/services"
+	outboxtasks "github.com/bionicotaku/kratos-template/internal/tasks/outbox"
+	projectiontasks "github.com/bionicotaku/kratos-template/internal/tasks/projection"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
@@ -53,8 +55,8 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		wire.Bind(new(services.OutboxRepo), new(*repositories.OutboxRepository)), // 接口绑定: OutboxRepo → OutboxRepository
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
-		provideOutboxTask,
-		provideProjectionTask,
+		outboxtasks.ProvideRunner,
+		projectiontasks.ProvideTask,
 		newApp, // 组装 Kratos 应用
 	))
 }

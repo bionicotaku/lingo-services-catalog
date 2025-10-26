@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bionicotaku/kratos-template/internal/repositories"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
@@ -33,7 +34,7 @@ func TestOutboxRepositoryIntegration(t *testing.T) {
 
 	applyMigrations(t, ctx, pool)
 
-	repo := repositories.NewOutboxRepository(pool, log.NewStdLogger(io.Discard))
+	repo := repositories.NewOutboxRepository(pool, log.NewStdLogger(io.Discard), outboxcfg.Config{Schema: "catalog"})
 
 	eventID := uuid.New()
 	aggregateID := uuid.New()

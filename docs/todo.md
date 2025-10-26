@@ -69,7 +69,7 @@
 - [x] 在 `cmd/grpc/wire.go` 将 OutboxPublisher 注入并随 Kratos 生命周期启动后台任务。
 - [x] 编写集成测试或 e2e stub（可使用 Pub/Sub emulator）验证重复发布、退避策略。✅ 2025-10-25
   - `internal/repositories/test/outbox_repo_integration_test.go` 使用 Postgres Testcontainers 验证租约、重试与发布状态。
-  - `internal/tasks/outbox/test/publisher_integration_test.go` 结合 pstest + OTel 手动 meter 校验成功路径、指标与消息入站。
+      - `internal/tasks/outbox/test/publisher_runner_integration_test.go` 结合 pstest + OTel 手动 meter 校验成功路径、指标与消息入站。
 
 ## 阶段 5｜StreamingPull 消费者与投影 ✅
 - [x] 规划订阅命名 `<topic>.catalog-reader`，配置 DLQ、Ack deadline、Exactly-once（可选）。

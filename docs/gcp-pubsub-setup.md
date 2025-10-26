@@ -277,7 +277,7 @@ messaging:
 
 ## 12. 后续开发 Checklist
 - [ ] `internal/infrastructure/pubsub`：根据配置初始化 `pubsub.Client`，支持 emulator host。
-- [ ] `internal/tasks/outbox_publisher`：实现认领/发布/退避状态机（阶段 4）。
+- [ ] `lingo-utils/outbox/publisher`：实现认领/发布/退避状态机（阶段 4）。
 - [ ] `internal/tasks/projection_consumer`：实现 StreamingPull + Inbox/投影写入（阶段 5）。
 - [ ] `configs/config.yaml` / README：补充 Pub/Sub 配置说明与启动命令。
 - [ ] 自动化脚本：在 `Makefile` 增加 `make pubsub-setup`（可选，封装 gcloud 命令）。

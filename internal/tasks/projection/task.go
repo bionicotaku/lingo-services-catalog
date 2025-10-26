@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
+
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
@@ -18,43 +20,50 @@ import (
 
 // Task 负责消费 Pub/Sub 事件并更新投影表。
 type Task struct {
-	consumer *inbox.Consumer[videov1.Event]
-	handler  *eventHandler
-	metrics  *projectionMetrics
-	clock    func() time.Time
+	runner  *inbox.Runner[videov1.Event]
+	handler *eventHandler
+	metrics *projectionMetrics
+	clock   func() time.Time
 }
 
 // NewTask 构造投影消费任务。
-func NewTask(sub gcpubsub.Subscriber, inboxRepo *repositories.InboxRepository, projection *repositories.VideoProjectionRepository, tx txmanager.Manager, logger log.Logger) *Task {
+func NewTask(sub gcpubsub.Subscriber, inboxRepo *repositories.InboxRepository, projection *repositories.VideoProjectionRepository, tx txmanager.Manager, logger log.Logger, inboxCfg outboxcfg.InboxConfig) *Task {
 	helper := log.NewHelper(logger)
 	meter := otel.GetMeterProvider().Meter("kratos-template.projection")
 
 	metrics := newProjectionMetrics(meter, helper)
 
-	task := &Task{
+	dec := newEventDecoder()
+	h := newEventHandler(projection, logger, metrics)
+
+	runner, err := inbox.NewRunner[videov1.Event](inbox.RunnerParams[videov1.Event]{
+		Store:      inboxRepo.Shared(),
+		Subscriber: sub,
+		TxManager:  tx,
+		Decoder:    dec,
+		Handler:    h,
+		Config:     inboxCfg,
+		Logger:     logger,
+	})
+	if err != nil {
+		helper.Errorw("msg", "init inbox runner failed", "error", err)
+		return nil
+	}
+
+	return &Task{
+		runner:  runner,
+		handler: h,
 		metrics: metrics,
 		clock:   time.Now,
 	}
-
-	dec := newEventDecoder()
-	h := newEventHandler(projection, logger, metrics)
-	task.handler = h
-
-	consumer := inbox.NewConsumer(sub, inboxRepo.Shared(), tx, dec, h, inbox.ConsumerOptions{
-		SourceService:  "catalog",
-		MaxConcurrency: 4,
-	}, logger)
-
-	task.consumer = consumer
-	return task
 }
 
 // WithClock 提供测试替换时钟的能力。
 func (t *Task) WithClock(fn func() time.Time) {
 	if fn != nil {
 		t.clock = fn
-		if t.consumer != nil {
-			t.consumer.WithClock(fn)
+		if t.runner != nil {
+			t.runner.WithClock(fn)
 		}
 		if t.handler != nil {
 			t.handler.clock = fn
@@ -64,10 +73,10 @@ func (t *Task) WithClock(fn func() time.Time) {
 
 // Run 启动 StreamingPull 消费循环。
 func (t *Task) Run(ctx context.Context) error {
-	if t.consumer == nil {
+	if t.runner == nil {
 		return nil
 	}
-	return t.consumer.Run(ctx)
+	return t.runner.Run(ctx)
 }
 
 // 以下函数保留供 eventHandler 调用。

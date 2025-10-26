@@ -10,6 +10,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
@@ -53,19 +54,7 @@ var ProviderSet = wire.NewSet(
 	ProvideMessagingConfig,
 	ProvidePubsubConfig,
 	ProvidePubsubDependencies,
-	ProvideOutboxPublisherConfig,
-	ProvideProjectionConsumerConfig,
-)
-
-const (
-	defaultOutboxBatchSize      = 100
-	defaultOutboxTickInterval   = time.Second
-	defaultOutboxInitialBackoff = 2 * time.Second
-	defaultOutboxMaxBackoff     = 120 * time.Second
-	defaultOutboxMaxAttempts    = 20
-	defaultOutboxPublishTimeout = 10 * time.Second
-	defaultOutboxWorkers        = 4
-	defaultOutboxLockTTL        = 2 * time.Minute
+	ProvideOutboxRuntimeConfig,
 )
 
 // ProvideBundle 从运行时参数构造配置 Bundle。
@@ -290,85 +279,56 @@ func ProvidePubsubDependencies(logger log.Logger) gcpubsub.Dependencies {
 	}
 }
 
-// ProjectionConsumerConfig 描述 StreamingPull 投影消费者需要的附加配置。
-type ProjectionConsumerConfig struct {
-	DeadLetterTopicID string
-}
-
-// ProvideProjectionConsumerConfig 返回投影消费者配置。
-func ProvideProjectionConsumerConfig(msg *configpb.Messaging) ProjectionConsumerConfig {
-	if msg == nil || msg.GetPubsub() == nil {
-		return ProjectionConsumerConfig{}
-	}
-	return ProjectionConsumerConfig{
-		DeadLetterTopicID: msg.GetPubsub().GetDeadLetterTopicId(),
-	}
-}
-
-// OutboxPublisherConfig 描述 Outbox 发布器的运行参数。
-type OutboxPublisherConfig struct {
-    BatchSize      int
-    TickInterval   time.Duration
-    InitialBackoff time.Duration
-    MaxBackoff     time.Duration
-    MaxAttempts    int
-    PublishTimeout time.Duration
-    Workers        int
-    LockTTL        time.Duration
-    LoggingEnabled bool
-    MetricsEnabled bool
-}
-
-// ProvideOutboxPublisherConfig 返回 Outbox 发布器配置，使用默认值兜底。
-func ProvideOutboxPublisherConfig(msg *configpb.Messaging) OutboxPublisherConfig {
-    cfg := OutboxPublisherConfig{
-        BatchSize:      defaultOutboxBatchSize,
-        TickInterval:   defaultOutboxTickInterval,
-        InitialBackoff: defaultOutboxInitialBackoff,
-        MaxBackoff:     defaultOutboxMaxBackoff,
-        MaxAttempts:    defaultOutboxMaxAttempts,
-        PublishTimeout: defaultOutboxPublishTimeout,
-        Workers:        defaultOutboxWorkers,
-        LockTTL:        defaultOutboxLockTTL,
-        LoggingEnabled: true,
-        MetricsEnabled: true,
-    }
-	if msg == nil || msg.GetOutbox() == nil {
-		return cfg
+// ProvideOutboxRuntimeConfig 返回统一的 Outbox 配置（发布器 + 消费者）。
+func ProvideOutboxRuntimeConfig(msg *configpb.Messaging, data *configpb.Data) outboxcfg.Config {
+	cfg := outboxcfg.Config{}
+	if data != nil && data.GetPostgres() != nil {
+		cfg.Schema = strings.TrimSpace(data.GetPostgres().GetSchema())
 	}
 
-	ob := msg.GetOutbox()
-    if ob.GetBatchSize() > 0 {
-        cfg.BatchSize = int(ob.GetBatchSize())
-    }
-	if d := durationFromProto(ob.GetTickInterval()); d > 0 {
-		cfg.TickInterval = d
+	if msg != nil {
+		if ob := msg.GetOutbox(); ob != nil {
+			cfg.Publisher = outboxcfg.PublisherConfig{
+				BatchSize:      int(ob.GetBatchSize()),
+				TickInterval:   durationFromProto(ob.GetTickInterval()),
+				InitialBackoff: durationFromProto(ob.GetInitialBackoff()),
+				MaxBackoff:     durationFromProto(ob.GetMaxBackoff()),
+				MaxAttempts:    int(ob.GetMaxAttempts()),
+				PublishTimeout: durationFromProto(ob.GetPublishTimeout()),
+				Workers:        int(ob.GetWorkers()),
+				LockTTL:        durationFromProto(ob.GetLockTtl()),
+			}
+			if ob.LoggingEnabled != nil {
+				val := ob.GetLoggingEnabled()
+				cfg.Publisher.LoggingEnabled = &val
+			}
+			if ob.MetricsEnabled != nil {
+				val := ob.GetMetricsEnabled()
+				cfg.Publisher.MetricsEnabled = &val
+			}
+		}
+
+		if inbox := msg.GetInbox(); inbox != nil {
+			cfg.Inbox = outboxcfg.InboxConfig{
+				SourceService:  strings.TrimSpace(inbox.GetSourceService()),
+				MaxConcurrency: int(inbox.GetMaxConcurrency()),
+			}
+			if inbox.LoggingEnabled != nil {
+				val := inbox.GetLoggingEnabled()
+				cfg.Inbox.LoggingEnabled = &val
+			}
+			if inbox.MetricsEnabled != nil {
+				val := inbox.GetMetricsEnabled()
+				cfg.Inbox.MetricsEnabled = &val
+			}
+		}
 	}
-	if d := durationFromProto(ob.GetInitialBackoff()); d > 0 {
-		cfg.InitialBackoff = d
+
+	cfg = cfg.Normalize()
+	if err := cfg.Validate(); err != nil {
+		panic(fmt.Errorf("messaging config invalid: %w", err))
 	}
-	if d := durationFromProto(ob.GetMaxBackoff()); d > 0 {
-		cfg.MaxBackoff = d
-	}
-	if ob.GetMaxAttempts() > 0 {
-		cfg.MaxAttempts = int(ob.GetMaxAttempts())
-	}
-	if d := durationFromProto(ob.GetPublishTimeout()); d > 0 {
-		cfg.PublishTimeout = d
-	}
-	if ob.GetWorkers() > 0 {
-		cfg.Workers = int(ob.GetWorkers())
-	}
-    if d := durationFromProto(ob.GetLockTtl()); d > 0 {
-        cfg.LockTTL = d
-    }
-    if ob.LoggingEnabled != nil {
-        cfg.LoggingEnabled = ob.GetLoggingEnabled()
-    }
-    if ob.MetricsEnabled != nil {
-        cfg.MetricsEnabled = ob.GetMetricsEnabled()
-    }
-    return cfg
+	return cfg
 }
 
 func durationFromProto(d *durationpb.Duration) time.Duration {

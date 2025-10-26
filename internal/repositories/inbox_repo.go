@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	outboxpkg "github.com/bionicotaku/lingo-utils/outbox"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/outbox/store"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
@@ -19,8 +21,13 @@ type InboxRepository struct {
 	delegate *store.Repository
 }
 
-func NewInboxRepository(db *pgxpool.Pool, logger log.Logger) *InboxRepository {
-	return &InboxRepository{delegate: store.NewRepository(db, logger)}
+func NewInboxRepository(db *pgxpool.Pool, logger log.Logger, cfg outboxcfg.Config) *InboxRepository {
+	storeRepo, err := outboxpkg.NewRepository(db, logger, outboxpkg.RepositoryOptions{Schema: cfg.Schema})
+	if err != nil {
+		log.NewHelper(logger).Errorw("msg", "init inbox repository failed", "error", err)
+		storeRepo = store.NewRepository(db, logger)
+	}
+	return &InboxRepository{delegate: storeRepo}
 }
 
 func (r *InboxRepository) Insert(ctx context.Context, sess txmanager.Session, event InboxEvent) error {

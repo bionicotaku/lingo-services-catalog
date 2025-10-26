@@ -132,3 +132,8 @@ messaging:
     lock_ttl: 120s
     logging_enabled: true
     metrics_enabled: true
+  inbox:
+    source_service: catalog
+    max_concurrency: 4
+    logging_enabled: true
+    metrics_enabled: true
