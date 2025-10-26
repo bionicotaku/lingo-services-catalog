@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
-	"github.com/bionicotaku/kratos-template/internal/models/vo"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

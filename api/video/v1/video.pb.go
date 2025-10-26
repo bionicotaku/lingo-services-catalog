@@ -845,7 +845,7 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\x13VideoCommandService\x12J\n" +
 	"\vCreateVideo\x12\x1c.video.v1.CreateVideoRequest\x1a\x1d.video.v1.CreateVideoResponse\x12J\n" +
 	"\vUpdateVideo\x12\x1c.video.v1.UpdateVideoRequest\x1a\x1d.video.v1.UpdateVideoResponse\x12J\n" +
-	"\vDeleteVideo\x12\x1c.video.v1.DeleteVideoRequest\x1a\x1d.video.v1.DeleteVideoResponseB=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"\vDeleteVideo\x12\x1c.video.v1.DeleteVideoRequest\x1a\x1d.video.v1.DeleteVideoResponseBDZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_video_proto_rawDescOnce sync.Once

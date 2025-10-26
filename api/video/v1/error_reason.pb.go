@@ -102,7 +102,7 @@ const file_api_video_v1_error_reason_proto_rawDesc = "" +
 	"\x1fERROR_REASON_QUERY_VIDEO_FAILED\x10\x03\x12\x1e\n" +
 	"\x1aERROR_REASON_QUERY_TIMEOUT\x10\x04\x12%\n" +
 	"!ERROR_REASON_VIDEO_UPDATE_INVALID\x10\x05\x12%\n" +
-	"!ERROR_REASON_VIDEO_DELETE_INVALID\x10\x06B=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"!ERROR_REASON_VIDEO_DELETE_INVALID\x10\x06BDZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_error_reason_proto_rawDescOnce sync.Once

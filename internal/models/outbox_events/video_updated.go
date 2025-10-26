@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/google/uuid"
 )
 

@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
+	catalogsql "github.com/bionicotaku/lingo-services-catalog/internal/repositories/sqlc"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 )
 
 // VideoProjection 描述读模型所需字段。

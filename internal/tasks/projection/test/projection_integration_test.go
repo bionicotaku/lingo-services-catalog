@@ -13,9 +13,9 @@ import (
 
 	"cloud.google.com/go/pubsub/pstest"
 	pubsubpb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/repositories"
-	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/txmanager"

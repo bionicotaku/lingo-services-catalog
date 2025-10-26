@@ -6,8 +6,8 @@ import (
 
 	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/repositories"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/bionicotaku/lingo-utils/outbox/inbox"
 	"github.com/bionicotaku/lingo-utils/txmanager"

@@ -8,7 +8,7 @@ package catalogsql
 import (
 	"context"
 
-	po "github.com/bionicotaku/kratos-template/internal/models/po"
+	po "github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	uuid "github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )

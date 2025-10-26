@@ -5,7 +5,7 @@ package grpcclient
 import (
 	"context"
 
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"

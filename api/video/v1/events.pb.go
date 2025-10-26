@@ -682,7 +682,7 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EVENT_TYPE_VIDEO_CREATED\x10\x01\x12\x1c\n" +
 	"\x18EVENT_TYPE_VIDEO_UPDATED\x10\x02\x12\x1c\n" +
-	"\x18EVENT_TYPE_VIDEO_DELETED\x10\x03B=Z;github.com/bionicotaku/kratos-template/api/video/v1;videov1b\x06proto3"
+	"\x18EVENT_TYPE_VIDEO_DELETED\x10\x03BDZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_events_proto_rawDescOnce sync.Once

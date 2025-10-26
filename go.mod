@@ -1,4 +1,4 @@
-module github.com/bionicotaku/kratos-template
+module github.com/bionicotaku/lingo-services-catalog
 
 go 1.25.3
 

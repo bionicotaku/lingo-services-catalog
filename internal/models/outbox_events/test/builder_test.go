@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	outboxevents "github.com/bionicotaku/kratos-template/internal/models/outbox_events"
-	"github.com/bionicotaku/kratos-template/internal/models/po"
+	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/google/uuid"
 )
 

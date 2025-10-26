@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
-	"github.com/bionicotaku/kratos-template/internal/repositories"
-	"github.com/bionicotaku/kratos-template/internal/services"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"

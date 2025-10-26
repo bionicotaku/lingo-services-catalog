@@ -11,7 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
 
-	"github.com/bionicotaku/kratos-template/internal/controllers"
+	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 )
 
 // ProviderSet 暴露配置加载相关的依赖注入入口。

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
 )
 
 // ToProto 将领域事件转换为 protobuf Event。

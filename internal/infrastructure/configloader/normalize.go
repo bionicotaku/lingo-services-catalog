@@ -3,7 +3,7 @@ package configloader
 import (
 	"time"
 
-	configpb "github.com/bionicotaku/kratos-template/configs"
+	configpb "github.com/bionicotaku/lingo-services-catalog/configs"
 
 	"google.golang.org/protobuf/types/known/durationpb"
 )

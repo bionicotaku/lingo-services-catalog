@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
-	"github.com/bionicotaku/kratos-template/internal/repositories/mappers"
-	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories/mappers"
+	catalogsql "github.com/bionicotaku/lingo-services-catalog/internal/repositories/sqlc"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	outboxevents "github.com/bionicotaku/kratos-template/internal/models/outbox_events"
-	"github.com/bionicotaku/kratos-template/internal/models/po"
-	"github.com/bionicotaku/kratos-template/internal/models/vo"
-	"github.com/bionicotaku/kratos-template/internal/repositories"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/errors"

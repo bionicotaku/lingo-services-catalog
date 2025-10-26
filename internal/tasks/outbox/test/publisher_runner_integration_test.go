@@ -13,7 +13,7 @@ import (
 
 	"cloud.google.com/go/pubsub/pstest"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
-	"github.com/bionicotaku/kratos-template/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"

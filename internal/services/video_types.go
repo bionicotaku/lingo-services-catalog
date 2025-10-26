@@ -1,7 +1,7 @@
 package services
 
 import (
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
 	"github.com/go-kratos/kratos/v2/errors"
 )
 

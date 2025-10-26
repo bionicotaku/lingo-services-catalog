@@ -8,8 +8,8 @@ import (
 	"flag"
 	"sync"
 
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
-	"github.com/bionicotaku/kratos-template/internal/tasks/projection"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
 	"github.com/go-kratos/kratos/v2"

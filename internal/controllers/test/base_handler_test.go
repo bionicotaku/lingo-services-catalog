@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/controllers"
+	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 	"google.golang.org/grpc/metadata"
 )
 

@@ -22,12 +22,12 @@ sql:
               type: UUID
           - db_type: "catalog.video_status"
             go_type:
-              import: github.com/bionicotaku/kratos-template/internal/models/po
+              import: github.com/bionicotaku/lingo-services-catalog/internal/models/po
               package: po
               type: VideoStatus
           - db_type: "catalog.stage_status"
             go_type:
-              import: github.com/bionicotaku/kratos-template/internal/models/po
+              import: github.com/bionicotaku/lingo-services-catalog/internal/models/po
               package: po
               type: StageStatus
           - column: "catalog.videos.tags"

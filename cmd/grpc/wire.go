@@ -10,13 +10,13 @@ package main
 import (
 	"context"
 
-	"github.com/bionicotaku/kratos-template/internal/controllers"
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
-	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
-	"github.com/bionicotaku/kratos-template/internal/repositories"
-	"github.com/bionicotaku/kratos-template/internal/services"
-	outboxtasks "github.com/bionicotaku/kratos-template/internal/tasks/outbox"
-	projectiontasks "github.com/bionicotaku/kratos-template/internal/tasks/projection"
+	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/services"
+	outboxtasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/outbox"
+	projectiontasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"

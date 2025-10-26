@@ -3,7 +3,7 @@ package projection
 import (
 	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 
-	"github.com/bionicotaku/kratos-template/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
 )
 
 func TestLoadMetadataKeys(t *testing.T) {

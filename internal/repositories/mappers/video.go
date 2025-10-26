@@ -4,8 +4,8 @@ package mappers
 import (
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/models/po"
-	catalogsql "github.com/bionicotaku/kratos-template/internal/repositories/sqlc"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	catalogsql "github.com/bionicotaku/lingo-services-catalog/internal/repositories/sqlc"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"

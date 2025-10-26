@@ -3,9 +3,9 @@ package dto_test
 import (
 	"testing"
 
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/controllers/dto"
-	"github.com/bionicotaku/kratos-template/internal/services"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/controllers/dto"
+	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

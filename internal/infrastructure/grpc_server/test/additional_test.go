@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
-	grpcserver "github.com/bionicotaku/kratos-template/internal/infrastructure/grpc_server"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"

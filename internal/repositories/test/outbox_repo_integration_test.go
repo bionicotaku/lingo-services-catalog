@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bionicotaku/kratos-template/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-kratos/kratos/v2/log"

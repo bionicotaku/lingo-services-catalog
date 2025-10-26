@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package video.v1;
 
-option go_package = "github.com/bionicotaku/kratos-template/api/video/v1;videov1";
+option go_package = "github.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1";
 
 // EventType 定义事件类型枚举
 enum EventType {

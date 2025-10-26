@@ -3,9 +3,9 @@
 package grpcserver
 
 import (
-	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/controllers"
-	configloader "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/observability"

@@ -1664,7 +1664,7 @@ const file_configs_conf_proto_rawDesc = "" +
 	"\x0flogging_enabled\x18\x03 \x01(\bH\x00R\x0eloggingEnabled\x88\x01\x01\x12,\n" +
 	"\x0fmetrics_enabled\x18\x04 \x01(\bH\x01R\x0emetricsEnabled\x88\x01\x01B\x12\n" +
 	"\x10_logging_enabledB\x12\n" +
-	"\x10_metrics_enabledB9Z7github.com/bionicotaku/kratos-template/configs;configpbb\x06proto3"
+	"\x10_metrics_enabledB@Z>github.com/bionicotaku/lingo-services-catalog/configs;configpbb\x06proto3"
 
 var (
 	file_configs_conf_proto_rawDescOnce sync.Once
