@@ -49,13 +49,10 @@ func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.Metr
 	}
 
 	// 构造基础中间件链：追踪、panic 恢复与 metadata 传播。
-	prefixes := cfg.MetadataKeys
 	mws := []middleware.Middleware{
 		obsTrace.Server(),
 		recovery.Recovery(),
-		metadata.Server(
-			metadata.WithPropagatedPrefix(prefixes...),
-		),
+		metadata.Server(),
 	}
 	// 根据配置决定是否挂载 JWT 校验，默认置于限流之前。
 	if jwt != nil {

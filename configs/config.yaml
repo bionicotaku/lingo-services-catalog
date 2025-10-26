@@ -13,10 +13,17 @@ server:
     command_timeout: 5s
     # 读模型查询类 RPC 超时
     query_timeout: 3s
+  # metadata_keys 声明需要透传的 Header。命名约定：
+  # - 全链路透传使用 x-md-global- 前缀（例如用户标识）
+  # - 仅在当前服务使用的 header 仍以 x-md- 开头，但不会由客户端中间件继续下传
   metadata_keys:
+    # x-md-global-user-id: 需要跨服务透传的用户标识（全链路共享）
     - x-md-global-user-id
+    # x-md-idempotency-key: 当前服务的幂等键（仅本服务使用）
     - x-md-idempotency-key
+    # x-md-if-match: 条件写入的版本匹配（仅本服务使用）
     - x-md-if-match
+    # x-md-if-none-match: 条件读取/缓存验证（仅本服务使用）
     - x-md-if-none-match
   # Cloud Run JWT 权限验证（入站）
   jwt:
@@ -78,11 +85,10 @@ data:
       disabled: true
       # 注入 Token 的 Header 名称
       header_key: authorization
+    # 仅列出需要继续往下游传播的键，通常包含 x-md-global-* 前缀
     metadata_keys:
+      # 只需透传跨服务标识，这里默认只保留全局用户 ID。
       - x-md-global-user-id
-      - x-md-idempotency-key
-      - x-md-if-match
-      - x-md-if-none-match
 
 # 可观测性配置：追踪与指标
 observability:
