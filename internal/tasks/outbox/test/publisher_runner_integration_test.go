@@ -42,14 +42,14 @@ func TestPublisherRunner_SuccessfulPublish(t *testing.T) {
 
 	ctx := context.Background()
 
-	dsn, terminate := startPostgres(t, ctx)
+	dsn, terminate := startPostgres(ctx, t)
 	defer terminate()
 
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() { pool.Close() })
 
-	applyMigrations(t, ctx, pool)
+	applyMigrations(ctx, t, pool)
 
 	repo := repositories.NewOutboxRepository(pool, log.NewStdLogger(io.Discard), defaultOutboxConfig)
 
@@ -62,7 +62,7 @@ func TestPublisherRunner_SuccessfulPublish(t *testing.T) {
 	_, err = server.GServer.CreateTopic(ctx, &pubsubpb.Topic{Name: topicName})
 	require.NoError(t, err)
 
-	_, cleanupPub, publisher := newTestPublisher(t, ctx, server, projectID, topicID)
+	_, cleanupPub, publisher := newTestPublisher(ctx, t, server, projectID, topicID)
 	defer cleanupPub()
 
 	reader := sdkmetric.NewManualReader()
@@ -133,14 +133,14 @@ func TestPublisherRunner_RetryOnFailure(t *testing.T) {
 
 	ctx := context.Background()
 
-	dsn, terminate := startPostgres(t, ctx)
+	dsn, terminate := startPostgres(ctx, t)
 	defer terminate()
 
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() { pool.Close() })
 
-	applyMigrations(t, ctx, pool)
+	applyMigrations(ctx, t, pool)
 
 	repo := repositories.NewOutboxRepository(pool, log.NewStdLogger(io.Discard), defaultOutboxConfig)
 
@@ -150,7 +150,7 @@ func TestPublisherRunner_RetryOnFailure(t *testing.T) {
 	projectID := "test-project"
 	topicID := "catalog-video-events"
 
-	_, cleanupPub, publisher := newTestPublisher(t, ctx, server, projectID, topicID)
+	_, cleanupPub, publisher := newTestPublisher(ctx, t, server, projectID, topicID)
 	defer cleanupPub()
 
 	reader := sdkmetric.NewManualReader()
@@ -213,14 +213,14 @@ func TestPublisherRunner_RecoveryAfterTopicCreated(t *testing.T) {
 
 	ctx := context.Background()
 
-	dsn, terminate := startPostgres(t, ctx)
+	dsn, terminate := startPostgres(ctx, t)
 	defer terminate()
 
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() { pool.Close() })
 
-	applyMigrations(t, ctx, pool)
+	applyMigrations(ctx, t, pool)
 
 	repo := repositories.NewOutboxRepository(pool, log.NewStdLogger(io.Discard), defaultOutboxConfig)
 
@@ -230,7 +230,7 @@ func TestPublisherRunner_RecoveryAfterTopicCreated(t *testing.T) {
 	projectID := "test-project"
 	topicID := "catalog-video-events"
 
-	component, cleanupPub, publisher := newTestPublisher(t, ctx, server, projectID, topicID)
+	component, cleanupPub, publisher := newTestPublisher(ctx, t, server, projectID, topicID)
 	defer cleanupPub()
 	t.Cleanup(func() { _ = component })
 
@@ -298,7 +298,7 @@ func TestPublisherRunner_RecoveryAfterTopicCreated(t *testing.T) {
 	}
 }
 
-func newTestPublisher(t *testing.T, ctx context.Context, server *pstest.Server, projectID, topicID string) (*gcpubsub.Component, func(), gcpubsub.Publisher) {
+func newTestPublisher(ctx context.Context, t *testing.T, server *pstest.Server, projectID, topicID string) (*gcpubsub.Component, func(), gcpubsub.Publisher) {
 	t.Helper()
 
 	enableMetrics := true
@@ -348,7 +348,7 @@ func newPublisherRunner(t *testing.T, repo *repositories.OutboxRepository, publi
 	return runner
 }
 
-func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
+func startPostgres(ctx context.Context, t *testing.T) (string, func()) {
 	t.Helper()
 
 	req := testcontainers.ContainerRequest{
@@ -387,7 +387,7 @@ func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
 	return dsn, cleanup
 }
 
-func applyMigrations(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
+func applyMigrations(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	migrationsDir := filepath.Join("..", "..", "..", "migrations")

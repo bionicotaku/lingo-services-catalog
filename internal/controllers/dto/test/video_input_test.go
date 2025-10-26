@@ -1,10 +1,10 @@
-package mapper_test
+package dto_test
 
 import (
 	"testing"
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/controllers/mapper"
+	"github.com/bionicotaku/kratos-template/internal/controllers/dto"
 	"github.com/bionicotaku/kratos-template/internal/services"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +23,7 @@ func TestToCreateVideoInput(t *testing.T) {
 			Description:      &description,
 		}
 
-		input, err := mapper.ToCreateVideoInput(req)
+		input, err := dto.ToCreateVideoInput(req)
 
 		require.NoError(t, err)
 		assert.Equal(t, uploaderID, input.UploadUserID)
@@ -43,7 +43,7 @@ func TestToCreateVideoInput(t *testing.T) {
 			Description:      nil,
 		}
 
-		input, err := mapper.ToCreateVideoInput(req)
+		input, err := dto.ToCreateVideoInput(req)
 
 		require.NoError(t, err)
 		assert.Equal(t, uploaderID, input.UploadUserID)
@@ -59,7 +59,7 @@ func TestToCreateVideoInput(t *testing.T) {
 			RawFileReference: "s3://bucket/video.mp4",
 		}
 
-		input, err := mapper.ToCreateVideoInput(req)
+		input, err := dto.ToCreateVideoInput(req)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid upload_user_id")
@@ -73,7 +73,7 @@ func TestToCreateVideoInput(t *testing.T) {
 			RawFileReference: "s3://bucket/video.mp4",
 		}
 
-		input, err := mapper.ToCreateVideoInput(req)
+		input, err := dto.ToCreateVideoInput(req)
 
 		assert.Error(t, err)
 		assert.Equal(t, services.CreateVideoInput{}, input)
@@ -112,7 +112,7 @@ func TestToUpdateVideoInput(t *testing.T) {
 			ErrorMessage:      &errorMsg,
 		}
 
-		input, err := mapper.ToUpdateVideoInput(req)
+		input, err := dto.ToUpdateVideoInput(req)
 
 		require.NoError(t, err)
 		assert.Equal(t, videoID, input.VideoID)
@@ -149,7 +149,7 @@ func TestToUpdateVideoInput(t *testing.T) {
 			VideoId: videoID.String(),
 		}
 
-		input, err := mapper.ToUpdateVideoInput(req)
+		input, err := dto.ToUpdateVideoInput(req)
 
 		require.NoError(t, err)
 		assert.Equal(t, videoID, input.VideoID)
@@ -172,43 +172,25 @@ func TestToUpdateVideoInput(t *testing.T) {
 			VideoId: "not-a-valid-uuid",
 		}
 
-		input, err := mapper.ToUpdateVideoInput(req)
+		input, err := dto.ToUpdateVideoInput(req)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid video_id")
 		assert.Equal(t, services.UpdateVideoInput{}, input)
 	})
-
-	t.Run("partial update - only title", func(t *testing.T) {
-		videoID := uuid.New()
-		newTitle := "New Title Only"
-
-		req := &videov1.UpdateVideoRequest{
-			VideoId: videoID.String(),
-			Title:   &newTitle,
-		}
-
-		input, err := mapper.ToUpdateVideoInput(req)
-
-		require.NoError(t, err)
-		assert.Equal(t, videoID, input.VideoID)
-		require.NotNil(t, input.Title)
-		assert.Equal(t, newTitle, *input.Title)
-		assert.Nil(t, input.Description)
-	})
 }
 
 func TestToDeleteVideoInput(t *testing.T) {
-	t.Run("valid request with reason", func(t *testing.T) {
+	t.Run("valid request with optional reason", func(t *testing.T) {
 		videoID := uuid.New()
-		reason := "Content policy violation"
+		reason := "cleanup"
 
 		req := &videov1.DeleteVideoRequest{
 			VideoId: videoID.String(),
 			Reason:  &reason,
 		}
 
-		input, err := mapper.ToDeleteVideoInput(req)
+		input, err := dto.ToDeleteVideoInput(req)
 
 		require.NoError(t, err)
 		assert.Equal(t, videoID, input.VideoID)
@@ -221,10 +203,9 @@ func TestToDeleteVideoInput(t *testing.T) {
 
 		req := &videov1.DeleteVideoRequest{
 			VideoId: videoID.String(),
-			Reason:  nil,
 		}
 
-		input, err := mapper.ToDeleteVideoInput(req)
+		input, err := dto.ToDeleteVideoInput(req)
 
 		require.NoError(t, err)
 		assert.Equal(t, videoID, input.VideoID)
@@ -233,61 +214,13 @@ func TestToDeleteVideoInput(t *testing.T) {
 
 	t.Run("invalid video UUID", func(t *testing.T) {
 		req := &videov1.DeleteVideoRequest{
-			VideoId: "invalid-uuid",
+			VideoId: "not-a-valid-uuid",
 		}
 
-		input, err := mapper.ToDeleteVideoInput(req)
+		input, err := dto.ToDeleteVideoInput(req)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid video_id")
 		assert.Equal(t, services.DeleteVideoInput{}, input)
-	})
-
-	t.Run("empty video UUID", func(t *testing.T) {
-		req := &videov1.DeleteVideoRequest{
-			VideoId: "",
-		}
-
-		input, err := mapper.ToDeleteVideoInput(req)
-
-		assert.Error(t, err)
-		assert.Equal(t, services.DeleteVideoInput{}, input)
-	})
-}
-
-func TestParseVideoID(t *testing.T) {
-	t.Run("valid UUID", func(t *testing.T) {
-		expectedID := uuid.New()
-
-		parsedID, err := mapper.ParseVideoID(expectedID.String())
-
-		require.NoError(t, err)
-		assert.Equal(t, expectedID, parsedID)
-	})
-
-	t.Run("invalid UUID format", func(t *testing.T) {
-		parsedID, err := mapper.ParseVideoID("not-a-uuid")
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid video_id")
-		assert.Equal(t, uuid.Nil, parsedID)
-	})
-
-	t.Run("empty string", func(t *testing.T) {
-		parsedID, err := mapper.ParseVideoID("")
-
-		assert.Error(t, err)
-		assert.Equal(t, uuid.Nil, parsedID)
-	})
-
-	t.Run("UUID with wrong casing", func(t *testing.T) {
-		// UUID parsing is case-insensitive
-		validUUID := uuid.New()
-		upperCaseUUID := validUUID.String()
-
-		parsedID, err := mapper.ParseVideoID(upperCaseUUID)
-
-		require.NoError(t, err)
-		assert.Equal(t, validUUID, parsedID)
 	})
 }

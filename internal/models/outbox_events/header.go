@@ -1,6 +1,6 @@
-// Package events 提供领域事件相关的元数据辅助方法。本文件专注于
+// Package outboxevents 提供领域事件相关的元数据辅助方法。本文件专注于
 // 从领域事件中派生 Pub/Sub/Outbox 所需的附加属性（attributes）及共用工具。
-package events
+package outboxevents
 
 import (
 	"context"

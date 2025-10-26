@@ -25,14 +25,14 @@ func TestOutboxRepositoryIntegration(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	dsn, terminate := startPostgres(t, ctx)
+	dsn, terminate := startPostgres(ctx, t)
 	defer terminate()
 
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() { pool.Close() })
 
-	applyMigrations(t, ctx, pool)
+	applyMigrations(ctx, t, pool)
 
 	repo := repositories.NewOutboxRepository(pool, log.NewStdLogger(io.Discard), outboxcfg.Config{Schema: "catalog"})
 
@@ -92,7 +92,7 @@ func TestOutboxRepositoryIntegration(t *testing.T) {
 	require.Equal(t, int64(0), count)
 }
 
-func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
+func startPostgres(ctx context.Context, t *testing.T) (string, func()) {
 	t.Helper()
 
 	req := testcontainers.ContainerRequest{
@@ -131,7 +131,7 @@ func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
 	return dsn, cleanup
 }
 
-func applyMigrations(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
+func applyMigrations(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	migrationsDir := filepath.Join("..", "..", "..", "migrations")

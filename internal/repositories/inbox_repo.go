@@ -21,6 +21,7 @@ type InboxRepository struct {
 	delegate *store.Repository
 }
 
+// NewInboxRepository constructs an InboxRepository backed by the given pool.
 func NewInboxRepository(db *pgxpool.Pool, logger log.Logger, cfg outboxcfg.Config) *InboxRepository {
 	storeRepo, err := outboxpkg.NewRepository(db, logger, outboxpkg.RepositoryOptions{Schema: cfg.Schema})
 	if err != nil {
@@ -30,18 +31,22 @@ func NewInboxRepository(db *pgxpool.Pool, logger log.Logger, cfg outboxcfg.Confi
 	return &InboxRepository{delegate: storeRepo}
 }
 
+// Insert persists a new inbox event within the provided transaction session.
 func (r *InboxRepository) Insert(ctx context.Context, sess txmanager.Session, event InboxEvent) error {
 	return r.delegate.RecordInboxEvent(ctx, sess, event)
 }
 
+// MarkProcessed marks an inbox event as processed at the specified time.
 func (r *InboxRepository) MarkProcessed(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, processedAt time.Time) error {
 	return r.delegate.MarkInboxProcessed(ctx, sess, eventID, processedAt)
 }
 
+// RecordError records the latest delivery error message for an inbox event.
 func (r *InboxRepository) RecordError(ctx context.Context, sess txmanager.Session, eventID uuid.UUID, lastErr string) error {
 	return r.delegate.RecordInboxError(ctx, sess, eventID, lastErr)
 }
 
+// Shared exposes the underlying store repository for advanced usage.
 func (r *InboxRepository) Shared() *store.Repository {
 	return r.delegate
 }

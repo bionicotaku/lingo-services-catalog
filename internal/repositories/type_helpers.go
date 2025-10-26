@@ -15,23 +15,3 @@ func timestamptzFromTime(t time.Time) pgtype.Timestamptz {
 		Valid: true,
 	}
 }
-
-func textFromString(value string) pgtype.Text {
-	if value == "" {
-		return pgtype.Text{}
-	}
-	return pgtype.Text{
-		String: value,
-		Valid:  true,
-	}
-}
-
-func textFromNullableString(value string) pgtype.Text {
-	if value == "" {
-		return pgtype.Text{}
-	}
-	return pgtype.Text{
-		String: value,
-		Valid:  true,
-	}
-}

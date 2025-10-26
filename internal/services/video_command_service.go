@@ -7,7 +7,7 @@ import (
 	"time"
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/models/events"
+	outboxevents "github.com/bionicotaku/kratos-template/internal/models/outbox_events"
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/models/vo"
 	"github.com/bionicotaku/kratos-template/internal/repositories"
@@ -90,7 +90,7 @@ func (s *VideoCommandService) CreateVideo(ctx context.Context, input CreateVideo
 	}
 
 	var created *po.Video
-	var createdEvent *events.DomainEvent
+	var createdEvent *outboxevents.DomainEvent
 	var eventID uuid.UUID
 	var occurredAt time.Time
 
@@ -105,7 +105,7 @@ func (s *VideoCommandService) CreateVideo(ctx context.Context, input CreateVideo
 			occurredAt = time.Now().UTC()
 		}
 		eventID = uuid.New()
-		event, buildErr := events.NewVideoCreatedEvent(video, eventID, occurredAt)
+		event, buildErr := outboxevents.NewVideoCreatedEvent(video, eventID, occurredAt)
 		if buildErr != nil {
 			return fmt.Errorf("build video created event: %w", buildErr)
 		}
@@ -170,7 +170,7 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 	}
 
 	var updated *po.Video
-	var updateEvent *events.DomainEvent
+	var updateEvent *outboxevents.DomainEvent
 	var eventID uuid.UUID
 	var occurredAt time.Time
 
@@ -186,7 +186,7 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 		}
 
 		eventID = uuid.New()
-		changes := events.VideoUpdateChanges{
+		changes := outboxevents.VideoUpdateChanges{
 			Title:             input.Title,
 			Description:       input.Description,
 			Status:            videoStatus,
@@ -200,7 +200,7 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 			RawSubtitleURL:    input.RawSubtitleURL,
 		}
 
-		event, buildErr := events.NewVideoUpdatedEvent(video, changes, eventID, occurredAt)
+		event, buildErr := outboxevents.NewVideoUpdatedEvent(video, changes, eventID, occurredAt)
 		if buildErr != nil {
 			return fmt.Errorf("build video updated event: %w", buildErr)
 		}
@@ -232,7 +232,7 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 // DeleteVideo 删除视频记录并写入删除事件。
 func (s *VideoCommandService) DeleteVideo(ctx context.Context, input DeleteVideoInput) (*vo.VideoDeleted, error) {
 	var deleted *po.Video
-	var event *events.DomainEvent
+	var event *outboxevents.DomainEvent
 	var eventID uuid.UUID
 	var occurredAt time.Time
 
@@ -245,7 +245,7 @@ func (s *VideoCommandService) DeleteVideo(ctx context.Context, input DeleteVideo
 
 		occurredAt = time.Now().UTC()
 		eventID = uuid.New()
-		delEvent, buildErr := events.NewVideoDeletedEvent(video, eventID, occurredAt, input.Reason)
+		delEvent, buildErr := outboxevents.NewVideoDeletedEvent(video, eventID, occurredAt, input.Reason)
 		if buildErr != nil {
 			return fmt.Errorf("build video deleted event: %w", buildErr)
 		}
@@ -273,8 +273,8 @@ func (s *VideoCommandService) DeleteVideo(ctx context.Context, input DeleteVideo
 }
 
 // enqueueOutbox 将领域事件写入 Outbox。
-func (s *VideoCommandService) enqueueOutbox(ctx context.Context, sess txmanager.Session, event *events.DomainEvent, availableAt time.Time) error {
-	protoEvent, encodeErr := events.ToProto(event)
+func (s *VideoCommandService) enqueueOutbox(ctx context.Context, sess txmanager.Session, event *outboxevents.DomainEvent, availableAt time.Time) error {
+	protoEvent, encodeErr := outboxevents.ToProto(event)
 	if encodeErr != nil {
 		return fmt.Errorf("convert event to proto: %w", encodeErr)
 	}
@@ -283,7 +283,7 @@ func (s *VideoCommandService) enqueueOutbox(ctx context.Context, sess txmanager.
 		return fmt.Errorf("marshal video event: %w", marshalErr)
 	}
 
-	attributes := events.BuildAttributes(event, events.SchemaVersionV1, events.TraceIDFromContext(ctx))
+	attributes := outboxevents.BuildAttributes(event, outboxevents.SchemaVersionV1, outboxevents.TraceIDFromContext(ctx))
 	if availableAt.IsZero() {
 		availableAt = time.Now().UTC()
 	}
@@ -292,7 +292,7 @@ func (s *VideoCommandService) enqueueOutbox(ctx context.Context, sess txmanager.
 		EventID:       event.EventID,
 		AggregateType: event.AggregateType,
 		AggregateID:   event.AggregateID,
-		EventType:     events.FormatEventType(event.Kind),
+		EventType:     outboxevents.FormatEventType(event.Kind),
 		Payload:       payload,
 		Headers:       attributes,
 		AvailableAt:   availableAt,

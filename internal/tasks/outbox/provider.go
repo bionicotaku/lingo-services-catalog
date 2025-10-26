@@ -1,3 +1,5 @@
+// Package outbox wires shared repositories and publisher instances into
+// runnable Outbox workers for integration tests and local execution.
 package outbox
 
 import (

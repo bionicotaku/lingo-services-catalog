@@ -5,9 +5,8 @@ import (
 	"time"
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
-	"github.com/bionicotaku/kratos-template/internal/controllers/mapper"
+	"github.com/bionicotaku/kratos-template/internal/controllers/dto"
 	"github.com/bionicotaku/kratos-template/internal/services"
-	"github.com/bionicotaku/kratos-template/internal/views"
 
 	"github.com/go-kratos/kratos/v2/errors"
 )
@@ -28,7 +27,7 @@ func NewVideoQueryHandler(svc *services.VideoQueryService) *VideoQueryHandler {
 
 // GetVideoDetail 实现 VideoQueryService.GetVideoDetail RPC。
 func (h *VideoQueryHandler) GetVideoDetail(ctx context.Context, req *videov1.GetVideoDetailRequest) (*videov1.GetVideoDetailResponse, error) {
-	videoID, err := mapper.ParseVideoID(req.GetVideoId())
+	videoID, err := dto.ParseVideoID(req.GetVideoId())
 	if err != nil {
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
@@ -40,5 +39,5 @@ func (h *VideoQueryHandler) GetVideoDetail(ctx context.Context, req *videov1.Get
 	if err != nil {
 		return nil, err
 	}
-	return views.NewGetVideoDetailResponse(detail), nil
+	return dto.NewGetVideoDetailResponse(detail), nil
 }

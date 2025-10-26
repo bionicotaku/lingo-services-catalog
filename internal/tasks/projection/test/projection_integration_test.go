@@ -40,7 +40,7 @@ func TestProjectionTaskIntegration_CreateUpdateDelete(t *testing.T) {
 	reader, restore := installTestMeterProvider()
 	defer restore()
 
-	env := newProjectionTestEnv(t, ctx)
+	env := newProjectionTestEnv(ctx, t)
 	defer env.cleanup()
 
 	cancel, wait := startProjectionTask(env)
@@ -51,7 +51,7 @@ func TestProjectionTaskIntegration_CreateUpdateDelete(t *testing.T) {
 
 	videoID := uuid.New()
 	createdEvent := newVideoCreatedEvent(videoID, env.now())
-	publishEvent(t, ctx, env.publisher, createdEvent)
+	publishEvent(ctx, t, env.publisher, createdEvent)
 
 	require.Eventually(t, func() bool {
 		record, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -62,7 +62,7 @@ func TestProjectionTaskIntegration_CreateUpdateDelete(t *testing.T) {
 	}, 5*time.Second, 50*time.Millisecond, "projection row not created")
 
 	updatedEvent := newVideoUpdatedEvent(videoID, env.now(), 2, "Advanced English", "published", "ready", "ready")
-	publishEvent(t, ctx, env.publisher, updatedEvent)
+	publishEvent(ctx, t, env.publisher, updatedEvent)
 
 	require.Eventually(t, func() bool {
 		record, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -73,7 +73,7 @@ func TestProjectionTaskIntegration_CreateUpdateDelete(t *testing.T) {
 	}, 5*time.Second, 50*time.Millisecond, "projection row not updated")
 
 	deletedEvent := newVideoDeletedEvent(videoID, env.now(), 3)
-	publishEvent(t, ctx, env.publisher, deletedEvent)
+	publishEvent(ctx, t, env.publisher, deletedEvent)
 
 	require.Eventually(t, func() bool {
 		_, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -109,7 +109,7 @@ func TestProjectionTaskIntegration_DuplicateEventIgnored(t *testing.T) {
 	_, restore := installTestMeterProvider()
 	defer restore()
 
-	env := newProjectionTestEnv(t, ctx)
+	env := newProjectionTestEnv(ctx, t)
 	defer env.cleanup()
 
 	cancel, wait := startProjectionTask(env)
@@ -120,7 +120,7 @@ func TestProjectionTaskIntegration_DuplicateEventIgnored(t *testing.T) {
 
 	videoID := uuid.New()
 	created := newVideoCreatedEvent(videoID, env.now())
-	publishEvent(t, ctx, env.publisher, created)
+	publishEvent(ctx, t, env.publisher, created)
 
 	require.Eventually(t, func() bool {
 		record, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -131,7 +131,7 @@ func TestProjectionTaskIntegration_DuplicateEventIgnored(t *testing.T) {
 	}, 5*time.Second, 50*time.Millisecond)
 
 	// 再次发布同一事件，预期不会重复写入。
-	publishEvent(t, ctx, env.publisher, created)
+	publishEvent(ctx, t, env.publisher, created)
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -149,7 +149,7 @@ func TestProjectionTaskIntegration_OutOfOrderVersionIgnored(t *testing.T) {
 	_, restore := installTestMeterProvider()
 	defer restore()
 
-	env := newProjectionTestEnv(t, ctx)
+	env := newProjectionTestEnv(ctx, t)
 	defer env.cleanup()
 
 	cancel, wait := startProjectionTask(env)
@@ -159,7 +159,7 @@ func TestProjectionTaskIntegration_OutOfOrderVersionIgnored(t *testing.T) {
 	}()
 
 	videoID := uuid.New()
-	publishEvent(t, ctx, env.publisher, newVideoCreatedEvent(videoID, env.now()))
+	publishEvent(ctx, t, env.publisher, newVideoCreatedEvent(videoID, env.now()))
 
 	require.Eventually(t, func() bool {
 		record, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -169,7 +169,7 @@ func TestProjectionTaskIntegration_OutOfOrderVersionIgnored(t *testing.T) {
 		return record.Version == 1
 	}, 5*time.Second, 50*time.Millisecond)
 
-	publishEvent(t, ctx, env.publisher, newVideoUpdatedEvent(videoID, env.now(), 3, "Intermediate", "published", "ready", "ready"))
+	publishEvent(ctx, t, env.publisher, newVideoUpdatedEvent(videoID, env.now(), 3, "Intermediate", "published", "ready", "ready"))
 
 	require.Eventually(t, func() bool {
 		record, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -180,7 +180,7 @@ func TestProjectionTaskIntegration_OutOfOrderVersionIgnored(t *testing.T) {
 	}, 5*time.Second, 50*time.Millisecond)
 
 	// 乱序事件（版本 2）不应覆盖现有版本 3 数据。
-	publishEvent(t, ctx, env.publisher, newVideoUpdatedEvent(videoID, env.now(), 2, "Basic", "ready", "processing", "processing"))
+	publishEvent(ctx, t, env.publisher, newVideoUpdatedEvent(videoID, env.now(), 2, "Basic", "ready", "processing", "processing"))
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -195,7 +195,7 @@ func TestProjectionTaskIntegration_ExactlyOnceConfig(t *testing.T) {
 	_, restore := installTestMeterProvider()
 	defer restore()
 
-	env := newProjectionTestEnv(t, ctx, projectionTestConfig{ExactlyOnce: true})
+	env := newProjectionTestEnv(ctx, t, projectionTestConfig{ExactlyOnce: true})
 	defer env.cleanup()
 
 	cancel, wait := startProjectionTask(env)
@@ -205,7 +205,7 @@ func TestProjectionTaskIntegration_ExactlyOnceConfig(t *testing.T) {
 	}()
 
 	videoID := uuid.New()
-	publishEvent(t, ctx, env.publisher, newVideoCreatedEvent(videoID, env.now()))
+	publishEvent(ctx, t, env.publisher, newVideoCreatedEvent(videoID, env.now()))
 
 	require.Eventually(t, func() bool {
 		record, err := env.projectionRepo.Get(ctx, nil, videoID)
@@ -233,7 +233,7 @@ type projectionTestConfig struct {
 	ExactlyOnce bool
 }
 
-func newProjectionTestEnv(t *testing.T, ctx context.Context, cfgOpt ...projectionTestConfig) projectionTestEnv {
+func newProjectionTestEnv(ctx context.Context, t *testing.T, cfgOpt ...projectionTestConfig) projectionTestEnv {
 	t.Helper()
 
 	options := projectionTestConfig{}
@@ -241,12 +241,12 @@ func newProjectionTestEnv(t *testing.T, ctx context.Context, cfgOpt ...projectio
 		options = cfgOpt[0]
 	}
 
-	dsn, terminate := startPostgres(t, ctx)
+	dsn, terminate := startPostgres(ctx, t)
 
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
 
-	applyMigrations(t, ctx, pool)
+	applyMigrations(ctx, t, pool)
 
 	logger := log.NewStdLogger(io.Discard)
 
@@ -345,7 +345,7 @@ func startProjectionTask(env projectionTestEnv) (context.CancelFunc, func() erro
 	}
 }
 
-func publishEvent(t *testing.T, ctx context.Context, publisher gcpubsub.Publisher, evt *videov1.Event) {
+func publishEvent(ctx context.Context, t *testing.T, publisher gcpubsub.Publisher, evt *videov1.Event) {
 	t.Helper()
 	data, err := proto.Marshal(evt)
 	require.NoError(t, err)
@@ -439,7 +439,7 @@ func newVideoDeletedEvent(videoID uuid.UUID, now time.Time, version int64) *vide
 	}
 }
 
-func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
+func startPostgres(ctx context.Context, t *testing.T) (string, func()) {
 	t.Helper()
 
 	req := testcontainers.ContainerRequest{
@@ -478,7 +478,7 @@ func startPostgres(t *testing.T, ctx context.Context) (string, func()) {
 	return dsn, cleanup
 }
 
-func applyMigrations(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
+func applyMigrations(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	migrations := []string{

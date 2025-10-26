@@ -1,3 +1,4 @@
+// Package projection contains projection task helpers including event decoding.
 package projection
 
 import (

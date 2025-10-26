@@ -139,16 +139,6 @@ func textFromPtr(value *string) pgtype.Text {
 	}
 }
 
-func timestamptzFromTime(t time.Time) pgtype.Timestamptz {
-	if t.IsZero() {
-		return pgtype.Timestamptz{}
-	}
-	return pgtype.Timestamptz{
-		Time:  t.UTC(),
-		Valid: true,
-	}
-}
-
 // ToPgText 将 string 指针转换为 pgtype.Text。
 func ToPgText(value *string) pgtype.Text {
 	return textFromPtr(value)
