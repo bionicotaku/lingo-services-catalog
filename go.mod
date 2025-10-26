@@ -6,7 +6,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.1-20241127180247-a33202765966.1
 	cloud.google.com/go/pubsub v1.50.1
 	cloud.google.com/go/pubsub/v2 v2.0.0
-	github.com/bionicotaku/lingo-utils v0.1.4
+	github.com/bionicotaku/lingo-utils v0.1.5
 	github.com/bufbuild/protovalidate-go v0.8.2
 	github.com/docker/go-connections v0.5.0
 	github.com/go-kratos-ecosystem/components/v2 v2.27.0
