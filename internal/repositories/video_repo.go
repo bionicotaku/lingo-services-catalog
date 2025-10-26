@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/bionicotaku/kratos-template/internal/models/po"
 	"github.com/bionicotaku/kratos-template/internal/repositories/mappers"
@@ -59,6 +60,10 @@ type UpdateVideoInput struct {
 	Summary           *string
 	RawSubtitleURL    *string
 	ErrorMessage      *string
+	MediaJobID        *string
+	MediaEmittedAt    *time.Time
+	AnalysisJobID     *string
+	AnalysisEmittedAt *time.Time
 }
 
 // Create 创建新视频记录，video_id 由数据库自动生成。
@@ -106,6 +111,10 @@ func (r *VideoRepository) Update(ctx context.Context, sess txmanager.Session, in
 		input.MediaStatus,
 		input.AnalysisStatus,
 		input.DurationMicros,
+		input.MediaJobID,
+		input.AnalysisJobID,
+		input.MediaEmittedAt,
+		input.AnalysisEmittedAt,
 	))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

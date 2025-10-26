@@ -54,6 +54,10 @@ type UpdateVideoInput struct {
 	Summary           *string
 	RawSubtitleURL    *string
 	ErrorMessage      *string
+	MediaJobID        *string
+	MediaEmittedAt    *time.Time
+	AnalysisJobID     *string
+	AnalysisEmittedAt *time.Time
 }
 
 // DeleteVideoInput 表示删除视频时的输入。
@@ -167,6 +171,10 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 		Summary:           input.Summary,
 		RawSubtitleURL:    input.RawSubtitleURL,
 		ErrorMessage:      input.ErrorMessage,
+		MediaJobID:        input.MediaJobID,
+		MediaEmittedAt:    input.MediaEmittedAt,
+		AnalysisJobID:     input.AnalysisJobID,
+		AnalysisEmittedAt: input.AnalysisEmittedAt,
 	}
 
 	var updated *po.Video
@@ -315,7 +323,11 @@ func hasUpdateFields(input UpdateVideoInput) bool {
 		input.Difficulty != nil ||
 		input.Summary != nil ||
 		input.RawSubtitleURL != nil ||
-		input.ErrorMessage != nil
+		input.ErrorMessage != nil ||
+		input.MediaJobID != nil ||
+		input.MediaEmittedAt != nil ||
+		input.AnalysisJobID != nil ||
+		input.AnalysisEmittedAt != nil
 }
 
 func parseVideoStatus(status *string) (*po.VideoStatus, error) {

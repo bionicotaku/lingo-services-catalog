@@ -113,8 +113,13 @@ type CatalogVideo struct {
 	Description       pgtype.Text        `json:"description"`
 	RawFileReference  string             `json:"raw_file_reference"`
 	Status            po.VideoStatus     `json:"status"`
+	Version           int64              `json:"version"`
 	MediaStatus       po.StageStatus     `json:"media_status"`
 	AnalysisStatus    po.StageStatus     `json:"analysis_status"`
+	MediaJobID        pgtype.Text        `json:"media_job_id"`
+	MediaEmittedAt    pgtype.Timestamptz `json:"media_emitted_at"`
+	AnalysisJobID     pgtype.Text        `json:"analysis_job_id"`
+	AnalysisEmittedAt pgtype.Timestamptz `json:"analysis_emitted_at"`
 	RawFileSize       pgtype.Int8        `json:"raw_file_size"`
 	RawResolution     pgtype.Text        `json:"raw_resolution"`
 	RawBitrate        pgtype.Int4        `json:"raw_bitrate"`

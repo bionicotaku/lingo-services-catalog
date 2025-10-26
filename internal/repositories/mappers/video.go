@@ -28,6 +28,8 @@ func BuildUpdateVideoParams(
 	status *po.VideoStatus,
 	mediaStatus, analysisStatus *po.StageStatus,
 	durationMicros *int64,
+	mediaJobID, analysisJobID *string,
+	mediaEmittedAt, analysisEmittedAt *time.Time,
 ) catalogsql.UpdateVideoParams {
 	return catalogsql.UpdateVideoParams{
 		Title:             ToPgText(title),
@@ -42,6 +44,10 @@ func BuildUpdateVideoParams(
 		Summary:           ToPgText(summary),
 		RawSubtitleUrl:    ToPgText(rawSubtitleURL),
 		ErrorMessage:      ToPgText(errorMessage),
+		MediaJobID:        ToPgText(mediaJobID),
+		MediaEmittedAt:    ToPgTimestamptz(mediaEmittedAt),
+		AnalysisJobID:     ToPgText(analysisJobID),
+		AnalysisEmittedAt: ToPgTimestamptz(analysisEmittedAt),
 		VideoID:           videoID,
 	}
 }
@@ -57,8 +63,13 @@ func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
 		Description:       textPtr(v.Description),
 		RawFileReference:  v.RawFileReference,
 		Status:            po.VideoStatus(v.Status),
+		Version:           v.Version,
 		MediaStatus:       po.StageStatus(v.MediaStatus),
 		AnalysisStatus:    po.StageStatus(v.AnalysisStatus),
+		MediaJobID:        textPtr(v.MediaJobID),
+		MediaEmittedAt:    timestampPtr(v.MediaEmittedAt),
+		AnalysisJobID:     textPtr(v.AnalysisJobID),
+		AnalysisEmittedAt: timestampPtr(v.AnalysisEmittedAt),
 		RawFileSize:       int8Ptr(v.RawFileSize),
 		RawResolution:     textPtr(v.RawResolution),
 		RawBitrate:        int4Ptr(v.RawBitrate),
@@ -106,6 +117,14 @@ func mustTimestamp(ts pgtype.Timestamptz) time.Time {
 		return time.Time{}
 	}
 	return ts.Time
+}
+
+func timestampPtr(ts pgtype.Timestamptz) *time.Time {
+	if !ts.Valid {
+		return nil
+	}
+	t := ts.Time
+	return &t
 }
 
 func textPtr(t pgtype.Text) *string {
@@ -185,5 +204,16 @@ func ToNullStageStatus(value *po.StageStatus) catalogsql.NullCatalogStageStatus 
 	return catalogsql.NullCatalogStageStatus{
 		CatalogStageStatus: catalogsql.CatalogStageStatus(*value),
 		Valid:              true,
+	}
+}
+
+// ToPgTimestamptz 将 time 指针转换为 pgtype.Timestamptz。
+func ToPgTimestamptz(value *time.Time) pgtype.Timestamptz {
+	if value == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{
+		Time:  value.UTC(),
+		Valid: true,
 	}
 }

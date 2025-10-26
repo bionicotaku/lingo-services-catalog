@@ -16,24 +16,14 @@ const createVideo = `-- name: CreateVideo :one
 
 INSERT INTO catalog.videos (
     upload_user_id,
-    created_at,
-    updated_at,
     title,
     description,
-    raw_file_reference,
-    status,
-    media_status,
-    analysis_status
+    raw_file_reference
 ) VALUES (
     $1,
-    now(),
-    now(),
     $2,
     $4,
-    $3,
-    'pending_upload',
-    'pending',
-    'pending'
+    $3
 )
 RETURNING
     video_id,
@@ -44,8 +34,13 @@ RETURNING
     description,
     raw_file_reference,
     status,
+    version,
     media_status,
     analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
     raw_file_size,
     raw_resolution,
     raw_bitrate,
@@ -87,8 +82,13 @@ func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Catal
 		&i.Description,
 		&i.RawFileReference,
 		&i.Status,
+		&i.Version,
 		&i.MediaStatus,
 		&i.AnalysisStatus,
+		&i.MediaJobID,
+		&i.MediaEmittedAt,
+		&i.AnalysisJobID,
+		&i.AnalysisEmittedAt,
 		&i.RawFileSize,
 		&i.RawResolution,
 		&i.RawBitrate,
@@ -118,8 +118,13 @@ RETURNING
     description,
     raw_file_reference,
     status,
+    version,
     media_status,
     analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
     raw_file_size,
     raw_resolution,
     raw_bitrate,
@@ -147,8 +152,13 @@ func (q *Queries) DeleteVideo(ctx context.Context, videoID uuid.UUID) (CatalogVi
 		&i.Description,
 		&i.RawFileReference,
 		&i.Status,
+		&i.Version,
 		&i.MediaStatus,
 		&i.AnalysisStatus,
+		&i.MediaJobID,
+		&i.MediaEmittedAt,
+		&i.AnalysisJobID,
+		&i.AnalysisEmittedAt,
 		&i.RawFileSize,
 		&i.RawResolution,
 		&i.RawBitrate,
@@ -174,14 +184,19 @@ SET
     status = COALESCE($3::catalog.video_status, status),
     media_status = COALESCE($4::catalog.stage_status, media_status),
     analysis_status = COALESCE($5::catalog.stage_status, analysis_status),
-    duration_micros = COALESCE($6, duration_micros),
-    thumbnail_url = COALESCE($7, thumbnail_url),
-    hls_master_playlist = COALESCE($8, hls_master_playlist),
-    difficulty = COALESCE($9, difficulty),
-    summary = COALESCE($10, summary),
-    raw_subtitle_url = COALESCE($11, raw_subtitle_url),
-    error_message = COALESCE($12, error_message)
-WHERE video_id = $13
+    media_job_id = COALESCE($6, media_job_id),
+    media_emitted_at = COALESCE($7, media_emitted_at),
+    analysis_job_id = COALESCE($8, analysis_job_id),
+    analysis_emitted_at = COALESCE($9, analysis_emitted_at),
+    duration_micros = COALESCE($10, duration_micros),
+    thumbnail_url = COALESCE($11, thumbnail_url),
+    hls_master_playlist = COALESCE($12, hls_master_playlist),
+    difficulty = COALESCE($13, difficulty),
+    summary = COALESCE($14, summary),
+    raw_subtitle_url = COALESCE($15, raw_subtitle_url),
+    error_message = COALESCE($16, error_message),
+    version = version + 1
+WHERE video_id = $17
 RETURNING
     video_id,
     upload_user_id,
@@ -191,8 +206,13 @@ RETURNING
     description,
     raw_file_reference,
     status,
+    version,
     media_status,
     analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
     raw_file_size,
     raw_resolution,
     raw_bitrate,
@@ -214,6 +234,10 @@ type UpdateVideoParams struct {
 	Status            NullCatalogVideoStatus `json:"status"`
 	MediaStatus       NullCatalogStageStatus `json:"media_status"`
 	AnalysisStatus    NullCatalogStageStatus `json:"analysis_status"`
+	MediaJobID        pgtype.Text            `json:"media_job_id"`
+	MediaEmittedAt    pgtype.Timestamptz     `json:"media_emitted_at"`
+	AnalysisJobID     pgtype.Text            `json:"analysis_job_id"`
+	AnalysisEmittedAt pgtype.Timestamptz     `json:"analysis_emitted_at"`
 	DurationMicros    pgtype.Int8            `json:"duration_micros"`
 	ThumbnailUrl      pgtype.Text            `json:"thumbnail_url"`
 	HlsMasterPlaylist pgtype.Text            `json:"hls_master_playlist"`
@@ -231,6 +255,10 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		arg.Status,
 		arg.MediaStatus,
 		arg.AnalysisStatus,
+		arg.MediaJobID,
+		arg.MediaEmittedAt,
+		arg.AnalysisJobID,
+		arg.AnalysisEmittedAt,
 		arg.DurationMicros,
 		arg.ThumbnailUrl,
 		arg.HlsMasterPlaylist,
@@ -250,8 +278,13 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		&i.Description,
 		&i.RawFileReference,
 		&i.Status,
+		&i.Version,
 		&i.MediaStatus,
 		&i.AnalysisStatus,
+		&i.MediaJobID,
+		&i.MediaEmittedAt,
+		&i.AnalysisJobID,
+		&i.AnalysisEmittedAt,
 		&i.RawFileSize,
 		&i.RawResolution,
 		&i.RawBitrate,

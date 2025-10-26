@@ -4,24 +4,14 @@
 -- 创建新视频记录，video_id 由数据库自动生成
 INSERT INTO catalog.videos (
     upload_user_id,
-    created_at,
-    updated_at,
     title,
     description,
-    raw_file_reference,
-    status,
-    media_status,
-    analysis_status
+    raw_file_reference
 ) VALUES (
     $1,
-    now(),
-    now(),
     $2,
     sqlc.narg('description'),
-    $3,
-    'pending_upload',
-    'pending',
-    'pending'
+    $3
 )
 RETURNING
     video_id,
@@ -32,8 +22,13 @@ RETURNING
     description,
     raw_file_reference,
     status,
+    version,
     media_status,
     analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
     raw_file_size,
     raw_resolution,
     raw_bitrate,
@@ -56,13 +51,18 @@ SET
     status = COALESCE(sqlc.narg('status')::catalog.video_status, status),
     media_status = COALESCE(sqlc.narg('media_status')::catalog.stage_status, media_status),
     analysis_status = COALESCE(sqlc.narg('analysis_status')::catalog.stage_status, analysis_status),
+    media_job_id = COALESCE(sqlc.narg('media_job_id'), media_job_id),
+    media_emitted_at = COALESCE(sqlc.narg('media_emitted_at'), media_emitted_at),
+    analysis_job_id = COALESCE(sqlc.narg('analysis_job_id'), analysis_job_id),
+    analysis_emitted_at = COALESCE(sqlc.narg('analysis_emitted_at'), analysis_emitted_at),
     duration_micros = COALESCE(sqlc.narg('duration_micros'), duration_micros),
     thumbnail_url = COALESCE(sqlc.narg('thumbnail_url'), thumbnail_url),
     hls_master_playlist = COALESCE(sqlc.narg('hls_master_playlist'), hls_master_playlist),
     difficulty = COALESCE(sqlc.narg('difficulty'), difficulty),
     summary = COALESCE(sqlc.narg('summary'), summary),
     raw_subtitle_url = COALESCE(sqlc.narg('raw_subtitle_url'), raw_subtitle_url),
-    error_message = COALESCE(sqlc.narg('error_message'), error_message)
+    error_message = COALESCE(sqlc.narg('error_message'), error_message),
+    version = version + 1
 WHERE video_id = sqlc.arg('video_id')
 RETURNING
     video_id,
@@ -73,8 +73,13 @@ RETURNING
     description,
     raw_file_reference,
     status,
+    version,
     media_status,
     analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
     raw_file_size,
     raw_resolution,
     raw_bitrate,
@@ -101,8 +106,13 @@ RETURNING
     description,
     raw_file_reference,
     status,
+    version,
     media_status,
     analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
     raw_file_size,
     raw_resolution,
     raw_bitrate,

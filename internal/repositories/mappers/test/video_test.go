@@ -58,6 +58,9 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		mediaStatus := po.StageReady
 		analysisStatus := po.StageProcessing
 		durationMicros := int64(120000000)
+		mediaJobID := "media-job-1"
+		analysisJobID := "analysis-job-1"
+		now := time.Now().UTC()
 
 		params := mappers.BuildUpdateVideoParams(
 			videoID,
@@ -65,6 +68,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			&difficulty, &summary, &rawSubtitleURL, &errorMessage,
 			&status, &mediaStatus, &analysisStatus,
 			&durationMicros,
+			&mediaJobID, &analysisJobID,
+			&now, &now,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -89,6 +94,12 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		assert.Equal(t, rawSubtitleURL, params.RawSubtitleUrl.String)
 		assert.True(t, params.ErrorMessage.Valid)
 		assert.Equal(t, errorMessage, params.ErrorMessage.String)
+		assert.True(t, params.MediaJobID.Valid)
+		assert.Equal(t, mediaJobID, params.MediaJobID.String)
+		assert.True(t, params.AnalysisJobID.Valid)
+		assert.Equal(t, analysisJobID, params.AnalysisJobID.String)
+		assert.True(t, params.MediaEmittedAt.Valid)
+		assert.True(t, params.AnalysisEmittedAt.Valid)
 	})
 
 	t.Run("update no fields (all nil)", func(t *testing.T) {
@@ -100,6 +111,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			nil, nil, nil, nil,
 			nil, nil, nil,
 			nil,
+			nil, nil,
+			nil, nil,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -127,6 +140,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			nil, nil, nil, nil,
 			nil, nil, nil,
 			nil,
+			nil, nil,
+			nil, nil,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -151,8 +166,13 @@ func TestVideoFromCatalog(t *testing.T) {
 			Description:       pgtype.Text{String: "Description", Valid: true},
 			RawFileReference:  "s3://bucket/video.mp4",
 			Status:            po.VideoStatusPublished,
+			Version:           42,
 			MediaStatus:       po.StageReady,
 			AnalysisStatus:    po.StageProcessing,
+			MediaJobID:        pgtype.Text{String: "media-job-1", Valid: true},
+			MediaEmittedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+			AnalysisJobID:     pgtype.Text{String: "analysis-job-1", Valid: true},
+			AnalysisEmittedAt: pgtype.Timestamptz{Time: now, Valid: true},
 			RawFileSize:       pgtype.Int8{Int64: 1024000, Valid: true},
 			RawResolution:     pgtype.Text{String: "1920x1080", Valid: true},
 			RawBitrate:        pgtype.Int4{Int32: 5000, Valid: true},
@@ -180,6 +200,15 @@ func TestVideoFromCatalog(t *testing.T) {
 		assert.Equal(t, "Description", *video.Description)
 		assert.Equal(t, "s3://bucket/video.mp4", video.RawFileReference)
 		assert.Equal(t, po.VideoStatusPublished, video.Status)
+		assert.Equal(t, int64(42), video.Version)
+		require.NotNil(t, video.MediaJobID)
+		assert.Equal(t, "media-job-1", *video.MediaJobID)
+		require.NotNil(t, video.MediaEmittedAt)
+		assert.True(t, now.Equal(*video.MediaEmittedAt))
+		require.NotNil(t, video.AnalysisJobID)
+		assert.Equal(t, "analysis-job-1", *video.AnalysisJobID)
+		require.NotNil(t, video.AnalysisEmittedAt)
+		assert.True(t, now.Equal(*video.AnalysisEmittedAt))
 		assert.Equal(t, po.StageReady, video.MediaStatus)
 		assert.Equal(t, po.StageProcessing, video.AnalysisStatus)
 		require.NotNil(t, video.RawFileSize)
@@ -207,6 +236,7 @@ func TestVideoFromCatalog(t *testing.T) {
 			Description:      pgtype.Text{Valid: false},
 			RawFileReference: "s3://bucket/video.mp4",
 			Status:           po.VideoStatusPendingUpload,
+			Version:          1,
 			MediaStatus:      po.StagePending,
 			AnalysisStatus:   po.StagePending,
 			Tags:             []string{},
@@ -217,6 +247,11 @@ func TestVideoFromCatalog(t *testing.T) {
 		require.NotNil(t, video)
 		assert.Equal(t, videoID, video.VideoID)
 		assert.Nil(t, video.Description)
+		assert.Equal(t, int64(1), video.Version)
+		assert.Nil(t, video.MediaJobID)
+		assert.Nil(t, video.MediaEmittedAt)
+		assert.Nil(t, video.AnalysisJobID)
+		assert.Nil(t, video.AnalysisEmittedAt)
 		assert.Nil(t, video.RawFileSize)
 		assert.Nil(t, video.RawResolution)
 		assert.Nil(t, video.DurationMicros)

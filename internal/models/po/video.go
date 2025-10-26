@@ -49,8 +49,13 @@ type Video struct {
 	Description       *string     // 视频描述
 	RawFileReference  string      // 原始对象引用
 	Status            VideoStatus // 总体状态
+	Version           int64       // 乐观锁版本号
 	MediaStatus       StageStatus // 媒体阶段状态
 	AnalysisStatus    StageStatus // AI 阶段状态
+	MediaJobID        *string     // 最近一次媒体任务 ID
+	MediaEmittedAt    *time.Time  // 最近一次媒体任务完成时间
+	AnalysisJobID     *string     // 最近一次 AI 任务 ID
+	AnalysisEmittedAt *time.Time  // 最近一次 AI 任务完成时间
 	RawFileSize       *int64      // 原始文件大小（字节）
 	RawResolution     *string     // 原始分辨率
 	RawBitrate        *int32      // 原始码率（kbps）

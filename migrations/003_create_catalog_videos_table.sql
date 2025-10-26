@@ -1,5 +1,6 @@
+
 -- ============================================
--- 2) 主表：catalog.videos
+-- 2) 主表：videos（含“留空自动生成/显式传入”两用主键）
 -- ============================================
 create table if not exists catalog.videos (
   video_id             uuid primary key default gen_random_uuid(),         -- 支持留空自动生成或显式传入
@@ -11,8 +12,13 @@ create table if not exists catalog.videos (
   description          text,                                               -- 描述
   raw_file_reference   text not null,                                      -- 原始对象位置/键（如 GCS 路径 + 扩展名）
   status               catalog.video_status not null default 'pending_upload', -- 总体状态
+  version              bigint not null default 1,                          -- 并发控制版本号（乐观锁）
   media_status         catalog.stage_status  not null default 'pending',   -- 媒体阶段
   analysis_status      catalog.stage_status  not null default 'pending',   -- AI 阶段
+  media_job_id         text,                                               -- 最近一次媒体流水线任务ID
+  media_emitted_at     timestamptz,                                        -- 最近一次媒体结果回写时间
+  analysis_job_id      text,                                               -- 最近一次 AI 任务ID
+  analysis_emitted_at  timestamptz,                                        -- 最近一次 AI 结果回写时间
 
   -- 上传完成后补写的原始媒体属性
   raw_file_size        bigint check (raw_file_size > 0),                   -- 字节
@@ -47,8 +53,13 @@ comment on column catalog.videos.title               is '视频标题（必填�
 comment on column catalog.videos.description         is '视频描述（可选，长文本）';
 comment on column catalog.videos.raw_file_reference  is '原始对象位置（如 gs://bucket/path/file.mp4）';
 comment on column catalog.videos.status              is '总体状态：pending_upload→processing→ready/published 或 failed/rejected/archived';
+comment on column catalog.videos.version             is '乐观锁版本号：每次业务更新自增，用于并发控制与事件 version';
 comment on column catalog.videos.media_status        is '媒体阶段状态：pending/processing/ready/failed（转码/封面等）';
 comment on column catalog.videos.analysis_status     is 'AI 阶段状态：pending/processing/ready/failed（ASR/标签/摘要等）';
+comment on column catalog.videos.media_job_id        is '最近一次媒体流水线任务ID（用于幂等与事件序）';
+comment on column catalog.videos.media_emitted_at    is '最近一次媒体任务完成时间（用于拒绝旧事件）';
+comment on column catalog.videos.analysis_job_id     is '最近一次 AI 任务ID（用于幂等与事件序）';
+comment on column catalog.videos.analysis_emitted_at is '最近一次 AI 任务完成时间（用于拒绝旧事件）';
 
 comment on column catalog.videos.raw_file_size       is '原始文件大小（字节，>0）';
 comment on column catalog.videos.raw_resolution      is '原始分辨率（如 3840x2160）';
@@ -91,7 +102,7 @@ comment on constraint videos_upload_user_fkey on catalog.videos
   is '外键：绑定到 auth.users(id)；更新级联，删除限制（不随用户删除而删除视频）';
 
 -- ============================================
--- 4) 索引
+-- 4) 索引（含显式 schema 前缀的注释，避免 42P01）
 -- ============================================
 create index if not exists videos_status_idx
   on catalog.videos (status);
