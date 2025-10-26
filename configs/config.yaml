@@ -25,9 +25,9 @@ data:
     dsn: ""
 
     # 最大打开连接数
-    max_open_conns: 10
+    max_open_conns: 4
     # 最小空闲连接数
-    min_open_conns: 2
+    min_open_conns: 1
     # 连接最大生命周期
     max_conn_lifetime: 3600s
     # 空闲连接最大保留时长

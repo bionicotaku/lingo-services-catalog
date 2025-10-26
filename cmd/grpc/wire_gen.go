@@ -100,9 +100,11 @@ func wireApp(contextContext context.Context, params loader.Params) (*kratos.App,
 		return nil, nil, err
 	}
 	manager := txmanager.ProvideManager(txmanagerComponent)
-	videoUsecase := services.NewVideoUsecase(videoRepository, outboxRepository, manager, logger)
-	videoHandler := controllers.NewVideoHandler(videoUsecase)
-	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoHandler, logger)
+	videoCommandService := services.NewVideoCommandService(videoRepository, outboxRepository, manager, logger)
+	videoCommandHandler := controllers.NewVideoCommandHandler(videoCommandService)
+	videoQueryService := services.NewVideoQueryService(videoRepository, manager, logger)
+	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService)
+	grpcServer := grpcserver.NewGRPCServer(server, metricsConfig, serverMiddleware, videoCommandHandler, videoQueryHandler, logger)
 	gcpubsubConfig := loader.ProvidePubsubConfig(messaging)
 	dependencies := loader.ProvidePubsubDependencies(logger)
 	gcpubsubComponent, cleanup6, err := gcpubsub.NewComponent(contextContext, gcpubsubConfig, dependencies)

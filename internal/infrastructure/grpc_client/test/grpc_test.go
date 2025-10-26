@@ -64,10 +64,13 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := controllers.NewVideoHandler(services.NewVideoUsecase(videoRepoStub{}, outboxRepoStub{}, noopTxManager{}, logger))
+	cmdSvc := services.NewVideoCommandService(videoRepoStub{}, outboxRepoStub{}, noopTxManager{}, logger)
+	querySvc := services.NewVideoQueryService(videoRepoStub{}, noopTxManager{}, logger)
+	commandHandler := controllers.NewVideoCommandHandler(cmdSvc)
+	queryHandler := controllers.NewVideoQueryHandler(querySvc)
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {

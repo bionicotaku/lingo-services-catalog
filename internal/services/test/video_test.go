@@ -27,7 +27,7 @@ func TestCreateVideoEnqueuesOutbox(t *testing.T) {
 	}}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
+	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 
 	created, err := uc.CreateVideo(context.Background(), services.CreateVideoInput{
 		UploadUserID:     uuid.New(),
@@ -53,7 +53,7 @@ func TestCreateVideoRepoError(t *testing.T) {
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
 
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
+	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 	_, err := uc.CreateVideo(context.Background(), services.CreateVideoInput{
 		UploadUserID:     uuid.New(),
 		Title:            "demo",
@@ -79,7 +79,7 @@ func TestCreateVideoOutboxError(t *testing.T) {
 	outbox := &outboxRepoStub{err: errors.New("outbox down")}
 	logger := log.NewStdLogger(io.Discard)
 
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
+	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 	_, err := uc.CreateVideo(context.Background(), services.CreateVideoInput{
 		UploadUserID:     uuid.New(),
 		Title:            "demo",
@@ -102,7 +102,7 @@ func TestUpdateVideoEnqueuesOutbox(t *testing.T) {
 	repo := &videoRepoStub{updateVideo: updateVideo}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
+	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 
 	newTitle := "Updated title"
 	status := string(po.VideoStatusPublished)
@@ -126,7 +126,7 @@ func TestUpdateVideoNoFields(t *testing.T) {
 	repo := &videoRepoStub{}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
+	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 
 	_, err := uc.UpdateVideo(context.Background(), services.UpdateVideoInput{
 		VideoID: uuid.New(),
@@ -146,7 +146,7 @@ func TestDeleteVideoEnqueuesOutbox(t *testing.T) {
 	repo := &videoRepoStub{deleteVideo: deleted}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
+	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 
 	resp, err := uc.DeleteVideo(context.Background(), services.DeleteVideoInput{
 		VideoID: deleted.VideoID,

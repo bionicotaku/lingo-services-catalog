@@ -16,7 +16,7 @@ import (
 
 // TestNewGRPCServer_WithNetwork 验证 network 配置。
 func TestNewGRPCServer_WithNetwork(t *testing.T) {
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	cfg := &configpb.Server{
 		Grpc: &configpb.Server_GRPC{
 			Network: "tcp",
@@ -26,7 +26,7 @@ func TestNewGRPCServer_WithNetwork(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: false}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -50,7 +50,7 @@ func TestNewGRPCServer_WithNetwork(t *testing.T) {
 
 // TestNewGRPCServer_WithTimeout 验证 timeout 配置。
 func TestNewGRPCServer_WithTimeout(t *testing.T) {
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	cfg := &configpb.Server{
 		Grpc: &configpb.Server_GRPC{
 			Addr:    "127.0.0.1:0",
@@ -60,7 +60,7 @@ func TestNewGRPCServer_WithTimeout(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -71,7 +71,7 @@ func TestNewGRPCServer_WithTimeout(t *testing.T) {
 
 // TestNewGRPCServer_MetricsDisabled 验证禁用 metrics 时服务器仍能正常构造。
 func TestNewGRPCServer_MetricsDisabled(t *testing.T) {
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	cfg := &configpb.Server{
 		Grpc: &configpb.Server_GRPC{
 			Addr: "127.0.0.1:0",
@@ -84,7 +84,7 @@ func TestNewGRPCServer_MetricsDisabled(t *testing.T) {
 		GRPCIncludeHealth: false,
 	}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -95,7 +95,7 @@ func TestNewGRPCServer_MetricsDisabled(t *testing.T) {
 
 // TestNewGRPCServer_NilMetricsConfig 验证 nil metricsCfg 时使用默认值。
 func TestNewGRPCServer_NilMetricsConfig(t *testing.T) {
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	cfg := &configpb.Server{
 		Grpc: &configpb.Server_GRPC{
 			Addr: "127.0.0.1:0",
@@ -104,7 +104,7 @@ func TestNewGRPCServer_NilMetricsConfig(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 
 	// 传入 nil metricsCfg，应使用默认值（metrics enabled）
-	srv := grpcserver.NewGRPCServer(cfg, nil, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, nil, nil, commandHandler, queryHandler, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -115,7 +115,7 @@ func TestNewGRPCServer_NilMetricsConfig(t *testing.T) {
 
 // TestNewGRPCServer_MetricsIncludeHealth 验证 GRPCIncludeHealth=true 时服务器构造成功。
 func TestNewGRPCServer_MetricsIncludeHealth(t *testing.T) {
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	cfg := &configpb.Server{
 		Grpc: &configpb.Server_GRPC{
 			Addr: "127.0.0.1:0",
@@ -128,7 +128,7 @@ func TestNewGRPCServer_MetricsIncludeHealth(t *testing.T) {
 		GRPCIncludeHealth: true,
 	}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}

@@ -61,22 +61,23 @@ func (noopTxManager) WithinReadOnlyTx(ctx context.Context, _ txmanager.TxOptions
 	return fn(ctx, nil)
 }
 
-func newVideoController(t *testing.T) *controllers.VideoHandler {
+func newVideoHandlers(t *testing.T) (*controllers.VideoCommandHandler, *controllers.VideoQueryHandler) {
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
 	repo := videoRepoStub{}
 	outbox := outboxRepoStub{}
-	uc := services.NewVideoUsecase(repo, outbox, noopTxManager{}, logger)
-	return controllers.NewVideoHandler(uc)
+	cmdSvc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
+	querySvc := services.NewVideoQueryService(repo, noopTxManager{}, logger)
+	return controllers.NewVideoCommandHandler(cmdSvc), controllers.NewVideoQueryHandler(querySvc)
 }
 
 func startServer(t *testing.T) (string, func()) {
 	t.Helper()
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()

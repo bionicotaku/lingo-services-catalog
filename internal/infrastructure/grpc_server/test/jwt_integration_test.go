@@ -25,7 +25,7 @@ import (
 // TestJWTServerMiddleware_SkipValidate 验证 skip_validate 模式允许无 Token 请求。
 func TestJWTServerMiddleware_SkipValidate(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	// 配置：skip_validate=true, required=false
@@ -48,7 +48,7 @@ func TestJWTServerMiddleware_SkipValidate(t *testing.T) {
 	}
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, commandHandler, queryHandler, logger)
 
 	addr, stop := startKratosServer(t, srv)
 	defer stop()
@@ -74,7 +74,7 @@ func TestJWTServerMiddleware_SkipValidate(t *testing.T) {
 // TestJWTServerMiddleware_RequiredToken 验证 required=true 时拒绝无 Token 请求。
 func TestJWTServerMiddleware_RequiredToken(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	// 配置：skip_validate=false, required=true
@@ -97,7 +97,7 @@ func TestJWTServerMiddleware_RequiredToken(t *testing.T) {
 	}
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, commandHandler, queryHandler, logger)
 
 	addr, stop := startKratosServer(t, srv)
 	defer stop()
@@ -123,7 +123,7 @@ func TestJWTServerMiddleware_RequiredToken(t *testing.T) {
 // TestJWTServerMiddleware_OptionalToken 验证 required=false 时允许无 Token 请求。
 func TestJWTServerMiddleware_OptionalToken(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	// 配置：skip_validate=false, required=false
@@ -146,7 +146,7 @@ func TestJWTServerMiddleware_OptionalToken(t *testing.T) {
 	}
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, commandHandler, queryHandler, logger)
 
 	addr, stop := startKratosServer(t, srv)
 	defer stop()
@@ -172,7 +172,7 @@ func TestJWTServerMiddleware_OptionalToken(t *testing.T) {
 // TestJWTServerMiddleware_WithValidToken 验证携带有效 Token 的请求。
 func TestJWTServerMiddleware_WithValidToken(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	const testAudience = "https://my-service.run.app/"
@@ -197,7 +197,7 @@ func TestJWTServerMiddleware_WithValidToken(t *testing.T) {
 	}
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, serverMw, commandHandler, queryHandler, logger)
 
 	addr, stop := startKratosServer(t, srv)
 	defer stop()
@@ -233,12 +233,12 @@ func TestJWTServerMiddleware_WithValidToken(t *testing.T) {
 // TestJWTServerMiddleware_NilMiddleware 验证 nil middleware 的兼容性。
 func TestJWTServerMiddleware_NilMiddleware(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	videoSvc := newVideoController(t)
+	commandHandler, queryHandler := newVideoHandlers(t)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	cfg := &configpb.Server{Grpc: &configpb.Server_GRPC{Addr: "127.0.0.1:0"}}
 	// 传入 nil middleware
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, videoSvc, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 
 	addr, stop := startKratosServer(t, srv)
 	defer stop()

@@ -51,8 +51,9 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		// grpcclient.ProviderSet, // 暂时不使用, 未来需要调用外部 gRPC 服务时再启用
 		// clients.ProviderSet,    // 暂时不使用, 未来需要调用外部服务时再启用
 		repositories.ProviderSet, // 数据访问层（sqlc）
-		wire.Bind(new(services.VideoRepo), new(*repositories.VideoRepository)),   // 接口绑定: VideoRepo → VideoRepository
-		wire.Bind(new(services.OutboxRepo), new(*repositories.OutboxRepository)), // 接口绑定: OutboxRepo → OutboxRepository
+		wire.Bind(new(services.VideoCommandRepo), new(*repositories.VideoRepository)), // 写仓储绑定
+		wire.Bind(new(services.VideoQueryRepo), new(*repositories.VideoRepository)),   // 读仓储绑定
+		wire.Bind(new(services.VideoOutboxWriter), new(*repositories.OutboxRepository)),
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		outboxtasks.ProvideRunner,
@@ -180,12 +181,15 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 //                                      *repositories.VideoRepository
 //       构造视频仓储层，使用 sqlc 生成的查询方法。
 //
-//   - services.NewVideoUsecase(services.VideoRepo, services.OutboxRepo, txmanager.Manager, log.Logger)
-//                               *services.VideoUsecase
+//   - services.NewVideoCommandService(services.VideoCommandRepo, services.VideoOutboxWriter, txmanager.Manager, log.Logger)
+//                               *services.VideoCommandService
+//   - services.NewVideoQueryService(services.VideoQueryRepo, txmanager.Manager, log.Logger)
+//                               *services.VideoQueryService
 //       组装视频业务用例，协调仓储访问及 Outbox 写入。
 //       注: VideoRepo / OutboxRepo 接口通过 wire.Bind 绑定到对应 Repository 实现。
 //
-//   - controllers.NewVideoHandler(*services.VideoUsecase) *controllers.VideoHandler
+//   - controllers.NewVideoCommandHandler(*services.VideoCommandService) *controllers.VideoCommandHandler
+//   - controllers.NewVideoQueryHandler(*services.VideoQueryService) *controllers.VideoQueryHandler
 //       构造视频控制层，为 gRPC handler 提供入口。
 //
 // ┌─────────────────────────────────────────────────────────────────────────┐
