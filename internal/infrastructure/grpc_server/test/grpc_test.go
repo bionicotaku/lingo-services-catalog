@@ -45,6 +45,14 @@ func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*p
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (videoRepoStub) ListPublicVideos(context.Context, txmanager.Session, repositories.ListPublicVideosInput) ([]po.VideoListEntry, error) {
+	return nil, nil
+}
+
+func (videoRepoStub) ListUserUploads(context.Context, txmanager.Session, repositories.ListUserUploadsInput) ([]po.MyUploadEntry, error) {
+	return nil, nil
+}
+
 type outboxRepoStub struct{}
 
 func (outboxRepoStub) Enqueue(context.Context, txmanager.Session, repositories.OutboxMessage) error {
@@ -67,7 +75,7 @@ func newVideoHandlers(t *testing.T) (*controllers.VideoCommandHandler, *controll
 	repo := videoRepoStub{}
 	outbox := outboxRepoStub{}
 	cmdSvc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
-	querySvc := services.NewVideoQueryService(repo, noopTxManager{}, logger)
+	querySvc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
 	base := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
 	return controllers.NewVideoCommandHandler(cmdSvc, base), controllers.NewVideoQueryHandler(querySvc, base)
 }

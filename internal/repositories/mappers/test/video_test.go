@@ -58,6 +58,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		mediaStatus := po.StageReady
 		analysisStatus := po.StageProcessing
 		durationMicros := int64(120000000)
+		encodedResolution := "1920x1080"
+		encodedBitrate := int32(3500)
 		mediaJobID := "media-job-1"
 		analysisJobID := "analysis-job-1"
 		now := time.Now().UTC()
@@ -68,6 +70,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			&difficulty, &summary, &rawSubtitleURL, &errorMessage,
 			&status, &mediaStatus, &analysisStatus,
 			&durationMicros,
+			&encodedResolution,
+			&encodedBitrate,
 			&mediaJobID, &analysisJobID,
 			&now, &now,
 		)
@@ -113,6 +117,7 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			nil,
 			nil, nil,
 			nil, nil,
+			nil, nil,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -122,6 +127,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		assert.False(t, params.MediaStatus.Valid)
 		assert.False(t, params.AnalysisStatus.Valid)
 		assert.False(t, params.DurationMicros.Valid)
+		assert.False(t, params.EncodedResolution.Valid)
+		assert.False(t, params.EncodedBitrate.Valid)
 		assert.False(t, params.ThumbnailUrl.Valid)
 		assert.False(t, params.HlsMasterPlaylist.Valid)
 		assert.False(t, params.Difficulty.Valid)
@@ -142,12 +149,15 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			nil,
 			nil, nil,
 			nil, nil,
+			nil, nil,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
 		assert.True(t, params.Title.Valid)
 		assert.Equal(t, title, params.Title.String)
 		assert.False(t, params.Description.Valid)
+		assert.False(t, params.EncodedResolution.Valid)
+		assert.False(t, params.EncodedBitrate.Valid)
 	})
 }
 

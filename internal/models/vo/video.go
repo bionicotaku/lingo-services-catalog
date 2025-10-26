@@ -50,6 +50,9 @@ type VideoDetail struct {
 	AnalysisStatus string    `json:"analysis_status"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+	HasLiked       bool      `json:"has_liked"`
+	HasBookmarked  bool      `json:"has_bookmarked"`
+	HasWatched     bool      `json:"has_watched"`
 }
 
 // NewVideoDetail 从只读视图实体构造 VO。
@@ -66,6 +69,29 @@ func NewVideoDetail(video *po.VideoReadyView) *VideoDetail {
 		CreatedAt:      video.CreatedAt,
 		UpdatedAt:      video.UpdatedAt,
 	}
+}
+
+// VideoListItem 表示公开视频列表中的条目。
+type VideoListItem struct {
+	VideoID        uuid.UUID
+	Title          string
+	Status         string
+	MediaStatus    string
+	AnalysisStatus string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// MyUploadListItem 表示用户上传列表中的项。
+type MyUploadListItem struct {
+	VideoID        uuid.UUID
+	Title          string
+	Status         string
+	MediaStatus    string
+	AnalysisStatus string
+	Version        int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // VideoUpdated 封装视频更新后的响应信息。

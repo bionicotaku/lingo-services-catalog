@@ -28,6 +28,8 @@ func BuildUpdateVideoParams(
 	status *po.VideoStatus,
 	mediaStatus, analysisStatus *po.StageStatus,
 	durationMicros *int64,
+	encodedResolution *string,
+	encodedBitrate *int32,
 	mediaJobID, analysisJobID *string,
 	mediaEmittedAt, analysisEmittedAt *time.Time,
 ) catalogsql.UpdateVideoParams {
@@ -38,6 +40,8 @@ func BuildUpdateVideoParams(
 		MediaStatus:       ToNullStageStatus(mediaStatus),
 		AnalysisStatus:    ToNullStageStatus(analysisStatus),
 		DurationMicros:    ToPgInt8(durationMicros),
+		EncodedResolution: ToPgText(encodedResolution),
+		EncodedBitrate:    ToPgInt4(encodedBitrate),
 		ThumbnailUrl:      ToPgText(thumbnailURL),
 		HlsMasterPlaylist: ToPgText(hlsMasterPlaylist),
 		Difficulty:        ToPgText(difficulty),
@@ -215,5 +219,24 @@ func ToPgTimestamptz(value *time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{
 		Time:  value.UTC(),
 		Valid: true,
+	}
+}
+
+// BuildUpsertVideoUserStateParams 构造写入用户互动状态的 sqlc 参数。
+func BuildUpsertVideoUserStateParams(
+	userID uuid.UUID,
+	videoID uuid.UUID,
+	hasLiked bool,
+	hasBookmarked bool,
+	hasWatched bool,
+	occurredAt time.Time,
+) catalogsql.UpsertVideoUserStateParams {
+	return catalogsql.UpsertVideoUserStateParams{
+		UserID:        userID,
+		VideoID:       videoID,
+		HasLiked:      hasLiked,
+		HasBookmarked: hasBookmarked,
+		HasWatched:    hasWatched,
+		OccurredAt:    ToPgTimestamptz(&occurredAt),
 	}
 }

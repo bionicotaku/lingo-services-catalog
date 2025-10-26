@@ -123,6 +123,9 @@ type VideoDetail struct {
 	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"` // AI 分析状态
 	CreatedAt      string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`                // 创建时间（UTC RFC3339）
 	UpdatedAt      string                 `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                // 更新时间（UTC RFC3339）
+	HasLiked       bool                   `protobuf:"varint,8,opt,name=has_liked,json=hasLiked,proto3" json:"has_liked,omitempty"`                  // 是否点赞
+	HasBookmarked  bool                   `protobuf:"varint,9,opt,name=has_bookmarked,json=hasBookmarked,proto3" json:"has_bookmarked,omitempty"`   // 是否收藏
+	HasWatched     bool                   `protobuf:"varint,10,opt,name=has_watched,json=hasWatched,proto3" json:"has_watched,omitempty"`           // 是否观看
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -206,6 +209,435 @@ func (x *VideoDetail) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *VideoDetail) GetHasLiked() bool {
+	if x != nil {
+		return x.HasLiked
+	}
+	return false
+}
+
+func (x *VideoDetail) GetHasBookmarked() bool {
+	if x != nil {
+		return x.HasBookmarked
+	}
+	return false
+}
+
+func (x *VideoDetail) GetHasWatched() bool {
+	if x != nil {
+		return x.HasWatched
+	}
+	return false
+}
+
+type ListUserPublicVideosRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // 每页数量（默认 20，最大 100）
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // 游标分页 token
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserPublicVideosRequest) Reset() {
+	*x = ListUserPublicVideosRequest{}
+	mi := &file_api_video_v1_video_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserPublicVideosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserPublicVideosRequest) ProtoMessage() {}
+
+func (x *ListUserPublicVideosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserPublicVideosRequest.ProtoReflect.Descriptor instead.
+func (*ListUserPublicVideosRequest) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListUserPublicVideosRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListUserPublicVideosRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ListUserPublicVideosResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Videos        []*VideoListItem       `protobuf:"bytes,1,rep,name=videos,proto3" json:"videos,omitempty"`                                      // 视频列表
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // 下页游标
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserPublicVideosResponse) Reset() {
+	*x = ListUserPublicVideosResponse{}
+	mi := &file_api_video_v1_video_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserPublicVideosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserPublicVideosResponse) ProtoMessage() {}
+
+func (x *ListUserPublicVideosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserPublicVideosResponse.ProtoReflect.Descriptor instead.
+func (*ListUserPublicVideosResponse) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListUserPublicVideosResponse) GetVideos() []*VideoListItem {
+	if x != nil {
+		return x.Videos
+	}
+	return nil
+}
+
+func (x *ListUserPublicVideosResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+type ListMyUploadsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`            // 每页数量
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`          // 游标
+	StatusFilter  []string               `protobuf:"bytes,3,rep,name=status_filter,json=statusFilter,proto3" json:"status_filter,omitempty"` // 可选状态过滤
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMyUploadsRequest) Reset() {
+	*x = ListMyUploadsRequest{}
+	mi := &file_api_video_v1_video_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMyUploadsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMyUploadsRequest) ProtoMessage() {}
+
+func (x *ListMyUploadsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMyUploadsRequest.ProtoReflect.Descriptor instead.
+func (*ListMyUploadsRequest) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListMyUploadsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListMyUploadsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListMyUploadsRequest) GetStatusFilter() []string {
+	if x != nil {
+		return x.StatusFilter
+	}
+	return nil
+}
+
+type ListMyUploadsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Videos        []*MyUploadListItem    `protobuf:"bytes,1,rep,name=videos,proto3" json:"videos,omitempty"`                                      // 我的上传列表
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // 下页游标
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMyUploadsResponse) Reset() {
+	*x = ListMyUploadsResponse{}
+	mi := &file_api_video_v1_video_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMyUploadsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMyUploadsResponse) ProtoMessage() {}
+
+func (x *ListMyUploadsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMyUploadsResponse.ProtoReflect.Descriptor instead.
+func (*ListMyUploadsResponse) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListMyUploadsResponse) GetVideos() []*MyUploadListItem {
+	if x != nil {
+		return x.Videos
+	}
+	return nil
+}
+
+func (x *ListMyUploadsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+type VideoListItem struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Title          string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	MediaStatus    string                 `protobuf:"bytes,4,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`
+	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt      string                 `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *VideoListItem) Reset() {
+	*x = VideoListItem{}
+	mi := &file_api_video_v1_video_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VideoListItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VideoListItem) ProtoMessage() {}
+
+func (x *VideoListItem) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VideoListItem.ProtoReflect.Descriptor instead.
+func (*VideoListItem) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *VideoListItem) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *VideoListItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *VideoListItem) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *VideoListItem) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+func (x *VideoListItem) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
+func (x *VideoListItem) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *VideoListItem) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type MyUploadListItem struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Title          string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	MediaStatus    string                 `protobuf:"bytes,4,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`
+	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`
+	Version        int64                  `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt      string                 `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MyUploadListItem) Reset() {
+	*x = MyUploadListItem{}
+	mi := &file_api_video_v1_video_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MyUploadListItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MyUploadListItem) ProtoMessage() {}
+
+func (x *MyUploadListItem) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_video_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MyUploadListItem.ProtoReflect.Descriptor instead.
+func (*MyUploadListItem) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MyUploadListItem) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *MyUploadListItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *MyUploadListItem) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *MyUploadListItem) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+func (x *MyUploadListItem) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
+func (x *MyUploadListItem) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *MyUploadListItem) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *MyUploadListItem) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
 // CreateVideoRequest 表示创建视频的请求参数。
 // video_id 由数据库自动生成，不允许客户端指定
 type CreateVideoRequest struct {
@@ -220,7 +652,7 @@ type CreateVideoRequest struct {
 
 func (x *CreateVideoRequest) Reset() {
 	*x = CreateVideoRequest{}
-	mi := &file_api_video_v1_video_proto_msgTypes[3]
+	mi := &file_api_video_v1_video_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -232,7 +664,7 @@ func (x *CreateVideoRequest) String() string {
 func (*CreateVideoRequest) ProtoMessage() {}
 
 func (x *CreateVideoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_video_v1_video_proto_msgTypes[3]
+	mi := &file_api_video_v1_video_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -245,7 +677,7 @@ func (x *CreateVideoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVideoRequest.ProtoReflect.Descriptor instead.
 func (*CreateVideoRequest) Descriptor() ([]byte, []int) {
-	return file_api_video_v1_video_proto_rawDescGZIP(), []int{3}
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateVideoRequest) GetUploadUserId() string {
@@ -293,7 +725,7 @@ type CreateVideoResponse struct {
 
 func (x *CreateVideoResponse) Reset() {
 	*x = CreateVideoResponse{}
-	mi := &file_api_video_v1_video_proto_msgTypes[4]
+	mi := &file_api_video_v1_video_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -305,7 +737,7 @@ func (x *CreateVideoResponse) String() string {
 func (*CreateVideoResponse) ProtoMessage() {}
 
 func (x *CreateVideoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_video_v1_video_proto_msgTypes[4]
+	mi := &file_api_video_v1_video_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -318,7 +750,7 @@ func (x *CreateVideoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVideoResponse.ProtoReflect.Descriptor instead.
 func (*CreateVideoResponse) Descriptor() ([]byte, []int) {
-	return file_api_video_v1_video_proto_rawDescGZIP(), []int{4}
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateVideoResponse) GetVideoId() string {
@@ -400,7 +832,7 @@ type UpdateVideoRequest struct {
 
 func (x *UpdateVideoRequest) Reset() {
 	*x = UpdateVideoRequest{}
-	mi := &file_api_video_v1_video_proto_msgTypes[5]
+	mi := &file_api_video_v1_video_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -412,7 +844,7 @@ func (x *UpdateVideoRequest) String() string {
 func (*UpdateVideoRequest) ProtoMessage() {}
 
 func (x *UpdateVideoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_video_v1_video_proto_msgTypes[5]
+	mi := &file_api_video_v1_video_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -425,7 +857,7 @@ func (x *UpdateVideoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateVideoRequest.ProtoReflect.Descriptor instead.
 func (*UpdateVideoRequest) Descriptor() ([]byte, []int) {
-	return file_api_video_v1_video_proto_rawDescGZIP(), []int{5}
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateVideoRequest) GetVideoId() string {
@@ -536,7 +968,7 @@ type UpdateVideoResponse struct {
 
 func (x *UpdateVideoResponse) Reset() {
 	*x = UpdateVideoResponse{}
-	mi := &file_api_video_v1_video_proto_msgTypes[6]
+	mi := &file_api_video_v1_video_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -548,7 +980,7 @@ func (x *UpdateVideoResponse) String() string {
 func (*UpdateVideoResponse) ProtoMessage() {}
 
 func (x *UpdateVideoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_video_v1_video_proto_msgTypes[6]
+	mi := &file_api_video_v1_video_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -561,7 +993,7 @@ func (x *UpdateVideoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateVideoResponse.ProtoReflect.Descriptor instead.
 func (*UpdateVideoResponse) Descriptor() ([]byte, []int) {
-	return file_api_video_v1_video_proto_rawDescGZIP(), []int{6}
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateVideoResponse) GetVideoId() string {
@@ -631,7 +1063,7 @@ type DeleteVideoRequest struct {
 
 func (x *DeleteVideoRequest) Reset() {
 	*x = DeleteVideoRequest{}
-	mi := &file_api_video_v1_video_proto_msgTypes[7]
+	mi := &file_api_video_v1_video_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +1075,7 @@ func (x *DeleteVideoRequest) String() string {
 func (*DeleteVideoRequest) ProtoMessage() {}
 
 func (x *DeleteVideoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_video_v1_video_proto_msgTypes[7]
+	mi := &file_api_video_v1_video_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +1088,7 @@ func (x *DeleteVideoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteVideoRequest.ProtoReflect.Descriptor instead.
 func (*DeleteVideoRequest) Descriptor() ([]byte, []int) {
-	return file_api_video_v1_video_proto_rawDescGZIP(), []int{7}
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DeleteVideoRequest) GetVideoId() string {
@@ -687,7 +1119,7 @@ type DeleteVideoResponse struct {
 
 func (x *DeleteVideoResponse) Reset() {
 	*x = DeleteVideoResponse{}
-	mi := &file_api_video_v1_video_proto_msgTypes[8]
+	mi := &file_api_video_v1_video_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +1131,7 @@ func (x *DeleteVideoResponse) String() string {
 func (*DeleteVideoResponse) ProtoMessage() {}
 
 func (x *DeleteVideoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_video_v1_video_proto_msgTypes[8]
+	mi := &file_api_video_v1_video_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +1144,7 @@ func (x *DeleteVideoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteVideoResponse.ProtoReflect.Descriptor instead.
 func (*DeleteVideoResponse) Descriptor() ([]byte, []int) {
-	return file_api_video_v1_video_proto_rawDescGZIP(), []int{8}
+	return file_api_video_v1_video_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DeleteVideoResponse) GetVideoId() string {
@@ -758,7 +1190,7 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\x15GetVideoDetailRequest\x12#\n" +
 	"\bvideo_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\avideoId\"G\n" +
 	"\x16GetVideoDetailResponse\x12-\n" +
-	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\"\xe0\x01\n" +
+	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\"\xc5\x02\n" +
 	"\vVideoDetail\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
@@ -768,7 +1200,48 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\tR\tupdatedAt\"\xd1\x01\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\x12\x1b\n" +
+	"\thas_liked\x18\b \x01(\bR\bhasLiked\x12%\n" +
+	"\x0ehas_bookmarked\x18\t \x01(\bR\rhasBookmarked\x12\x1f\n" +
+	"\vhas_watched\x18\n" +
+	" \x01(\bR\n" +
+	"hasWatched\"Y\n" +
+	"\x1bListUserPublicVideosRequest\x12\x1b\n" +
+	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"w\n" +
+	"\x1cListUserPublicVideosResponse\x12/\n" +
+	"\x06videos\x18\x01 \x03(\v2\x17.video.v1.VideoListItemR\x06videos\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"w\n" +
+	"\x14ListMyUploadsRequest\x12\x1b\n" +
+	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x12#\n" +
+	"\rstatus_filter\x18\x03 \x03(\tR\fstatusFilter\"s\n" +
+	"\x15ListMyUploadsResponse\x122\n" +
+	"\x06videos\x18\x01 \x03(\v2\x1a.video.v1.MyUploadListItemR\x06videos\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe2\x01\n" +
+	"\rVideoListItem\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\x04 \x01(\tR\vmediaStatus\x12'\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\"\xff\x01\n" +
+	"\x10MyUploadListItem\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\x04 \x01(\tR\vmediaStatus\x12'\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\x03R\aversion\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\tR\tupdatedAt\"\xd1\x01\n" +
 	"\x12CreateVideoRequest\x12.\n" +
 	"\x0eupload_user_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fuploadUserId\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -839,9 +1312,11 @@ const file_api_video_v1_video_proto_rawDesc = "" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\x03R\aversion\x12\x1f\n" +
 	"\voccurred_at\x18\x05 \x01(\tR\n" +
-	"occurredAt2h\n" +
+	"occurredAt2\xa1\x02\n" +
 	"\x11VideoQueryService\x12S\n" +
-	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponse2\xf9\x01\n" +
+	"\x0eGetVideoDetail\x12\x1f.video.v1.GetVideoDetailRequest\x1a .video.v1.GetVideoDetailResponse\x12e\n" +
+	"\x14ListUserPublicVideos\x12%.video.v1.ListUserPublicVideosRequest\x1a&.video.v1.ListUserPublicVideosResponse\x12P\n" +
+	"\rListMyUploads\x12\x1e.video.v1.ListMyUploadsRequest\x1a\x1f.video.v1.ListMyUploadsResponse2\xf9\x01\n" +
 	"\x13VideoCommandService\x12J\n" +
 	"\vCreateVideo\x12\x1c.video.v1.CreateVideoRequest\x1a\x1d.video.v1.CreateVideoResponse\x12J\n" +
 	"\vUpdateVideo\x12\x1c.video.v1.UpdateVideoRequest\x1a\x1d.video.v1.UpdateVideoResponse\x12J\n" +
@@ -859,33 +1334,45 @@ func file_api_video_v1_video_proto_rawDescGZIP() []byte {
 	return file_api_video_v1_video_proto_rawDescData
 }
 
-var file_api_video_v1_video_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_api_video_v1_video_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_api_video_v1_video_proto_goTypes = []any{
-	(*GetVideoDetailRequest)(nil),  // 0: video.v1.GetVideoDetailRequest
-	(*GetVideoDetailResponse)(nil), // 1: video.v1.GetVideoDetailResponse
-	(*VideoDetail)(nil),            // 2: video.v1.VideoDetail
-	(*CreateVideoRequest)(nil),     // 3: video.v1.CreateVideoRequest
-	(*CreateVideoResponse)(nil),    // 4: video.v1.CreateVideoResponse
-	(*UpdateVideoRequest)(nil),     // 5: video.v1.UpdateVideoRequest
-	(*UpdateVideoResponse)(nil),    // 6: video.v1.UpdateVideoResponse
-	(*DeleteVideoRequest)(nil),     // 7: video.v1.DeleteVideoRequest
-	(*DeleteVideoResponse)(nil),    // 8: video.v1.DeleteVideoResponse
+	(*GetVideoDetailRequest)(nil),        // 0: video.v1.GetVideoDetailRequest
+	(*GetVideoDetailResponse)(nil),       // 1: video.v1.GetVideoDetailResponse
+	(*VideoDetail)(nil),                  // 2: video.v1.VideoDetail
+	(*ListUserPublicVideosRequest)(nil),  // 3: video.v1.ListUserPublicVideosRequest
+	(*ListUserPublicVideosResponse)(nil), // 4: video.v1.ListUserPublicVideosResponse
+	(*ListMyUploadsRequest)(nil),         // 5: video.v1.ListMyUploadsRequest
+	(*ListMyUploadsResponse)(nil),        // 6: video.v1.ListMyUploadsResponse
+	(*VideoListItem)(nil),                // 7: video.v1.VideoListItem
+	(*MyUploadListItem)(nil),             // 8: video.v1.MyUploadListItem
+	(*CreateVideoRequest)(nil),           // 9: video.v1.CreateVideoRequest
+	(*CreateVideoResponse)(nil),          // 10: video.v1.CreateVideoResponse
+	(*UpdateVideoRequest)(nil),           // 11: video.v1.UpdateVideoRequest
+	(*UpdateVideoResponse)(nil),          // 12: video.v1.UpdateVideoResponse
+	(*DeleteVideoRequest)(nil),           // 13: video.v1.DeleteVideoRequest
+	(*DeleteVideoResponse)(nil),          // 14: video.v1.DeleteVideoResponse
 }
 var file_api_video_v1_video_proto_depIdxs = []int32{
-	2, // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
-	0, // 1: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
-	3, // 2: video.v1.VideoCommandService.CreateVideo:input_type -> video.v1.CreateVideoRequest
-	5, // 3: video.v1.VideoCommandService.UpdateVideo:input_type -> video.v1.UpdateVideoRequest
-	7, // 4: video.v1.VideoCommandService.DeleteVideo:input_type -> video.v1.DeleteVideoRequest
-	1, // 5: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
-	4, // 6: video.v1.VideoCommandService.CreateVideo:output_type -> video.v1.CreateVideoResponse
-	6, // 7: video.v1.VideoCommandService.UpdateVideo:output_type -> video.v1.UpdateVideoResponse
-	8, // 8: video.v1.VideoCommandService.DeleteVideo:output_type -> video.v1.DeleteVideoResponse
-	5, // [5:9] is the sub-list for method output_type
-	1, // [1:5] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2,  // 0: video.v1.GetVideoDetailResponse.detail:type_name -> video.v1.VideoDetail
+	7,  // 1: video.v1.ListUserPublicVideosResponse.videos:type_name -> video.v1.VideoListItem
+	8,  // 2: video.v1.ListMyUploadsResponse.videos:type_name -> video.v1.MyUploadListItem
+	0,  // 3: video.v1.VideoQueryService.GetVideoDetail:input_type -> video.v1.GetVideoDetailRequest
+	3,  // 4: video.v1.VideoQueryService.ListUserPublicVideos:input_type -> video.v1.ListUserPublicVideosRequest
+	5,  // 5: video.v1.VideoQueryService.ListMyUploads:input_type -> video.v1.ListMyUploadsRequest
+	9,  // 6: video.v1.VideoCommandService.CreateVideo:input_type -> video.v1.CreateVideoRequest
+	11, // 7: video.v1.VideoCommandService.UpdateVideo:input_type -> video.v1.UpdateVideoRequest
+	13, // 8: video.v1.VideoCommandService.DeleteVideo:input_type -> video.v1.DeleteVideoRequest
+	1,  // 9: video.v1.VideoQueryService.GetVideoDetail:output_type -> video.v1.GetVideoDetailResponse
+	4,  // 10: video.v1.VideoQueryService.ListUserPublicVideos:output_type -> video.v1.ListUserPublicVideosResponse
+	6,  // 11: video.v1.VideoQueryService.ListMyUploads:output_type -> video.v1.ListMyUploadsResponse
+	10, // 12: video.v1.VideoCommandService.CreateVideo:output_type -> video.v1.CreateVideoResponse
+	12, // 13: video.v1.VideoCommandService.UpdateVideo:output_type -> video.v1.UpdateVideoResponse
+	14, // 14: video.v1.VideoCommandService.DeleteVideo:output_type -> video.v1.DeleteVideoResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_api_video_v1_video_proto_init() }
@@ -893,16 +1380,16 @@ func file_api_video_v1_video_proto_init() {
 	if File_api_video_v1_video_proto != nil {
 		return
 	}
-	file_api_video_v1_video_proto_msgTypes[3].OneofWrappers = []any{}
-	file_api_video_v1_video_proto_msgTypes[5].OneofWrappers = []any{}
-	file_api_video_v1_video_proto_msgTypes[7].OneofWrappers = []any{}
+	file_api_video_v1_video_proto_msgTypes[9].OneofWrappers = []any{}
+	file_api_video_v1_video_proto_msgTypes[11].OneofWrappers = []any{}
+	file_api_video_v1_video_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_video_v1_video_proto_rawDesc), len(file_api_video_v1_video_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

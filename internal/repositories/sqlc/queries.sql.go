@@ -55,6 +55,70 @@ func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (FindVid
 	return i, err
 }
 
+const listPublicVideos = `-- name: ListPublicVideos :many
+SELECT
+    video_id,
+    title,
+    status,
+    media_status,
+    analysis_status,
+    created_at,
+    updated_at
+FROM catalog.videos
+WHERE status IN ('ready', 'published')
+  AND (
+        $1 IS NULL
+        OR created_at < $1
+        OR (created_at = $1 AND video_id < $2)
+      )
+ORDER BY created_at DESC, video_id DESC
+LIMIT $3
+`
+
+type ListPublicVideosParams struct {
+	CursorCreatedAt interface{} `json:"cursor_created_at"`
+	CursorVideoID   pgtype.UUID `json:"cursor_video_id"`
+	Limit           int32       `json:"limit"`
+}
+
+type ListPublicVideosRow struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	Title          string             `json:"title"`
+	Status         po.VideoStatus     `json:"status"`
+	MediaStatus    po.StageStatus     `json:"media_status"`
+	AnalysisStatus po.StageStatus     `json:"analysis_status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListPublicVideos(ctx context.Context, arg ListPublicVideosParams) ([]ListPublicVideosRow, error) {
+	rows, err := q.db.Query(ctx, listPublicVideos, arg.CursorCreatedAt, arg.CursorVideoID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublicVideosRow{}
+	for rows.Next() {
+		var i ListPublicVideosRow
+		if err := rows.Scan(
+			&i.VideoID,
+			&i.Title,
+			&i.Status,
+			&i.MediaStatus,
+			&i.AnalysisStatus,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReadyVideosForTest = `-- name: ListReadyVideosForTest :many
 SELECT
     video_id,
@@ -94,6 +158,86 @@ func (q *Queries) ListReadyVideosForTest(ctx context.Context) ([]ListReadyVideos
 			&i.Status,
 			&i.MediaStatus,
 			&i.AnalysisStatus,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserUploads = `-- name: ListUserUploads :many
+SELECT
+    video_id,
+    title,
+    status,
+    media_status,
+    analysis_status,
+    version,
+    created_at,
+    updated_at
+FROM catalog.videos
+WHERE upload_user_id = $1
+  AND (
+        $2 IS NULL
+        OR cardinality($2) = 0
+        OR status = ANY($2)
+      )
+  AND (
+        $3 IS NULL
+        OR created_at < $3
+        OR (created_at = $3 AND video_id < $4)
+      )
+ORDER BY created_at DESC, video_id DESC
+LIMIT $5
+`
+
+type ListUserUploadsParams struct {
+	UploadUserID    uuid.UUID   `json:"upload_user_id"`
+	StatusFilter    interface{} `json:"status_filter"`
+	CursorCreatedAt interface{} `json:"cursor_created_at"`
+	CursorVideoID   pgtype.UUID `json:"cursor_video_id"`
+	Limit           int32       `json:"limit"`
+}
+
+type ListUserUploadsRow struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	Title          string             `json:"title"`
+	Status         po.VideoStatus     `json:"status"`
+	MediaStatus    po.StageStatus     `json:"media_status"`
+	AnalysisStatus po.StageStatus     `json:"analysis_status"`
+	Version        int64              `json:"version"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListUserUploads(ctx context.Context, arg ListUserUploadsParams) ([]ListUserUploadsRow, error) {
+	rows, err := q.db.Query(ctx, listUserUploads,
+		arg.UploadUserID,
+		arg.StatusFilter,
+		arg.CursorCreatedAt,
+		arg.CursorVideoID,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserUploadsRow{}
+	for rows.Next() {
+		var i ListUserUploadsRow
+		if err := rows.Scan(
+			&i.VideoID,
+			&i.Title,
+			&i.Status,
+			&i.MediaStatus,
+			&i.AnalysisStatus,
+			&i.Version,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

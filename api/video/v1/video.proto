@@ -10,6 +10,10 @@ import "buf/validate/validate.proto";
 service VideoQueryService {
   // GetVideoDetail 根据 video_id 返回视频元数据。
   rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
+  // ListUserPublicVideos 返回公开可见的视频列表。
+  rpc ListUserPublicVideos(ListUserPublicVideosRequest) returns (ListUserPublicVideosResponse);
+  // ListMyUploads 返回当前用户上传的视频列表。
+  rpc ListMyUploads(ListMyUploadsRequest) returns (ListMyUploadsResponse);
 }
 
 // VideoCommandService 提供视频写操作能力。
@@ -42,6 +46,51 @@ message VideoDetail {
   string analysis_status = 5;                                  // AI 分析状态
   string created_at = 6;                                       // 创建时间（UTC RFC3339）
   string updated_at = 7;                                       // 更新时间（UTC RFC3339）
+  bool has_liked = 8;                                          // 是否点赞
+  bool has_bookmarked = 9;                                     // 是否收藏
+  bool has_watched = 10;                                       // 是否观看
+}
+
+message ListUserPublicVideosRequest {
+  int32 page_size = 1;                                         // 每页数量（默认 20，最大 100）
+  string page_token = 2;                                       // 游标分页 token
+}
+
+message ListUserPublicVideosResponse {
+  repeated VideoListItem videos = 1;                           // 视频列表
+  string next_page_token = 2;                                  // 下页游标
+}
+
+message ListMyUploadsRequest {
+  int32 page_size = 1;                                         // 每页数量
+  string page_token = 2;                                       // 游标
+  repeated string status_filter = 3;                           // 可选状态过滤
+}
+
+message ListMyUploadsResponse {
+  repeated MyUploadListItem videos = 1;                        // 我的上传列表
+  string next_page_token = 2;                                  // 下页游标
+}
+
+message VideoListItem {
+  string video_id = 1;
+  string title = 2;
+  string status = 3;
+  string media_status = 4;
+  string analysis_status = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message MyUploadListItem {
+  string video_id = 1;
+  string title = 2;
+  string status = 3;
+  string media_status = 4;
+  string analysis_status = 5;
+  int64 version = 6;
+  string created_at = 7;
+  string updated_at = 8;
 }
 
 // CreateVideoRequest 表示创建视频的请求参数。

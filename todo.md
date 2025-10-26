@@ -8,13 +8,13 @@
 - [ ] 更新 `services-catalog/README.md` 标题及简介为 Catalog 服务
 
 ## 1. 数据层建设
-1. **Schema 迁移**
-   - [ ] 新增 `migrations/005_create_catalog_video_user_states.sql`
+1. **Schema 迁移** *(进行中)*
+   - [x] 新增 `migrations/005_create_catalog_video_user_states.sql`
    - [ ] 运行全部迁移，使用 `psql` 验证表/索引/触发器存在
 2. **sqlc 与模型**
-   - [ ] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_states`）
-   - [ ] 生成 `internal/repositories/sqlc` 代码并通过 `go test ./internal/repositories/...`
-   - [ ] 更新 `internal/models/po`、`vo` 与 `mappers`
+   - [x] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_states`）
+   - [x] 生成 `internal/repositories/sqlc` 代码并通过 `go test ./internal/repositories/...`
+   - [x] 更新 `internal/models/po`、`vo` 与 `mappers`
 
 ## 2. gRPC 契约与配置
 - [ ] 拆分 proto：`CatalogQueryService`、`CatalogLifecycleService`、事件定义；补充请求/响应/错误消息
@@ -23,16 +23,16 @@
 - [ ] 调整 `configs/config.yaml` 默认值（服务名、metadata 列表、JWT audience）
 
 ## 3. 业务用例实现
-1. **Lifecycle**
-   - [ ] `RegisterUploadService`
-   - [ ] `ProcessingStatusService`（含媒体/AI阶段通用逻辑、`job_id`/`emitted_at` 校验）
-   - [ ] `MediaInfoService`
-   - [ ] `AIAttributesService`
-   - [ ] `VisibilityService`（发布/拒绝/override）
-   - [ ] 输出领域事件并写入 Outbox
+1. **Lifecycle** *(进行中)*
+   - [x] `RegisterUploadService`
+   - [x] `ProcessingStatusService`（含媒体/AI阶段通用逻辑、`job_id`/`emitted_at` 校验）
+   - [x] `MediaInfoService`
+   - [x] `AIAttributesService`
+   - [x] `VisibilityService`（发布/拒绝/override）
+   - [ ] 输出领域事件并写入 Outbox *(进行中)*
 2. **Query**
-   - [ ] 实现 `CatalogQueryService` 使用投影读取（含 Engagement 降级逻辑）
-   - [ ] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
+   - [x] 实现 `CatalogQueryService` 使用投影读取（含 Engagement 降级逻辑）
+   - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
    - [ ] 集成 `HandlerMetadata` 解析，按用户权限过滤
 
 ## 4. 事件构建与 Outbox Runner

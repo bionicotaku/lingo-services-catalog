@@ -82,3 +82,38 @@ type VideoReadyView struct {
 	CreatedAt      time.Time   // 创建时间
 	UpdatedAt      time.Time   // 最近更新时间
 }
+
+// VideoUserState 表示用户与视频的互动状态投影。
+// 数据来源：catalog.video_user_states 表，由 Engagement 投影消费者维护。
+type VideoUserState struct {
+	UserID        uuid.UUID // 用户主键
+	VideoID       uuid.UUID // 视频主键
+	HasLiked      bool      // 是否点赞
+	HasBookmarked bool      // 是否收藏
+	HasWatched    bool      // 是否观看
+	OccurredAt    time.Time // Engagement 事件发生时间
+	UpdatedAt     time.Time // 最后一次更新的时间
+}
+
+// VideoListEntry 表示来自主表的视频条目。
+type VideoListEntry struct {
+	VideoID        uuid.UUID
+	Title          string
+	Status         VideoStatus
+	MediaStatus    StageStatus
+	AnalysisStatus StageStatus
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// MyUploadEntry 表示用户上传的视频条目。
+type MyUploadEntry struct {
+	VideoID        uuid.UUID
+	Title          string
+	Status         VideoStatus
+	MediaStatus    StageStatus
+	AnalysisStatus StageStatus
+	Version        int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}

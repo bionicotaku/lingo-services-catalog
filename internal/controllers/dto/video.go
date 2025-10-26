@@ -155,7 +155,45 @@ func NewVideoDetail(detail *vo.VideoDetail) *videov1.VideoDetail {
 		AnalysisStatus: detail.AnalysisStatus,
 		CreatedAt:      formatTime(detail.CreatedAt),
 		UpdatedAt:      formatTime(detail.UpdatedAt),
+		HasLiked:       detail.HasLiked,
+		HasBookmarked:  detail.HasBookmarked,
+		HasWatched:     detail.HasWatched,
 	}
+}
+
+// NewVideoListItems 将 VO 列表转换为 proto。
+func NewVideoListItems(items []vo.VideoListItem) []*videov1.VideoListItem {
+	result := make([]*videov1.VideoListItem, 0, len(items))
+	for _, it := range items {
+		result = append(result, &videov1.VideoListItem{
+			VideoId:        it.VideoID.String(),
+			Title:          it.Title,
+			Status:         it.Status,
+			MediaStatus:    it.MediaStatus,
+			AnalysisStatus: it.AnalysisStatus,
+			CreatedAt:      formatTime(it.CreatedAt),
+			UpdatedAt:      formatTime(it.UpdatedAt),
+		})
+	}
+	return result
+}
+
+// NewMyUploadListItems 将用户上传列表转换为 proto。
+func NewMyUploadListItems(items []vo.MyUploadListItem) []*videov1.MyUploadListItem {
+	result := make([]*videov1.MyUploadListItem, 0, len(items))
+	for _, it := range items {
+		result = append(result, &videov1.MyUploadListItem{
+			VideoId:        it.VideoID.String(),
+			Title:          it.Title,
+			Status:         it.Status,
+			MediaStatus:    it.MediaStatus,
+			AnalysisStatus: it.AnalysisStatus,
+			Version:        it.Version,
+			CreatedAt:      formatTime(it.CreatedAt),
+			UpdatedAt:      formatTime(it.UpdatedAt),
+		})
+	}
+	return result
 }
 
 // NewUpdateVideoResponse 将更新后的 VO 转换为 gRPC 响应。

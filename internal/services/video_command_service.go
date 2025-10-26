@@ -48,6 +48,8 @@ type UpdateVideoInput struct {
 	MediaStatus       *string
 	AnalysisStatus    *string
 	DurationMicros    *int64
+	EncodedResolution *string
+	EncodedBitrate    *int32
 	ThumbnailURL      *string
 	HLSMasterPlaylist *string
 	Difficulty        *string
@@ -165,6 +167,8 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 		MediaStatus:       mediaStatus,
 		AnalysisStatus:    analysisStatus,
 		DurationMicros:    input.DurationMicros,
+		EncodedResolution: input.EncodedResolution,
+		EncodedBitrate:    input.EncodedBitrate,
 		ThumbnailURL:      input.ThumbnailURL,
 		HLSMasterPlaylist: input.HLSMasterPlaylist,
 		Difficulty:        input.Difficulty,

@@ -19,7 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	VideoQueryService_GetVideoDetail_FullMethodName = "/video.v1.VideoQueryService/GetVideoDetail"
+	VideoQueryService_GetVideoDetail_FullMethodName       = "/video.v1.VideoQueryService/GetVideoDetail"
+	VideoQueryService_ListUserPublicVideos_FullMethodName = "/video.v1.VideoQueryService/ListUserPublicVideos"
+	VideoQueryService_ListMyUploads_FullMethodName        = "/video.v1.VideoQueryService/ListMyUploads"
 )
 
 // VideoQueryServiceClient is the client API for VideoQueryService service.
@@ -30,6 +32,10 @@ const (
 type VideoQueryServiceClient interface {
 	// GetVideoDetail 根据 video_id 返回视频元数据。
 	GetVideoDetail(ctx context.Context, in *GetVideoDetailRequest, opts ...grpc.CallOption) (*GetVideoDetailResponse, error)
+	// ListUserPublicVideos 返回公开可见的视频列表。
+	ListUserPublicVideos(ctx context.Context, in *ListUserPublicVideosRequest, opts ...grpc.CallOption) (*ListUserPublicVideosResponse, error)
+	// ListMyUploads 返回当前用户上传的视频列表。
+	ListMyUploads(ctx context.Context, in *ListMyUploadsRequest, opts ...grpc.CallOption) (*ListMyUploadsResponse, error)
 }
 
 type videoQueryServiceClient struct {
@@ -50,6 +56,26 @@ func (c *videoQueryServiceClient) GetVideoDetail(ctx context.Context, in *GetVid
 	return out, nil
 }
 
+func (c *videoQueryServiceClient) ListUserPublicVideos(ctx context.Context, in *ListUserPublicVideosRequest, opts ...grpc.CallOption) (*ListUserPublicVideosResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListUserPublicVideosResponse)
+	err := c.cc.Invoke(ctx, VideoQueryService_ListUserPublicVideos_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *videoQueryServiceClient) ListMyUploads(ctx context.Context, in *ListMyUploadsRequest, opts ...grpc.CallOption) (*ListMyUploadsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMyUploadsResponse)
+	err := c.cc.Invoke(ctx, VideoQueryService_ListMyUploads_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VideoQueryServiceServer is the server API for VideoQueryService service.
 // All implementations must embed UnimplementedVideoQueryServiceServer
 // for forward compatibility.
@@ -58,6 +84,10 @@ func (c *videoQueryServiceClient) GetVideoDetail(ctx context.Context, in *GetVid
 type VideoQueryServiceServer interface {
 	// GetVideoDetail 根据 video_id 返回视频元数据。
 	GetVideoDetail(context.Context, *GetVideoDetailRequest) (*GetVideoDetailResponse, error)
+	// ListUserPublicVideos 返回公开可见的视频列表。
+	ListUserPublicVideos(context.Context, *ListUserPublicVideosRequest) (*ListUserPublicVideosResponse, error)
+	// ListMyUploads 返回当前用户上传的视频列表。
+	ListMyUploads(context.Context, *ListMyUploadsRequest) (*ListMyUploadsResponse, error)
 	mustEmbedUnimplementedVideoQueryServiceServer()
 }
 
@@ -70,6 +100,12 @@ type UnimplementedVideoQueryServiceServer struct{}
 
 func (UnimplementedVideoQueryServiceServer) GetVideoDetail(context.Context, *GetVideoDetailRequest) (*GetVideoDetailResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVideoDetail not implemented")
+}
+func (UnimplementedVideoQueryServiceServer) ListUserPublicVideos(context.Context, *ListUserPublicVideosRequest) (*ListUserPublicVideosResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserPublicVideos not implemented")
+}
+func (UnimplementedVideoQueryServiceServer) ListMyUploads(context.Context, *ListMyUploadsRequest) (*ListMyUploadsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListMyUploads not implemented")
 }
 func (UnimplementedVideoQueryServiceServer) mustEmbedUnimplementedVideoQueryServiceServer() {}
 func (UnimplementedVideoQueryServiceServer) testEmbeddedByValue()                           {}
@@ -110,6 +146,42 @@ func _VideoQueryService_GetVideoDetail_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VideoQueryService_ListUserPublicVideos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListUserPublicVideosRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VideoQueryServiceServer).ListUserPublicVideos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VideoQueryService_ListUserPublicVideos_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VideoQueryServiceServer).ListUserPublicVideos(ctx, req.(*ListUserPublicVideosRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _VideoQueryService_ListMyUploads_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMyUploadsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VideoQueryServiceServer).ListMyUploads(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VideoQueryService_ListMyUploads_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VideoQueryServiceServer).ListMyUploads(ctx, req.(*ListMyUploadsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // VideoQueryService_ServiceDesc is the grpc.ServiceDesc for VideoQueryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -120,6 +192,14 @@ var VideoQueryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVideoDetail",
 			Handler:    _VideoQueryService_GetVideoDetail_Handler,
+		},
+		{
+			MethodName: "ListUserPublicVideos",
+			Handler:    _VideoQueryService_ListUserPublicVideos_Handler,
+		},
+		{
+			MethodName: "ListMyUploads",
+			Handler:    _VideoQueryService_ListMyUploads_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -202,6 +202,14 @@ func (s *videoRepoStub) FindByID(_ context.Context, _ txmanager.Session, _ uuid.
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (s *videoRepoStub) ListPublicVideos(_ context.Context, _ txmanager.Session, _ repositories.ListPublicVideosInput) ([]po.VideoListEntry, error) {
+	return nil, nil
+}
+
+func (s *videoRepoStub) ListUserUploads(_ context.Context, _ txmanager.Session, _ repositories.ListUserUploadsInput) ([]po.MyUploadEntry, error) {
+	return nil, nil
+}
+
 type outboxRepoStub struct {
 	messages []repositories.OutboxMessage
 	err      error

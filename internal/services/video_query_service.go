@@ -2,7 +2,11 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
@@ -18,31 +22,48 @@ import (
 // VideoQueryRepo 定义读模型所需的访问接口。
 type VideoQueryRepo interface {
 	FindByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error)
+	ListPublicVideos(ctx context.Context, sess txmanager.Session, input repositories.ListPublicVideosInput) ([]po.VideoListEntry, error)
+	ListUserUploads(ctx context.Context, sess txmanager.Session, input repositories.ListUserUploadsInput) ([]po.MyUploadEntry, error)
 }
 
 // VideoQueryService 封装视频只读用例。
 type VideoQueryService struct {
 	repo      VideoQueryRepo
+	userState *repositories.VideoUserStatesRepository
 	txManager txmanager.Manager
 	log       *log.Helper
 }
 
 // NewVideoQueryService 构造视频查询服务。
-func NewVideoQueryService(repo VideoQueryRepo, tx txmanager.Manager, logger log.Logger) *VideoQueryService {
+func NewVideoQueryService(repo VideoQueryRepo, userState *repositories.VideoUserStatesRepository, tx txmanager.Manager, logger log.Logger) *VideoQueryService {
 	return &VideoQueryService{
 		repo:      repo,
+		userState: userState,
 		txManager: tx,
 		log:       log.NewHelper(logger),
 	}
 }
 
 // GetVideoDetail 查询视频详情（优先使用投影表）。
-func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (*vo.VideoDetail, error) {
-	var videoView *po.VideoReadyView
+func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUID, userID *uuid.UUID) (*vo.VideoDetail, error) {
+	var (
+		videoView *po.VideoReadyView
+		state     *po.VideoUserState
+	)
 	err := s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
 		var repoErr error
 		videoView, repoErr = s.repo.FindByID(txCtx, sess, videoID)
-		return repoErr
+		if repoErr != nil {
+			return repoErr
+		}
+		if userID != nil && s.userState != nil {
+			var err error
+			state, err = s.userState.Get(txCtx, sess, *userID, videoID)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
@@ -57,5 +78,180 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 	}
 
 	s.log.WithContext(ctx).Debugf("GetVideoDetail: video_id=%s, status=%s", videoView.VideoID, videoView.Status)
-	return vo.NewVideoDetail(videoView), nil
+	detail := vo.NewVideoDetail(videoView)
+	if detail == nil {
+		return nil, ErrVideoNotFound
+	}
+	if state != nil {
+		detail.HasLiked = state.HasLiked
+		detail.HasBookmarked = state.HasBookmarked
+		detail.HasWatched = state.HasWatched
+	}
+	return detail, nil
+}
+
+// ListUserPublicVideos 返回公开视频列表。
+func (s *VideoQueryService) ListUserPublicVideos(ctx context.Context, pageSize int32, pageToken string) ([]vo.VideoListItem, string, error) {
+	limit := clampPageSize(pageSize)
+	cursor, err := decodeCursor(pageToken)
+	if err != nil {
+		return nil, "", errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "invalid page_token")
+	}
+
+	input := repositories.ListPublicVideosInput{
+		Limit: limit + 1,
+	}
+	if cursor != nil {
+		input.CursorCreatedAt = &cursor.CreatedAt
+		input.CursorVideoID = &cursor.VideoID
+	}
+
+	var items []po.VideoListEntry
+	err = s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
+		var repoErr error
+		items, repoErr = s.repo.ListPublicVideos(txCtx, sess, input)
+		return repoErr
+	})
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			s.log.WithContext(ctx).Warnf("list public videos timeout")
+			return nil, "", errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "query timeout")
+		}
+		return nil, "", errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), fmt.Sprintf("list public videos: %v", err))
+	}
+
+	var nextToken string
+	if len(items) > int(limit) {
+		last := items[limit]
+		nextToken = encodeCursor(last.CreatedAt, last.VideoID)
+		items = items[:limit]
+	}
+
+	voItems := make([]vo.VideoListItem, 0, len(items))
+	for _, it := range items {
+		voItems = append(voItems, vo.VideoListItem{
+			VideoID:        it.VideoID,
+			Title:          it.Title,
+			Status:         string(it.Status),
+			MediaStatus:    string(it.MediaStatus),
+			AnalysisStatus: string(it.AnalysisStatus),
+			CreatedAt:      it.CreatedAt,
+			UpdatedAt:      it.UpdatedAt,
+		})
+	}
+	return voItems, nextToken, nil
+}
+
+// ListMyUploads 返回用户上传列表。
+func (s *VideoQueryService) ListMyUploads(ctx context.Context, userID uuid.UUID, pageSize int32, pageToken string, statusFilter []string) ([]vo.MyUploadListItem, string, error) {
+	if userID == uuid.Nil {
+		return nil, "", errors.Unauthorized(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "user_id required")
+	}
+	limit := clampPageSize(pageSize)
+	cursor, err := decodeCursor(pageToken)
+	if err != nil {
+		return nil, "", errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "invalid page_token")
+	}
+	statusFilterEnum, err := parseStatusFilter(statusFilter)
+	if err != nil {
+		return nil, "", err
+	}
+
+	input := repositories.ListUserUploadsInput{
+		UploadUserID: userID,
+		Limit:        limit + 1,
+		StatusFilter: statusFilterEnum,
+	}
+	if cursor != nil {
+		input.CursorCreatedAt = &cursor.CreatedAt
+		input.CursorVideoID = &cursor.VideoID
+	}
+
+	var rows []po.MyUploadEntry
+	err = s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
+		var repoErr error
+		rows, repoErr = s.repo.ListUserUploads(txCtx, sess, input)
+		return repoErr
+	})
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			s.log.WithContext(ctx).Warnf("list my uploads timeout")
+			return nil, "", errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "query timeout")
+		}
+		return nil, "", errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), fmt.Sprintf("list my uploads: %v", err))
+	}
+
+	var nextToken string
+	if len(rows) > int(limit) {
+		last := rows[limit]
+		nextToken = encodeCursor(last.CreatedAt, last.VideoID)
+		rows = rows[:limit]
+	}
+
+	voItems := make([]vo.MyUploadListItem, 0, len(rows))
+	for _, row := range rows {
+		voItems = append(voItems, vo.MyUploadListItem{
+			VideoID:        row.VideoID,
+			Title:          row.Title,
+			Status:         string(row.Status),
+			MediaStatus:    string(row.MediaStatus),
+			AnalysisStatus: string(row.AnalysisStatus),
+			Version:        row.Version,
+			CreatedAt:      row.CreatedAt,
+			UpdatedAt:      row.UpdatedAt,
+		})
+	}
+	return voItems, nextToken, nil
+}
+
+func clampPageSize(size int32) int32 {
+	if size <= 0 {
+		return 20
+	}
+	if size > 100 {
+		return 100
+	}
+	return size
+}
+
+type pageCursor struct {
+	CreatedAt time.Time `json:"created_at"`
+	VideoID   uuid.UUID `json:"video_id"`
+}
+
+func encodeCursor(created time.Time, id uuid.UUID) string {
+	payload, _ := json.Marshal(pageCursor{CreatedAt: created.UTC(), VideoID: id})
+	return base64.RawURLEncoding.EncodeToString(payload)
+}
+
+func decodeCursor(token string) (*pageCursor, error) {
+	if token == "" {
+		return nil, nil
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return nil, err
+	}
+	var cursor pageCursor
+	if err := json.Unmarshal(decoded, &cursor); err != nil {
+		return nil, err
+	}
+	return &cursor, nil
+}
+
+func parseStatusFilter(values []string) ([]po.VideoStatus, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	result := make([]po.VideoStatus, 0, len(values))
+	for _, val := range values {
+		s := po.VideoStatus(strings.ToLower(strings.TrimSpace(val)))
+		switch s {
+		case po.VideoStatusPendingUpload, po.VideoStatusProcessing, po.VideoStatusReady, po.VideoStatusPublished, po.VideoStatusFailed, po.VideoStatusRejected, po.VideoStatusArchived:
+			result = append(result, s)
+		default:
+			return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), fmt.Sprintf("invalid status filter: %s", val))
+		}
+	}
+	return result, nil
 }

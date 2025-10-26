@@ -176,6 +176,76 @@ func (q *Queries) DeleteVideo(ctx context.Context, videoID uuid.UUID) (CatalogVi
 	return i, err
 }
 
+const getVideoByID = `-- name: GetVideoByID :one
+SELECT
+    video_id,
+    upload_user_id,
+    created_at,
+    updated_at,
+    title,
+    description,
+    raw_file_reference,
+    status,
+    version,
+    media_status,
+    analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
+    raw_file_size,
+    raw_resolution,
+    raw_bitrate,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    raw_subtitle_url,
+    error_message
+FROM catalog.videos
+WHERE video_id = $1
+`
+
+func (q *Queries) GetVideoByID(ctx context.Context, videoID uuid.UUID) (CatalogVideo, error) {
+	row := q.db.QueryRow(ctx, getVideoByID, videoID)
+	var i CatalogVideo
+	err := row.Scan(
+		&i.VideoID,
+		&i.UploadUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Title,
+		&i.Description,
+		&i.RawFileReference,
+		&i.Status,
+		&i.Version,
+		&i.MediaStatus,
+		&i.AnalysisStatus,
+		&i.MediaJobID,
+		&i.MediaEmittedAt,
+		&i.AnalysisJobID,
+		&i.AnalysisEmittedAt,
+		&i.RawFileSize,
+		&i.RawResolution,
+		&i.RawBitrate,
+		&i.DurationMicros,
+		&i.EncodedResolution,
+		&i.EncodedBitrate,
+		&i.ThumbnailUrl,
+		&i.HlsMasterPlaylist,
+		&i.Difficulty,
+		&i.Summary,
+		&i.Tags,
+		&i.RawSubtitleUrl,
+		&i.ErrorMessage,
+	)
+	return i, err
+}
+
 const updateVideo = `-- name: UpdateVideo :one
 UPDATE catalog.videos
 SET
@@ -189,14 +259,16 @@ SET
     analysis_job_id = COALESCE($8, analysis_job_id),
     analysis_emitted_at = COALESCE($9, analysis_emitted_at),
     duration_micros = COALESCE($10, duration_micros),
-    thumbnail_url = COALESCE($11, thumbnail_url),
-    hls_master_playlist = COALESCE($12, hls_master_playlist),
-    difficulty = COALESCE($13, difficulty),
-    summary = COALESCE($14, summary),
-    raw_subtitle_url = COALESCE($15, raw_subtitle_url),
-    error_message = COALESCE($16, error_message),
+    encoded_resolution = COALESCE($11, encoded_resolution),
+    encoded_bitrate = COALESCE($12, encoded_bitrate),
+    thumbnail_url = COALESCE($13, thumbnail_url),
+    hls_master_playlist = COALESCE($14, hls_master_playlist),
+    difficulty = COALESCE($15, difficulty),
+    summary = COALESCE($16, summary),
+    raw_subtitle_url = COALESCE($17, raw_subtitle_url),
+    error_message = COALESCE($18, error_message),
     version = version + 1
-WHERE video_id = $17
+WHERE video_id = $19
 RETURNING
     video_id,
     upload_user_id,
@@ -239,6 +311,8 @@ type UpdateVideoParams struct {
 	AnalysisJobID     pgtype.Text            `json:"analysis_job_id"`
 	AnalysisEmittedAt pgtype.Timestamptz     `json:"analysis_emitted_at"`
 	DurationMicros    pgtype.Int8            `json:"duration_micros"`
+	EncodedResolution pgtype.Text            `json:"encoded_resolution"`
+	EncodedBitrate    pgtype.Int4            `json:"encoded_bitrate"`
 	ThumbnailUrl      pgtype.Text            `json:"thumbnail_url"`
 	HlsMasterPlaylist pgtype.Text            `json:"hls_master_playlist"`
 	Difficulty        pgtype.Text            `json:"difficulty"`
@@ -260,6 +334,8 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		arg.AnalysisJobID,
 		arg.AnalysisEmittedAt,
 		arg.DurationMicros,
+		arg.EncodedResolution,
+		arg.EncodedBitrate,
 		arg.ThumbnailUrl,
 		arg.HlsMasterPlaylist,
 		arg.Difficulty,

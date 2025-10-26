@@ -6,6 +6,7 @@ sql:
       - "internal/repositories/sqlc/commands.sql"
       - "internal/repositories/sqlc/queries.sql"
       - "internal/repositories/sqlc/projection.sql"
+      - "internal/repositories/sqlc/user_states.sql"
     engine: postgresql
     gen:
       go:
