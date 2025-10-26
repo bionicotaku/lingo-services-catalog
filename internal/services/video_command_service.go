@@ -31,6 +31,17 @@ type VideoOutboxWriter interface {
 	Enqueue(ctx context.Context, sess txmanager.Session, msg repositories.OutboxMessage) error
 }
 
+// AdditionalEventBuilder 定义用于构建额外领域事件的委托。
+type AdditionalEventBuilder func(ctx context.Context, updated *po.Video, previous *po.Video) ([]*outboxevents.DomainEvent, error)
+
+type updateVideoConfig struct {
+	previous *po.Video
+	builder  AdditionalEventBuilder
+}
+
+// UpdateVideoOption 描述 UpdateVideo 的可选参数。
+type UpdateVideoOption func(*updateVideoConfig)
+
 // CreateVideoInput 表示创建视频的输入参数。
 type CreateVideoInput struct {
 	UploadUserID     uuid.UUID
@@ -138,7 +149,14 @@ func (s *VideoCommandService) CreateVideo(ctx context.Context, input CreateVideo
 }
 
 // UpdateVideo 更新视频元数据并写入 Outbox。
-func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideoInput) (*vo.VideoUpdated, error) {
+func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideoInput, opts ...UpdateVideoOption) (*vo.VideoUpdated, error) {
+	cfg := updateVideoConfig{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+
 	if !hasUpdateFields(input) {
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "no fields to update")
 	}
@@ -217,8 +235,23 @@ func (s *VideoCommandService) UpdateVideo(ctx context.Context, input UpdateVideo
 			return fmt.Errorf("build video updated event: %w", buildErr)
 		}
 
-		if err := s.enqueueOutbox(txCtx, sess, event, occurredAt); err != nil {
+		if err := s.enqueueOutbox(txCtx, sess, event, event.OccurredAt); err != nil {
 			return err
+		}
+
+		if cfg.builder != nil {
+			events, buildErr := cfg.builder(txCtx, video, cfg.previous)
+			if buildErr != nil {
+				return fmt.Errorf("build additional events: %w", buildErr)
+			}
+			for _, extra := range events {
+				if extra == nil {
+					continue
+				}
+				if err := s.enqueueOutbox(txCtx, sess, extra, extra.OccurredAt); err != nil {
+					return err
+				}
+			}
 		}
 
 		updated = video
@@ -371,5 +404,19 @@ func parseStageStatus(status *string) (*po.StageStatus, error) {
 		return &enum, nil
 	default:
 		return nil, fmt.Errorf("invalid stage status: %s", value)
+	}
+}
+
+// WithPreviousVideo 将更新前的视频实体传递给 UpdateVideo，便于构建额外事件。
+func WithPreviousVideo(previous *po.Video) UpdateVideoOption {
+	return func(cfg *updateVideoConfig) {
+		cfg.previous = previous
+	}
+}
+
+// WithAdditionalEvents 指定额外事件构建函数。
+func WithAdditionalEvents(builder AdditionalEventBuilder) UpdateVideoOption {
+	return func(cfg *updateVideoConfig) {
+		cfg.builder = builder
 	}
 }

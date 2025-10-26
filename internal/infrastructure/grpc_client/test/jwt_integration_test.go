@@ -166,7 +166,7 @@ func TestJWTClientIntegration_WithNilMiddleware(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
 	// 配置无下游目标
-    cfg := configloader.GRPCClientConfig{}
+	cfg := configloader.GRPCClientConfig{}
 
 	// 传入 nil JWT middleware
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
@@ -213,7 +213,7 @@ func TestJWTClientIntegration_WithJWTMiddleware(t *testing.T) {
 	}
 
 	// 配置无下游目标（仅测试中间件注入不会导致错误）
-    cfg := configloader.GRPCClientConfig{}
+	cfg := configloader.GRPCClientConfig{}
 
 	// 传入 JWT middleware
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, clientMw, logger)

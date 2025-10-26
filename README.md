@@ -92,6 +92,20 @@ make build
 - **gRPC**: `0.0.0.0:9000`
 - **Metrics**: `0.0.0.0:9090/metrics` (如果启用)
 
+### 5. 请求元数据头（Headers）
+
+Catalog 服务统一使用 `x-md-*` 前缀的 gRPC metadata 传递身份与操作上下文，核心字段包括：
+
+| Header 名称           | 说明 | 示例 |
+| ---------------------- | ---- | ---- |
+| `x-md-global-user-id`  | 终端用户标识（UUID）。匿名请求可缺省。 | `7b61d0ed-…`
+| `x-md-actor-type`      | 执行动作主体类型，枚举值建议：`upload_service`、`media_service`、`ai_service`、`safety_service`、`operator` 等。 | `media_service`
+| `x-md-actor-id`        | 具体执行者标识，服务调用时写服务名/实例，人工操作写审核员账号。 | `media-worker-1`
+| `x-md-idempotency-key` | 幂等写请求标识，仅写接口使用。 | `req-20251026-001`
+| `x-md-if-match` / `x-md-if-none-match` | 条件请求/缓存控制，读写接口按需携带。 | `"W/\"etag\""`
+
+`configs/config.yaml` 与 `data.grpc_client.metadata_keys` 已默认包含以上字段，确保在服务间透传；业务代码通过 `internal/metadata` 包统一读取与校验。
+
 ---
 
 ## 项目结构

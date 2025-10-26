@@ -15,6 +15,8 @@ func TestBaseHandlerExtractMetadata(t *testing.T) {
 		"x-md-idempotency-key", "req-456",
 		"x-md-if-match", "etag-1",
 		"x-md-if-none-match", "etag-0",
+		"x-md-actor-type", "staff",
+		"x-md-actor-id", "moderator-1",
 	))
 
 	handler := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
@@ -31,6 +33,12 @@ func TestBaseHandlerExtractMetadata(t *testing.T) {
 	}
 	if meta.IfNoneMatch != "etag-0" {
 		t.Fatalf("expected If-None-Match etag-0, got %q", meta.IfNoneMatch)
+	}
+	if meta.ActorType != "staff" {
+		t.Fatalf("expected actor type staff, got %q", meta.ActorType)
+	}
+	if meta.ActorID != "moderator-1" {
+		t.Fatalf("expected actor id moderator-1, got %q", meta.ActorID)
 	}
 
 	newCtx := controllers.InjectHandlerMetadata(ctx, meta)

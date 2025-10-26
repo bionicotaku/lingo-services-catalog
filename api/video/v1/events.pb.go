@@ -7,11 +7,12 @@
 package videov1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -25,10 +26,14 @@ const (
 type EventType int32
 
 const (
-	EventType_EVENT_TYPE_UNSPECIFIED   EventType = 0
-	EventType_EVENT_TYPE_VIDEO_CREATED EventType = 1
-	EventType_EVENT_TYPE_VIDEO_UPDATED EventType = 2
-	EventType_EVENT_TYPE_VIDEO_DELETED EventType = 3
+	EventType_EVENT_TYPE_UNSPECIFIED              EventType = 0
+	EventType_EVENT_TYPE_VIDEO_CREATED            EventType = 1
+	EventType_EVENT_TYPE_VIDEO_UPDATED            EventType = 2
+	EventType_EVENT_TYPE_VIDEO_DELETED            EventType = 3
+	EventType_EVENT_TYPE_VIDEO_MEDIA_READY        EventType = 4
+	EventType_EVENT_TYPE_VIDEO_AI_ENRICHED        EventType = 5
+	EventType_EVENT_TYPE_VIDEO_PROCESSING_FAILED  EventType = 6
+	EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED EventType = 7
 )
 
 // Enum value maps for EventType.
@@ -38,12 +43,20 @@ var (
 		1: "EVENT_TYPE_VIDEO_CREATED",
 		2: "EVENT_TYPE_VIDEO_UPDATED",
 		3: "EVENT_TYPE_VIDEO_DELETED",
+		4: "EVENT_TYPE_VIDEO_MEDIA_READY",
+		5: "EVENT_TYPE_VIDEO_AI_ENRICHED",
+		6: "EVENT_TYPE_VIDEO_PROCESSING_FAILED",
+		7: "EVENT_TYPE_VIDEO_VISIBILITY_CHANGED",
 	}
 	EventType_value = map[string]int32{
-		"EVENT_TYPE_UNSPECIFIED":   0,
-		"EVENT_TYPE_VIDEO_CREATED": 1,
-		"EVENT_TYPE_VIDEO_UPDATED": 2,
-		"EVENT_TYPE_VIDEO_DELETED": 3,
+		"EVENT_TYPE_UNSPECIFIED":              0,
+		"EVENT_TYPE_VIDEO_CREATED":            1,
+		"EVENT_TYPE_VIDEO_UPDATED":            2,
+		"EVENT_TYPE_VIDEO_DELETED":            3,
+		"EVENT_TYPE_VIDEO_MEDIA_READY":        4,
+		"EVENT_TYPE_VIDEO_AI_ENRICHED":        5,
+		"EVENT_TYPE_VIDEO_PROCESSING_FAILED":  6,
+		"EVENT_TYPE_VIDEO_VISIBILITY_CHANGED": 7,
 	}
 )
 
@@ -91,6 +104,10 @@ type Event struct {
 	//	*Event_Created
 	//	*Event_Updated
 	//	*Event_Deleted
+	//	*Event_MediaReady
+	//	*Event_AiEnriched
+	//	*Event_ProcessingFailed
+	//	*Event_VisibilityChanged
 	Payload       isEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -202,6 +219,42 @@ func (x *Event) GetDeleted() *Event_VideoDeleted {
 	return nil
 }
 
+func (x *Event) GetMediaReady() *Event_VideoMediaReady {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_MediaReady); ok {
+			return x.MediaReady
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetAiEnriched() *Event_VideoAIEnriched {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_AiEnriched); ok {
+			return x.AiEnriched
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetProcessingFailed() *Event_VideoProcessingFailed {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_ProcessingFailed); ok {
+			return x.ProcessingFailed
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetVisibilityChanged() *Event_VideoVisibilityChanged {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_VisibilityChanged); ok {
+			return x.VisibilityChanged
+		}
+	}
+	return nil
+}
+
 type isEvent_Payload interface {
 	isEvent_Payload()
 }
@@ -218,11 +271,35 @@ type Event_Deleted struct {
 	Deleted *Event_VideoDeleted `protobuf:"bytes,12,opt,name=deleted,proto3,oneof"`
 }
 
+type Event_MediaReady struct {
+	MediaReady *Event_VideoMediaReady `protobuf:"bytes,13,opt,name=media_ready,json=mediaReady,proto3,oneof"`
+}
+
+type Event_AiEnriched struct {
+	AiEnriched *Event_VideoAIEnriched `protobuf:"bytes,14,opt,name=ai_enriched,json=aiEnriched,proto3,oneof"`
+}
+
+type Event_ProcessingFailed struct {
+	ProcessingFailed *Event_VideoProcessingFailed `protobuf:"bytes,15,opt,name=processing_failed,json=processingFailed,proto3,oneof"`
+}
+
+type Event_VisibilityChanged struct {
+	VisibilityChanged *Event_VideoVisibilityChanged `protobuf:"bytes,16,opt,name=visibility_changed,json=visibilityChanged,proto3,oneof"`
+}
+
 func (*Event_Created) isEvent_Payload() {}
 
 func (*Event_Updated) isEvent_Payload() {}
 
 func (*Event_Deleted) isEvent_Payload() {}
+
+func (*Event_MediaReady) isEvent_Payload() {}
+
+func (*Event_AiEnriched) isEvent_Payload() {}
+
+func (*Event_ProcessingFailed) isEvent_Payload() {}
+
+func (*Event_VisibilityChanged) isEvent_Payload() {}
 
 // VideoCreated 表示视频创建事件
 // 当一个新视频元数据被创建时发布此事件
@@ -596,11 +673,519 @@ func (x *Event_VideoDeleted) GetReason() string {
 	return ""
 }
 
+// VideoMediaReady 表示媒体阶段完成事件
+type Event_VideoMediaReady struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	VideoId           string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Version           int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	OccurredAt        string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Status            string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	MediaStatus       string                 `protobuf:"bytes,5,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`
+	DurationMicros    *int64                 `protobuf:"varint,6,opt,name=duration_micros,json=durationMicros,proto3,oneof" json:"duration_micros,omitempty"`
+	EncodedResolution *string                `protobuf:"bytes,7,opt,name=encoded_resolution,json=encodedResolution,proto3,oneof" json:"encoded_resolution,omitempty"`
+	EncodedBitrate    *int32                 `protobuf:"varint,8,opt,name=encoded_bitrate,json=encodedBitrate,proto3,oneof" json:"encoded_bitrate,omitempty"`
+	ThumbnailUrl      *string                `protobuf:"bytes,9,opt,name=thumbnail_url,json=thumbnailUrl,proto3,oneof" json:"thumbnail_url,omitempty"`
+	HlsMasterPlaylist *string                `protobuf:"bytes,10,opt,name=hls_master_playlist,json=hlsMasterPlaylist,proto3,oneof" json:"hls_master_playlist,omitempty"`
+	JobId             *string                `protobuf:"bytes,11,opt,name=job_id,json=jobId,proto3,oneof" json:"job_id,omitempty"`
+	EmittedAt         *string                `protobuf:"bytes,12,opt,name=emitted_at,json=emittedAt,proto3,oneof" json:"emitted_at,omitempty"`
+	AnalysisStatus    string                 `protobuf:"bytes,13,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Event_VideoMediaReady) Reset() {
+	*x = Event_VideoMediaReady{}
+	mi := &file_api_video_v1_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event_VideoMediaReady) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event_VideoMediaReady) ProtoMessage() {}
+
+func (x *Event_VideoMediaReady) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event_VideoMediaReady.ProtoReflect.Descriptor instead.
+func (*Event_VideoMediaReady) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_events_proto_rawDescGZIP(), []int{0, 3}
+}
+
+func (x *Event_VideoMediaReady) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Event_VideoMediaReady) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetDurationMicros() int64 {
+	if x != nil && x.DurationMicros != nil {
+		return *x.DurationMicros
+	}
+	return 0
+}
+
+func (x *Event_VideoMediaReady) GetEncodedResolution() string {
+	if x != nil && x.EncodedResolution != nil {
+		return *x.EncodedResolution
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetEncodedBitrate() int32 {
+	if x != nil && x.EncodedBitrate != nil {
+		return *x.EncodedBitrate
+	}
+	return 0
+}
+
+func (x *Event_VideoMediaReady) GetThumbnailUrl() string {
+	if x != nil && x.ThumbnailUrl != nil {
+		return *x.ThumbnailUrl
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetHlsMasterPlaylist() string {
+	if x != nil && x.HlsMasterPlaylist != nil {
+		return *x.HlsMasterPlaylist
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetEmittedAt() string {
+	if x != nil && x.EmittedAt != nil {
+		return *x.EmittedAt
+	}
+	return ""
+}
+
+func (x *Event_VideoMediaReady) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
+// VideoAIEnriched 表示 AI 阶段完成事件
+type Event_VideoAIEnriched struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Version        int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	OccurredAt     string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Status         string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	AnalysisStatus string                 `protobuf:"bytes,5,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`
+	Difficulty     *string                `protobuf:"bytes,6,opt,name=difficulty,proto3,oneof" json:"difficulty,omitempty"`
+	Summary        *string                `protobuf:"bytes,7,opt,name=summary,proto3,oneof" json:"summary,omitempty"`
+	Tags           []string               `protobuf:"bytes,8,rep,name=tags,proto3" json:"tags,omitempty"`
+	RawSubtitleUrl *string                `protobuf:"bytes,9,opt,name=raw_subtitle_url,json=rawSubtitleUrl,proto3,oneof" json:"raw_subtitle_url,omitempty"`
+	JobId          *string                `protobuf:"bytes,10,opt,name=job_id,json=jobId,proto3,oneof" json:"job_id,omitempty"`
+	EmittedAt      *string                `protobuf:"bytes,11,opt,name=emitted_at,json=emittedAt,proto3,oneof" json:"emitted_at,omitempty"`
+	ErrorMessage   *string                `protobuf:"bytes,12,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
+	MediaStatus    string                 `protobuf:"bytes,13,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *Event_VideoAIEnriched) Reset() {
+	*x = Event_VideoAIEnriched{}
+	mi := &file_api_video_v1_events_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event_VideoAIEnriched) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event_VideoAIEnriched) ProtoMessage() {}
+
+func (x *Event_VideoAIEnriched) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_events_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event_VideoAIEnriched.ProtoReflect.Descriptor instead.
+func (*Event_VideoAIEnriched) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_events_proto_rawDescGZIP(), []int{0, 4}
+}
+
+func (x *Event_VideoAIEnriched) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Event_VideoAIEnriched) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetDifficulty() string {
+	if x != nil && x.Difficulty != nil {
+		return *x.Difficulty
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetSummary() string {
+	if x != nil && x.Summary != nil {
+		return *x.Summary
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *Event_VideoAIEnriched) GetRawSubtitleUrl() string {
+	if x != nil && x.RawSubtitleUrl != nil {
+		return *x.RawSubtitleUrl
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetEmittedAt() string {
+	if x != nil && x.EmittedAt != nil {
+		return *x.EmittedAt
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetErrorMessage() string {
+	if x != nil && x.ErrorMessage != nil {
+		return *x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *Event_VideoAIEnriched) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+// VideoProcessingFailed 表示处理阶段失败事件
+type Event_VideoProcessingFailed struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Version        int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	OccurredAt     string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	FailedStage    string                 `protobuf:"bytes,4,opt,name=failed_stage,json=failedStage,proto3" json:"failed_stage,omitempty"`
+	ErrorMessage   *string                `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
+	JobId          *string                `protobuf:"bytes,6,opt,name=job_id,json=jobId,proto3,oneof" json:"job_id,omitempty"`
+	EmittedAt      *string                `protobuf:"bytes,7,opt,name=emitted_at,json=emittedAt,proto3,oneof" json:"emitted_at,omitempty"`
+	Status         string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	MediaStatus    string                 `protobuf:"bytes,9,opt,name=media_status,json=mediaStatus,proto3" json:"media_status,omitempty"`
+	AnalysisStatus string                 `protobuf:"bytes,10,opt,name=analysis_status,json=analysisStatus,proto3" json:"analysis_status,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *Event_VideoProcessingFailed) Reset() {
+	*x = Event_VideoProcessingFailed{}
+	mi := &file_api_video_v1_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event_VideoProcessingFailed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event_VideoProcessingFailed) ProtoMessage() {}
+
+func (x *Event_VideoProcessingFailed) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event_VideoProcessingFailed.ProtoReflect.Descriptor instead.
+func (*Event_VideoProcessingFailed) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_events_proto_rawDescGZIP(), []int{0, 5}
+}
+
+func (x *Event_VideoProcessingFailed) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Event_VideoProcessingFailed) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetFailedStage() string {
+	if x != nil {
+		return x.FailedStage
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetErrorMessage() string {
+	if x != nil && x.ErrorMessage != nil {
+		return *x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetJobId() string {
+	if x != nil && x.JobId != nil {
+		return *x.JobId
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetEmittedAt() string {
+	if x != nil && x.EmittedAt != nil {
+		return *x.EmittedAt
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetMediaStatus() string {
+	if x != nil {
+		return x.MediaStatus
+	}
+	return ""
+}
+
+func (x *Event_VideoProcessingFailed) GetAnalysisStatus() string {
+	if x != nil {
+		return x.AnalysisStatus
+	}
+	return ""
+}
+
+// VideoVisibilityChanged 表示可见性变化事件
+type Event_VideoVisibilityChanged struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Version        int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	OccurredAt     string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Status         string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	PreviousStatus *string                `protobuf:"bytes,5,opt,name=previous_status,json=previousStatus,proto3,oneof" json:"previous_status,omitempty"`
+	PublishedAt    *string                `protobuf:"bytes,6,opt,name=published_at,json=publishedAt,proto3,oneof" json:"published_at,omitempty"`
+	Reason         *string                `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	ActorType      *string                `protobuf:"bytes,8,opt,name=actor_type,json=actorType,proto3,oneof" json:"actor_type,omitempty"`
+	ActorId        *string                `protobuf:"bytes,9,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *Event_VideoVisibilityChanged) Reset() {
+	*x = Event_VideoVisibilityChanged{}
+	mi := &file_api_video_v1_events_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event_VideoVisibilityChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event_VideoVisibilityChanged) ProtoMessage() {}
+
+func (x *Event_VideoVisibilityChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_api_video_v1_events_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event_VideoVisibilityChanged.ProtoReflect.Descriptor instead.
+func (*Event_VideoVisibilityChanged) Descriptor() ([]byte, []int) {
+	return file_api_video_v1_events_proto_rawDescGZIP(), []int{0, 6}
+}
+
+func (x *Event_VideoVisibilityChanged) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Event_VideoVisibilityChanged) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetPreviousStatus() string {
+	if x != nil && x.PreviousStatus != nil {
+		return *x.PreviousStatus
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetPublishedAt() string {
+	if x != nil && x.PublishedAt != nil {
+		return *x.PublishedAt
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetActorType() string {
+	if x != nil && x.ActorType != nil {
+		return *x.ActorType
+	}
+	return ""
+}
+
+func (x *Event_VideoVisibilityChanged) GetActorId() string {
+	if x != nil && x.ActorId != nil {
+		return *x.ActorId
+	}
+	return ""
+}
+
 var File_api_video_v1_events_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\xab\x0e\n" +
+	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\x96 \n" +
 	"\x05Event\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x122\n" +
 	"\n" +
@@ -613,7 +1198,13 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\acreated\x18\n" +
 	" \x01(\v2\x1c.video.v1.Event.VideoCreatedH\x00R\acreated\x128\n" +
 	"\aupdated\x18\v \x01(\v2\x1c.video.v1.Event.VideoUpdatedH\x00R\aupdated\x128\n" +
-	"\adeleted\x18\f \x01(\v2\x1c.video.v1.Event.VideoDeletedH\x00R\adeleted\x1a\xb1\x03\n" +
+	"\adeleted\x18\f \x01(\v2\x1c.video.v1.Event.VideoDeletedH\x00R\adeleted\x12B\n" +
+	"\vmedia_ready\x18\r \x01(\v2\x1f.video.v1.Event.VideoMediaReadyH\x00R\n" +
+	"mediaReady\x12B\n" +
+	"\vai_enriched\x18\x0e \x01(\v2\x1f.video.v1.Event.VideoAIEnrichedH\x00R\n" +
+	"aiEnriched\x12T\n" +
+	"\x11processing_failed\x18\x0f \x01(\v2%.video.v1.Event.VideoProcessingFailedH\x00R\x10processingFailed\x12W\n" +
+	"\x12visibility_changed\x18\x10 \x01(\v2&.video.v1.Event.VideoVisibilityChangedH\x00R\x11visibilityChanged\x1a\xb1\x03\n" +
 	"\fVideoCreated\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x1f\n" +
 	"\vuploader_id\x18\x02 \x01(\tR\n" +
@@ -676,13 +1267,101 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"occurredAt\x12\x1b\n" +
 	"\x06reason\x18\x05 \x01(\tH\x01R\x06reason\x88\x01\x01B\r\n" +
 	"\v_deleted_atB\t\n" +
-	"\a_reasonB\t\n" +
-	"\apayload*\x81\x01\n" +
+	"\a_reason\x1a\xfd\x04\n" +
+	"\x0fVideoMediaReady\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
+	"occurredAt\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\x05 \x01(\tR\vmediaStatus\x12,\n" +
+	"\x0fduration_micros\x18\x06 \x01(\x03H\x00R\x0edurationMicros\x88\x01\x01\x122\n" +
+	"\x12encoded_resolution\x18\a \x01(\tH\x01R\x11encodedResolution\x88\x01\x01\x12,\n" +
+	"\x0fencoded_bitrate\x18\b \x01(\x05H\x02R\x0eencodedBitrate\x88\x01\x01\x12(\n" +
+	"\rthumbnail_url\x18\t \x01(\tH\x03R\fthumbnailUrl\x88\x01\x01\x123\n" +
+	"\x13hls_master_playlist\x18\n" +
+	" \x01(\tH\x04R\x11hlsMasterPlaylist\x88\x01\x01\x12\x1a\n" +
+	"\x06job_id\x18\v \x01(\tH\x05R\x05jobId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"emitted_at\x18\f \x01(\tH\x06R\temittedAt\x88\x01\x01\x12'\n" +
+	"\x0fanalysis_status\x18\r \x01(\tR\x0eanalysisStatusB\x12\n" +
+	"\x10_duration_microsB\x15\n" +
+	"\x13_encoded_resolutionB\x12\n" +
+	"\x10_encoded_bitrateB\x10\n" +
+	"\x0e_thumbnail_urlB\x16\n" +
+	"\x14_hls_master_playlistB\t\n" +
+	"\a_job_idB\r\n" +
+	"\v_emitted_at\x1a\x98\x04\n" +
+	"\x0fVideoAIEnriched\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
+	"occurredAt\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12'\n" +
+	"\x0fanalysis_status\x18\x05 \x01(\tR\x0eanalysisStatus\x12#\n" +
+	"\n" +
+	"difficulty\x18\x06 \x01(\tH\x00R\n" +
+	"difficulty\x88\x01\x01\x12\x1d\n" +
+	"\asummary\x18\a \x01(\tH\x01R\asummary\x88\x01\x01\x12\x12\n" +
+	"\x04tags\x18\b \x03(\tR\x04tags\x12-\n" +
+	"\x10raw_subtitle_url\x18\t \x01(\tH\x02R\x0erawSubtitleUrl\x88\x01\x01\x12\x1a\n" +
+	"\x06job_id\x18\n" +
+	" \x01(\tH\x03R\x05jobId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"emitted_at\x18\v \x01(\tH\x04R\temittedAt\x88\x01\x01\x12(\n" +
+	"\rerror_message\x18\f \x01(\tH\x05R\ferrorMessage\x88\x01\x01\x12!\n" +
+	"\fmedia_status\x18\r \x01(\tR\vmediaStatusB\r\n" +
+	"\v_difficultyB\n" +
+	"\n" +
+	"\b_summaryB\x13\n" +
+	"\x11_raw_subtitle_urlB\t\n" +
+	"\a_job_idB\r\n" +
+	"\v_emitted_atB\x10\n" +
+	"\x0e_error_message\x1a\x8a\x03\n" +
+	"\x15VideoProcessingFailed\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
+	"occurredAt\x12!\n" +
+	"\ffailed_stage\x18\x04 \x01(\tR\vfailedStage\x12(\n" +
+	"\rerror_message\x18\x05 \x01(\tH\x00R\ferrorMessage\x88\x01\x01\x12\x1a\n" +
+	"\x06job_id\x18\x06 \x01(\tH\x01R\x05jobId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"emitted_at\x18\a \x01(\tH\x02R\temittedAt\x88\x01\x01\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12!\n" +
+	"\fmedia_status\x18\t \x01(\tR\vmediaStatus\x12'\n" +
+	"\x0fanalysis_status\x18\n" +
+	" \x01(\tR\x0eanalysisStatusB\x10\n" +
+	"\x0e_error_messageB\t\n" +
+	"\a_job_idB\r\n" +
+	"\v_emitted_at\x1a\x89\x03\n" +
+	"\x16VideoVisibilityChanged\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
+	"occurredAt\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12,\n" +
+	"\x0fprevious_status\x18\x05 \x01(\tH\x00R\x0epreviousStatus\x88\x01\x01\x12&\n" +
+	"\fpublished_at\x18\x06 \x01(\tH\x01R\vpublishedAt\x88\x01\x01\x12\x1b\n" +
+	"\x06reason\x18\a \x01(\tH\x02R\x06reason\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"actor_type\x18\b \x01(\tH\x03R\tactorType\x88\x01\x01\x12\x1e\n" +
+	"\bactor_id\x18\t \x01(\tH\x04R\aactorId\x88\x01\x01B\x12\n" +
+	"\x10_previous_statusB\x0f\n" +
+	"\r_published_atB\t\n" +
+	"\a_reasonB\r\n" +
+	"\v_actor_typeB\v\n" +
+	"\t_actor_idB\t\n" +
+	"\apayload*\x96\x02\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EVENT_TYPE_VIDEO_CREATED\x10\x01\x12\x1c\n" +
 	"\x18EVENT_TYPE_VIDEO_UPDATED\x10\x02\x12\x1c\n" +
-	"\x18EVENT_TYPE_VIDEO_DELETED\x10\x03BDZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1b\x06proto3"
+	"\x18EVENT_TYPE_VIDEO_DELETED\x10\x03\x12 \n" +
+	"\x1cEVENT_TYPE_VIDEO_MEDIA_READY\x10\x04\x12 \n" +
+	"\x1cEVENT_TYPE_VIDEO_AI_ENRICHED\x10\x05\x12&\n" +
+	"\"EVENT_TYPE_VIDEO_PROCESSING_FAILED\x10\x06\x12'\n" +
+	"#EVENT_TYPE_VIDEO_VISIBILITY_CHANGED\x10\aBDZBgithub.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1b\x06proto3"
 
 var (
 	file_api_video_v1_events_proto_rawDescOnce sync.Once
@@ -697,24 +1376,32 @@ func file_api_video_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_api_video_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_video_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_video_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_video_v1_events_proto_goTypes = []any{
-	(EventType)(0),             // 0: video.v1.EventType
-	(*Event)(nil),              // 1: video.v1.Event
-	(*Event_VideoCreated)(nil), // 2: video.v1.Event.VideoCreated
-	(*Event_VideoUpdated)(nil), // 3: video.v1.Event.VideoUpdated
-	(*Event_VideoDeleted)(nil), // 4: video.v1.Event.VideoDeleted
+	(EventType)(0),                       // 0: video.v1.EventType
+	(*Event)(nil),                        // 1: video.v1.Event
+	(*Event_VideoCreated)(nil),           // 2: video.v1.Event.VideoCreated
+	(*Event_VideoUpdated)(nil),           // 3: video.v1.Event.VideoUpdated
+	(*Event_VideoDeleted)(nil),           // 4: video.v1.Event.VideoDeleted
+	(*Event_VideoMediaReady)(nil),        // 5: video.v1.Event.VideoMediaReady
+	(*Event_VideoAIEnriched)(nil),        // 6: video.v1.Event.VideoAIEnriched
+	(*Event_VideoProcessingFailed)(nil),  // 7: video.v1.Event.VideoProcessingFailed
+	(*Event_VideoVisibilityChanged)(nil), // 8: video.v1.Event.VideoVisibilityChanged
 }
 var file_api_video_v1_events_proto_depIdxs = []int32{
 	0, // 0: video.v1.Event.event_type:type_name -> video.v1.EventType
 	2, // 1: video.v1.Event.created:type_name -> video.v1.Event.VideoCreated
 	3, // 2: video.v1.Event.updated:type_name -> video.v1.Event.VideoUpdated
 	4, // 3: video.v1.Event.deleted:type_name -> video.v1.Event.VideoDeleted
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 4: video.v1.Event.media_ready:type_name -> video.v1.Event.VideoMediaReady
+	6, // 5: video.v1.Event.ai_enriched:type_name -> video.v1.Event.VideoAIEnriched
+	7, // 6: video.v1.Event.processing_failed:type_name -> video.v1.Event.VideoProcessingFailed
+	8, // 7: video.v1.Event.visibility_changed:type_name -> video.v1.Event.VideoVisibilityChanged
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_api_video_v1_events_proto_init() }
@@ -726,17 +1413,25 @@ func file_api_video_v1_events_proto_init() {
 		(*Event_Created)(nil),
 		(*Event_Updated)(nil),
 		(*Event_Deleted)(nil),
+		(*Event_MediaReady)(nil),
+		(*Event_AiEnriched)(nil),
+		(*Event_ProcessingFailed)(nil),
+		(*Event_VisibilityChanged)(nil),
 	}
 	file_api_video_v1_events_proto_msgTypes[1].OneofWrappers = []any{}
 	file_api_video_v1_events_proto_msgTypes[2].OneofWrappers = []any{}
 	file_api_video_v1_events_proto_msgTypes[3].OneofWrappers = []any{}
+	file_api_video_v1_events_proto_msgTypes[4].OneofWrappers = []any{}
+	file_api_video_v1_events_proto_msgTypes[5].OneofWrappers = []any{}
+	file_api_video_v1_events_proto_msgTypes[6].OneofWrappers = []any{}
+	file_api_video_v1_events_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_video_v1_events_proto_rawDesc), len(file_api_video_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

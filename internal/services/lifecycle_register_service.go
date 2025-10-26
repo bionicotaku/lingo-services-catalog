@@ -27,11 +27,5 @@ func NewRegisterUploadService(commands *VideoCommandService) *RegisterUploadServ
 
 // RegisterUpload 创建视频基础记录，并写入 Outbox 事件。
 func (s *RegisterUploadService) RegisterUpload(ctx context.Context, input RegisterUploadInput) (*vo.VideoCreated, error) {
-	createInput := CreateVideoInput{
-		UploadUserID:     input.UploadUserID,
-		Title:            input.Title,
-		Description:      input.Description,
-		RawFileReference: input.RawFileReference,
-	}
-	return s.commands.CreateVideo(ctx, createInput)
+	return s.commands.CreateVideo(ctx, CreateVideoInput(input))
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/google/uuid"
 )
 
@@ -20,18 +21,34 @@ const (
 	KindVideoUpdated
 	// KindVideoDeleted 表示视频删除事件。
 	KindVideoDeleted
+	// KindVideoMediaReady 表示媒体阶段完成事件。
+	KindVideoMediaReady
+	// KindVideoAIEnriched 表示 AI 阶段完成事件。
+	KindVideoAIEnriched
+	// KindVideoProcessingFailed 表示处理阶段失败事件。
+	KindVideoProcessingFailed
+	// KindVideoVisibilityChanged 表示可见性变更事件。
+	KindVideoVisibilityChanged
 )
 
 func (k Kind) String() string {
 	switch k {
 	case KindVideoCreated:
-		return "video.created"
+		return "catalog.video.created"
 	case KindVideoUpdated:
-		return "video.updated"
+		return "catalog.video.updated"
 	case KindVideoDeleted:
-		return "video.deleted"
+		return "catalog.video.deleted"
+	case KindVideoMediaReady:
+		return "catalog.video.media_ready"
+	case KindVideoAIEnriched:
+		return "catalog.video.ai_enriched"
+	case KindVideoProcessingFailed:
+		return "catalog.video.processing_failed"
+	case KindVideoVisibilityChanged:
+		return "catalog.video.visibility_changed"
 	default:
-		return "video.unknown"
+		return "catalog.video.unknown"
 	}
 }
 
@@ -84,6 +101,59 @@ type VideoDeleted struct {
 	Reason    *string
 }
 
+// VideoMediaReady 描述媒体阶段完成事件载荷。
+type VideoMediaReady struct {
+	VideoID           uuid.UUID
+	Status            po.VideoStatus
+	MediaStatus       po.StageStatus
+	AnalysisStatus    po.StageStatus
+	DurationMicros    *int64
+	EncodedResolution *string
+	EncodedBitrate    *int32
+	ThumbnailURL      *string
+	HLSMasterPlaylist *string
+	JobID             *string
+	EmittedAt         *time.Time
+}
+
+// VideoAIEnriched 描述 AI 阶段完成事件载荷。
+type VideoAIEnriched struct {
+	VideoID        uuid.UUID
+	Status         po.VideoStatus
+	AnalysisStatus po.StageStatus
+	MediaStatus    po.StageStatus
+	Difficulty     *string
+	Summary        *string
+	Tags           []string
+	RawSubtitleURL *string
+	JobID          *string
+	EmittedAt      *time.Time
+	ErrorMessage   *string
+}
+
+// VideoProcessingFailed 描述处理阶段失败事件载荷。
+type VideoProcessingFailed struct {
+	VideoID        uuid.UUID
+	Status         po.VideoStatus
+	MediaStatus    po.StageStatus
+	AnalysisStatus po.StageStatus
+	Stage          string
+	ErrorMessage   *string
+	JobID          *string
+	EmittedAt      *time.Time
+}
+
+// VideoVisibilityChanged 描述可见性变更事件载荷。
+type VideoVisibilityChanged struct {
+	VideoID        uuid.UUID
+	Status         po.VideoStatus
+	PreviousStatus *po.VideoStatus
+	PublishedAt    *time.Time
+	Reason         *string
+	ActorType      *string
+	ActorID        *string
+}
+
 const (
 	// AggregateTypeVideo 标识视频聚合类型，供 Outbox headers / attributes 使用。
 	AggregateTypeVideo = "video"
@@ -98,4 +168,6 @@ var (
 	ErrInvalidEventID = fmt.Errorf("event builder: event id is required")
 	// ErrUnknownEventKind 表示未识别的事件类型。
 	ErrUnknownEventKind = fmt.Errorf("event builder: unknown event kind")
+	// ErrInvalidStage 表示阶段名称非法。
+	ErrInvalidStage = fmt.Errorf("event builder: invalid stage")
 )

@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
@@ -71,5 +73,64 @@ func (s *AIAttributesService) UpdateAIAttributes(ctx context.Context, input Upda
 		updateInput.Status = &statusValue
 	}
 
-	return s.commands.UpdateVideo(ctx, updateInput)
+	return s.commands.UpdateVideo(
+		ctx,
+		updateInput,
+		WithPreviousVideo(current),
+		WithAdditionalEvents(func(_ context.Context, updated *po.Video, previous *po.Video) ([]*outboxevents.DomainEvent, error) {
+			if previous == nil {
+				return nil, nil
+			}
+			if updated.AnalysisStatus != po.StageReady {
+				return nil, nil
+			}
+			if previous.AnalysisStatus == po.StageReady && !aiPayloadChanged(previous, updated) {
+				return nil, nil
+			}
+			event, err := outboxevents.NewVideoAIEnrichedEvent(updated, uuid.New(), aiOccurredAt(updated))
+			if err != nil {
+				return nil, err
+			}
+			return []*outboxevents.DomainEvent{event}, nil
+		}),
+	)
+}
+
+func aiOccurredAt(video *po.Video) time.Time {
+	if video == nil || video.AnalysisEmittedAt == nil {
+		return time.Time{}
+	}
+	return video.AnalysisEmittedAt.UTC()
+}
+
+func aiPayloadChanged(previous, updated *po.Video) bool {
+	if previous == nil || updated == nil {
+		return true
+	}
+	switch {
+	case !equalStringPtr(previous.Difficulty, updated.Difficulty):
+		return true
+	case !equalStringPtr(previous.Summary, updated.Summary):
+		return true
+	case !equalStringPtr(previous.RawSubtitleURL, updated.RawSubtitleURL):
+		return true
+	case !equalStringSlices(previous.Tags, updated.Tags):
+		return true
+	case !equalStringPtr(previous.ErrorMessage, updated.ErrorMessage):
+		return true
+	default:
+		return false
+	}
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

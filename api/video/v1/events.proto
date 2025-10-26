@@ -10,6 +10,10 @@ enum EventType {
   EVENT_TYPE_VIDEO_CREATED = 1;
   EVENT_TYPE_VIDEO_UPDATED = 2;
   EVENT_TYPE_VIDEO_DELETED = 3;
+  EVENT_TYPE_VIDEO_MEDIA_READY = 4;
+  EVENT_TYPE_VIDEO_AI_ENRICHED = 5;
+  EVENT_TYPE_VIDEO_PROCESSING_FAILED = 6;
+  EVENT_TYPE_VIDEO_VISIBILITY_CHANGED = 7;
 }
 
 // Event 是通用事件信封（Envelope）
@@ -27,6 +31,10 @@ message Event {
     VideoCreated created = 10;
     VideoUpdated updated = 11;
     VideoDeleted deleted = 12;
+    VideoMediaReady media_ready = 13;
+    VideoAIEnriched ai_enriched = 14;
+    VideoProcessingFailed processing_failed = 15;
+    VideoVisibilityChanged visibility_changed = 16;
   }
 
   // VideoCreated 表示视频创建事件
@@ -77,5 +85,66 @@ message Event {
     optional string deleted_at = 3;                    // 删除时间（UTC RFC3339，可选）
     string occurred_at = 4;                            // 事件发生时间（UTC RFC3339）
     optional string reason = 5;                        // 删除原因（可选）
+  }
+
+  // VideoMediaReady 表示媒体阶段完成事件
+  message VideoMediaReady {
+    string video_id = 1;
+    int64 version = 2;
+    string occurred_at = 3;
+    string status = 4;
+    string media_status = 5;
+    optional int64 duration_micros = 6;
+    optional string encoded_resolution = 7;
+    optional int32 encoded_bitrate = 8;
+    optional string thumbnail_url = 9;
+    optional string hls_master_playlist = 10;
+    optional string job_id = 11;
+    optional string emitted_at = 12;
+    string analysis_status = 13;
+  }
+
+  // VideoAIEnriched 表示 AI 阶段完成事件
+  message VideoAIEnriched {
+    string video_id = 1;
+    int64 version = 2;
+    string occurred_at = 3;
+    string status = 4;
+    string analysis_status = 5;
+    optional string difficulty = 6;
+    optional string summary = 7;
+    repeated string tags = 8;
+    optional string raw_subtitle_url = 9;
+    optional string job_id = 10;
+    optional string emitted_at = 11;
+    optional string error_message = 12;
+    string media_status = 13;
+  }
+
+  // VideoProcessingFailed 表示处理阶段失败事件
+  message VideoProcessingFailed {
+    string video_id = 1;
+    int64 version = 2;
+    string occurred_at = 3;
+    string failed_stage = 4;
+    optional string error_message = 5;
+    optional string job_id = 6;
+    optional string emitted_at = 7;
+    string status = 8;
+    string media_status = 9;
+    string analysis_status = 10;
+  }
+
+  // VideoVisibilityChanged 表示可见性变化事件
+  message VideoVisibilityChanged {
+    string video_id = 1;
+    int64 version = 2;
+    string occurred_at = 3;
+    string status = 4;
+    optional string previous_status = 5;
+    optional string published_at = 6;
+    optional string reason = 7;
+    optional string actor_type = 8;
+    optional string actor_id = 9;
   }
 }

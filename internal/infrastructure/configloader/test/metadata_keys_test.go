@@ -26,6 +26,8 @@ func TestLoadMetadataKeys(t *testing.T) {
     - x-md-idempotency-key
     - x-md-if-match
     - x-md-if-none-match
+    - x-md-actor-type
+    - x-md-actor-id
 
 data:
   postgres:
@@ -48,6 +50,8 @@ data:
 		"x-md-idempotency-key",
 		"x-md-if-match",
 		"x-md-if-none-match",
+		"x-md-actor-type",
+		"x-md-actor-id",
 	}
 	if got := runtimeCfg.Server.MetadataKeys; !equalStrings(got, expected) {
 		t.Fatalf("server metadata keys mismatch: got %v want %v", got, expected)

@@ -33,7 +33,7 @@ message Server {
   GRPC grpc = 1;
   JWT jwt = 2;
   Handlers handlers = 3;
-  repeated string metadata_keys = 4;
+  repeated string metadata_keys = 4;  // 透传 header 列表，如 x-md-global-user-id / x-md-actor-type 等
 }
 
 message Data {
@@ -73,7 +73,7 @@ message Data {
       string header_key = 3;
     }
     JWT jwt = 2;
-    repeated string metadata_keys = 3;
+    repeated string metadata_keys = 3;  // 转发到下游的 header 列表（默认同 server.metadata_keys）
   }
 
   PostgreSQL postgres = 1 [(buf.validate.field).required = true];

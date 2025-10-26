@@ -1,12 +1,12 @@
 package grpcclient_test
 
 import (
-    "context"
-    "io"
-    "testing"
+	"context"
+	"io"
+	"testing"
 
-    configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
-    clientinfra "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_client"
+	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	clientinfra "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_client"
 
 	"github.com/bionicotaku/lingo-utils/observability"
 	"github.com/go-kratos/kratos/v2/log"
@@ -148,7 +148,7 @@ func TestNewGRPCClient_NilData(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
 
-    conn, cleanup, err := clientinfra.NewGRPCClient(configloader.GRPCClientConfig{}, metricsCfg, nil, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(configloader.GRPCClientConfig{}, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -165,9 +165,9 @@ func TestNewGRPCClient_NilData(t *testing.T) {
 func TestNewGRPCClient_NilGrpcClient(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
-    cfg := configloader.GRPCClientConfig{}
+	cfg := configloader.GRPCClientConfig{}
 
-    conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -210,14 +210,14 @@ func TestNewGRPCClient_ContextCancellation(t *testing.T) {
 
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true}
-    cfg := configloader.GRPCClientConfig{Target: "dns:///" + addr}
+	cfg := configloader.GRPCClientConfig{Target: "dns:///" + addr}
 
 	// 创建一个已取消的 context（虽然 NewGRPCClient 内部不使用外部 ctx）
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	// NewGRPCClient 不受外部 context 影响（内部使用 Background）
-    conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
+	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {
 		t.Fatalf("NewGRPCClient error: %v", err)
 	}

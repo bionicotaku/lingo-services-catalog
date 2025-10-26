@@ -29,15 +29,17 @@
    - [x] `MediaInfoService`
    - [x] `AIAttributesService`
    - [x] `VisibilityService`（发布/拒绝/override）
-   - [ ] 输出领域事件并写入 Outbox *(进行中)*
+   - [x] 输出领域事件并写入 Outbox
+     - [x] 2025-10-26：扩展 proto/outbox 以覆盖 `catalog.video.media_ready`、`catalog.video.ai_enriched`、`catalog.video.processing_failed`、`catalog.video.visibility_changed` 并在 Service 层落地（已完成，make lint && make test）
 2. **Query**
    - [x] 实现 `CatalogQueryService` 使用投影读取（含 Engagement 降级逻辑）
    - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
-   - [ ] 集成 `HandlerMetadata` 解析，按用户权限过滤
+   - [x] 集成 `HandlerMetadata` 解析，按用户权限过滤（2025-10-26：服务层从 Context 读取 metadata 校验 user_id，匿名/非法请求统一处理）
+   - [x] 2025-10-26：配置 `metadata_keys` 补充 `x-md-actor-type`/`x-md-actor-id` 并在文档中解释来源与用途（已更新 config.yaml、conf.proto、加载器测试）
 
 ## 4. 事件构建与 Outbox Runner
-- [ ] 扩展 `internal/models/outbox_events` 构造器，覆盖 `video.media_ready` 等事件 payload
-- [ ] 在 Service 层构建事件并调用 `OutboxRepository.Enqueue`
+- [x] 扩展 `internal/models/outbox_events` 构造器，覆盖 `video.media_ready` 等事件 payload（2025-10-26 完成）
+- [x] 在 Service 层构建事件并调用 `OutboxRepository.Enqueue`（2025-10-26 完成）
 - [ ] 调整 Outbox Runner（`internal/tasks/outbox`）批量参数、logging、metrics；新增 CLI `cmd/tasks/outbox`
 - [ ] E2E 测试：创建视频→媒体/AI 回调→发布，确认 Pub/Sub 收到完整事件序列
 

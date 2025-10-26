@@ -9,6 +9,7 @@ import (
 	"time"
 
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	"github.com/bionicotaku/lingo-services-catalog/internal/metadata"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
@@ -45,11 +46,19 @@ func NewVideoQueryService(repo VideoQueryRepo, userState *repositories.VideoUser
 }
 
 // GetVideoDetail 查询视频详情（优先使用投影表）。
-func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUID, userID *uuid.UUID) (*vo.VideoDetail, error) {
+func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (*vo.VideoDetail, error) {
 	var (
 		videoView *po.VideoReadyView
 		state     *po.VideoUserState
 	)
+	var userID *uuid.UUID
+	if meta, ok := metadata.FromContext(ctx); ok {
+		if parsed, ok := meta.UserUUID(); ok {
+			userID = &parsed
+		} else if strings.TrimSpace(meta.UserID) != "" {
+			return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "invalid user id metadata")
+		}
+	}
 	err := s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
 		var repoErr error
 		videoView, repoErr = s.repo.FindByID(txCtx, sess, videoID)
@@ -143,9 +152,15 @@ func (s *VideoQueryService) ListUserPublicVideos(ctx context.Context, pageSize i
 }
 
 // ListMyUploads 返回用户上传列表。
-func (s *VideoQueryService) ListMyUploads(ctx context.Context, userID uuid.UUID, pageSize int32, pageToken string, statusFilter []string) ([]vo.MyUploadListItem, string, error) {
-	if userID == uuid.Nil {
+func (s *VideoQueryService) ListMyUploads(ctx context.Context, pageSize int32, pageToken string, statusFilter []string) ([]vo.MyUploadListItem, string, error) {
+	meta, _ := metadata.FromContext(ctx)
+	rawUserID := strings.TrimSpace(meta.UserID)
+	if rawUserID == "" {
 		return nil, "", errors.Unauthorized(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "user_id required")
+	}
+	userID, err := uuid.Parse(rawUserID)
+	if err != nil {
+		return nil, "", errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "invalid user id")
 	}
 	limit := clampPageSize(pageSize)
 	cursor, err := decodeCursor(pageToken)

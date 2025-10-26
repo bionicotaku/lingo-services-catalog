@@ -5,7 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc/metadata"
+	metadata "github.com/bionicotaku/lingo-services-catalog/internal/metadata"
+	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
 // HandlerType 表示 Handler 的语义类别，用于选择超时策略。
@@ -86,52 +87,32 @@ func (h *BaseHandler) WithTimeout(ctx context.Context, kind HandlerType) (contex
 }
 
 // ExtractMetadata 解析请求中常见的幂等与条件请求 Header。
-func (h *BaseHandler) ExtractMetadata(ctx context.Context) HandlerMetadata {
-	md, ok := metadata.FromIncomingContext(ctx)
+func (h *BaseHandler) ExtractMetadata(ctx context.Context) metadata.HandlerMetadata {
+	md, ok := grpcmetadata.FromIncomingContext(ctx)
 	if !ok {
-		return HandlerMetadata{}
+		return metadata.HandlerMetadata{}
 	}
-	return HandlerMetadata{
+	return metadata.HandlerMetadata{
 		IdempotencyKey: firstMetadata(md, headerIdempotencyKey),
 		IfMatch:        firstMetadata(md, headerIfMatch),
 		IfNoneMatch:    firstMetadata(md, headerIfNoneMatch),
 		UserID:         firstMetadata(md, headerUserID),
+		ActorType:      firstMetadata(md, "x-md-actor-type"),
+		ActorID:        firstMetadata(md, "x-md-actor-id"),
 	}
-}
-
-type handlerMetadataKey struct{}
-
-// HandlerMetadata 描述从请求头解析出的幂等与追踪信息。
-type HandlerMetadata struct {
-	IdempotencyKey string
-	IfMatch        string
-	IfNoneMatch    string
-	UserID         string
-}
-
-// IsZero 判断 Metadata 是否为空。
-func (m HandlerMetadata) IsZero() bool {
-	return m.IdempotencyKey == "" && m.IfMatch == "" && m.IfNoneMatch == "" && m.UserID == ""
 }
 
 // InjectHandlerMetadata 将解析结果注入到 Context，供后续层访问。
-func InjectHandlerMetadata(ctx context.Context, meta HandlerMetadata) context.Context {
-	if meta.IsZero() {
-		return ctx
-	}
-	return context.WithValue(ctx, handlerMetadataKey{}, meta)
+func InjectHandlerMetadata(ctx context.Context, meta metadata.HandlerMetadata) context.Context {
+	return metadata.Inject(ctx, meta)
 }
 
 // HandlerMetadataFromContext 读取上游注入的 HandlerMetadata。
-func HandlerMetadataFromContext(ctx context.Context) (HandlerMetadata, bool) {
-	if ctx == nil {
-		return HandlerMetadata{}, false
-	}
-	meta, ok := ctx.Value(handlerMetadataKey{}).(HandlerMetadata)
-	return meta, ok
+func HandlerMetadataFromContext(ctx context.Context) (metadata.HandlerMetadata, bool) {
+	return metadata.FromContext(ctx)
 }
 
-func firstMetadata(md metadata.MD, key string) string {
+func firstMetadata(md grpcmetadata.MD, key string) string {
 	if len(md) == 0 {
 		return ""
 	}

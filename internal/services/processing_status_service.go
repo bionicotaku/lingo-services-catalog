@@ -6,6 +6,7 @@ import (
 	"time"
 
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
@@ -18,7 +19,9 @@ import (
 type ProcessingStage string
 
 const (
-	ProcessingStageMedia    ProcessingStage = "media"
+	// ProcessingStageMedia 表示媒体处理阶段。
+	ProcessingStageMedia ProcessingStage = "media"
+	// ProcessingStageAnalysis 表示 AI 分析阶段。
 	ProcessingStageAnalysis ProcessingStage = "analysis"
 )
 
@@ -68,7 +71,64 @@ func (s *ProcessingStatusService) UpdateProcessingStatus(ctx context.Context, in
 	}
 
 	updateInput := buildStageUpdateInput(input, current)
-	return s.commands.UpdateVideo(ctx, updateInput)
+	return s.commands.UpdateVideo(
+		ctx,
+		updateInput,
+		WithPreviousVideo(current),
+		WithAdditionalEvents(func(_ context.Context, updated *po.Video, previous *po.Video) ([]*outboxevents.DomainEvent, error) {
+			if previous == nil {
+				return nil, nil
+			}
+			if input.NewStatus != po.StageFailed {
+				return nil, nil
+			}
+			var prevStage po.StageStatus
+			switch input.Stage {
+			case ProcessingStageMedia:
+				prevStage = previous.MediaStatus
+			case ProcessingStageAnalysis:
+				prevStage = previous.AnalysisStatus
+			}
+			if prevStage == po.StageFailed {
+				return nil, nil
+			}
+
+			var jobID *string
+			var emittedAt *time.Time
+			switch input.Stage {
+			case ProcessingStageMedia:
+				jobID = updated.MediaJobID
+				emittedAt = updated.MediaEmittedAt
+			case ProcessingStageAnalysis:
+				jobID = updated.AnalysisJobID
+				emittedAt = updated.AnalysisEmittedAt
+			}
+
+			event, err := outboxevents.NewVideoProcessingFailedEvent(
+				updated,
+				string(input.Stage),
+				jobID,
+				emittedAt,
+				input.ErrorMessage,
+				uuid.New(),
+				processingOccurredAt(emittedAt, updated),
+			)
+			if err != nil {
+				return nil, err
+			}
+			return []*outboxevents.DomainEvent{event}, nil
+		}),
+	)
+}
+
+func processingOccurredAt(emittedAt *time.Time, video *po.Video) time.Time {
+	if emittedAt != nil {
+		return emittedAt.UTC()
+	}
+	if video != nil && !video.UpdatedAt.IsZero() {
+		return video.UpdatedAt.UTC()
+	}
+	return time.Time{}
 }
 
 func validateStage(stage ProcessingStage) error {

@@ -43,7 +43,7 @@ func TestCreateVideoEnqueuesOutbox(t *testing.T) {
 	if len(outbox.messages) != 1 {
 		t.Fatalf("expected 1 outbox message, got %d", len(outbox.messages))
 	}
-	if outbox.messages[0].EventType != "video.created" {
+	if outbox.messages[0].EventType != "catalog.video.created" {
 		t.Fatalf("unexpected event type: %s", outbox.messages[0].EventType)
 	}
 }

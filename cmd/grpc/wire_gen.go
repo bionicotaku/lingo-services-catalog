@@ -8,9 +8,10 @@ package main
 
 import (
 	"context"
+
 	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
-	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
+	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/outbox"
@@ -22,9 +23,7 @@ import (
 	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
-)
 
-import (
 	_ "go.uber.org/automaxprocs"
 )
 
