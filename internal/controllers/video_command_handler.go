@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	videov1 "github.com/bionicotaku/kratos-template/api/video/v1"
 	"github.com/bionicotaku/kratos-template/internal/controllers/dto"
@@ -11,18 +10,20 @@ import (
 	"github.com/go-kratos/kratos/v2/errors"
 )
 
-const commandTimeout = 5 * time.Second
-
 // VideoCommandHandler 处理视频写模型相关的 gRPC 请求。
 type VideoCommandHandler struct {
 	videov1.UnimplementedVideoCommandServiceServer
 
+	*BaseHandler
 	svc *services.VideoCommandService
 }
 
 // NewVideoCommandHandler 构造命令 Handler。
-func NewVideoCommandHandler(svc *services.VideoCommandService) *VideoCommandHandler {
-	return &VideoCommandHandler{svc: svc}
+func NewVideoCommandHandler(svc *services.VideoCommandService, base *BaseHandler) *VideoCommandHandler {
+	if base == nil {
+		base = NewBaseHandler(HandlerTimeouts{})
+	}
+	return &VideoCommandHandler{BaseHandler: base, svc: svc}
 }
 
 // CreateVideo 实现 VideoCommandService.CreateVideo RPC。
@@ -32,8 +33,11 @@ func (h *VideoCommandHandler) CreateVideo(ctx context.Context, req *videov1.Crea
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, commandTimeout)
+	meta := h.ExtractMetadata(ctx)
+	timeoutCtx, cancel := h.WithTimeout(ctx, HandlerTypeCommand)
 	defer cancel()
+
+	timeoutCtx = InjectHandlerMetadata(timeoutCtx, meta)
 
 	created, err := h.svc.CreateVideo(timeoutCtx, input)
 	if err != nil {
@@ -49,8 +53,11 @@ func (h *VideoCommandHandler) UpdateVideo(ctx context.Context, req *videov1.Upda
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, commandTimeout)
+	meta := h.ExtractMetadata(ctx)
+	timeoutCtx, cancel := h.WithTimeout(ctx, HandlerTypeCommand)
 	defer cancel()
+
+	timeoutCtx = InjectHandlerMetadata(timeoutCtx, meta)
 
 	updated, err := h.svc.UpdateVideo(timeoutCtx, input)
 	if err != nil {
@@ -66,8 +73,11 @@ func (h *VideoCommandHandler) DeleteVideo(ctx context.Context, req *videov1.Dele
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, commandTimeout)
+	meta := h.ExtractMetadata(ctx)
+	timeoutCtx, cancel := h.WithTimeout(ctx, HandlerTypeCommand)
 	defer cancel()
+
+	timeoutCtx = InjectHandlerMetadata(timeoutCtx, meta)
 
 	deleted, err := h.svc.DeleteVideo(timeoutCtx, input)
 	if err != nil {

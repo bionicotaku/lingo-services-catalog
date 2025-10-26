@@ -1,7 +1,7 @@
 syntax = "proto3";
 package kratos.api;
 
-option go_package = "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader/pb;configpb";
+option go_package = "github.com/bionicotaku/kratos-template/configs;configpb";
 
 import "google/protobuf/duration.proto";
 import "buf/validate/validate.proto";
@@ -25,8 +25,15 @@ message Server {
     bool required = 3;
     string header_key = 4;
   }
+  message Handlers {
+    google.protobuf.Duration default_timeout = 1;
+    google.protobuf.Duration command_timeout = 2;
+    google.protobuf.Duration query_timeout = 3;
+  }
   GRPC grpc = 1;
   JWT jwt = 2;
+  Handlers handlers = 3;
+  repeated string metadata_keys = 4;
 }
 
 message Data {
@@ -66,6 +73,7 @@ message Data {
       string header_key = 3;
     }
     JWT jwt = 2;
+    repeated string metadata_keys = 3;
   }
 
   PostgreSQL postgres = 1 [(buf.validate.field).required = true];

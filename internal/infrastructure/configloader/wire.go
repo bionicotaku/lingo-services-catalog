@@ -10,6 +10,8 @@ import (
 	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
+
+	"github.com/bionicotaku/kratos-template/internal/controllers"
 )
 
 // ProviderSet 暴露配置加载相关的依赖注入入口。
@@ -29,6 +31,7 @@ var ProviderSet = wire.NewSet(
 	ProvidePubSubConfig,
 	ProvidePubSubDependencies,
 	ProvideOutboxConfig,
+	ProvideHandlerTimeouts,
 )
 
 // LoadRuntimeConfig 调用 Load 并供 Wire 使用。
@@ -150,6 +153,16 @@ func ProvideTxConfig(cfg RuntimeConfig) txconfig.Config {
 	}
 }
 
+// ProvideHandlerTimeouts 将 Server 层配置映射为控制层使用的超时策略。
+func ProvideHandlerTimeouts(cfg RuntimeConfig) controllers.HandlerTimeouts {
+	handlers := cfg.Server.Handlers
+	return controllers.HandlerTimeouts{
+		Default: handlers.Default,
+		Command: handlers.Command,
+		Query:   handlers.Query,
+	}
+}
+
 // ProvideJWTConfig 汇总客户端与服务端 JWT 配置。
 func ProvideJWTConfig(cfg RuntimeConfig) gcjwt.Config {
 	var serverCfg *gcjwt.ServerConfig
@@ -221,8 +234,8 @@ func ProvidePubSubDependencies(logger log.Logger) gcpubsub.Dependencies {
 
 // ProvideOutboxConfig 构造 outboxcfg.Config。
 func ProvideOutboxConfig(msg MessagingConfig) outboxcfg.Config {
-    cfg := outboxcfg.Config{
-        Schema: msg.Schema,
+	cfg := outboxcfg.Config{
+		Schema: msg.Schema,
 		Publisher: outboxcfg.PublisherConfig{
 			BatchSize:      msg.Outbox.BatchSize,
 			TickInterval:   msg.Outbox.TickInterval,

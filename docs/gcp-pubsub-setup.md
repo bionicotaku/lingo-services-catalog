@@ -9,8 +9,9 @@
 ---
 
 ## 1. 前置准备
+
 - **启用 API**：确保目标项目已启用 `pubsub.googleapis.com`。
-- **工具链**：安装 `gcloud` ≥ 470.0.0，完成 `gcloud auth login`，并设置默认项目：  
+- **工具链**：安装 `gcloud` ≥ 470.0.0，完成 `gcloud auth login`，并设置默认项目：
   ```bash
   gcloud config set project smiling-landing-472320-q0
   ```
@@ -23,6 +24,7 @@
 ---
 
 ## 2. 构建并注册 Schema
+
 1. 创建 Pub/Sub Schema（类型为 Protocol Buffer，`--definition-file` 需要传入文本 proto 而非 `.desc` 二进制）：
    ```bash
    gcloud pubsub schemas delete video-events
@@ -38,6 +40,7 @@
 ---
 
 ## 3. 创建 Topic / DLQ
+
 ```bash
 # 主 Topic，绑定 Schema 并使用二进制编码
 gcloud pubsub topics create catalog.video.events \
@@ -55,6 +58,7 @@ gcloud pubsub topics create catalog.video.events.dlq \
 ---
 
 ## 4. 创建 Subscription
+
 ```bash
 gcloud pubsub subscriptions create catalog.video.events.catalog-reader \
     --project=smiling-landing-472320-q0 \
@@ -70,6 +74,7 @@ gcloud pubsub subscriptions create catalog.video.events.catalog-reader \
 ```
 
 说明：
+
 - 每个消费服务创建独立订阅，命名 `<topic>.<service>-<role>`（例如 `catalog.video.events.search-indexer`）。
 - `--enable-message-ordering` 仅对订阅生效；发布端需在消息上设置 `OrderingKey`。
 - `--enable-exactly-once-delivery` 要求 `cloud.google.com/go/pubsub` ≥ 1.25.1；若未满足可先关闭，仍由 Inbox + 版本 UPSERT 保证幂等。
@@ -78,7 +83,9 @@ gcloud pubsub subscriptions create catalog.video.events.catalog-reader \
 ---
 
 ## 5. 绑定 IAM 权限
+
 ### 5.1 使用 gcloud 创建服务账号
+
 ```bash
 # 发布端 Service Account
 gcloud iam service-accounts create sa-catalog-publisher \
@@ -92,6 +99,7 @@ gcloud iam service-accounts create sa-catalog-reader \
 ```
 
 如果需要本地凭证，可额外创建密钥（建议仅在开发环境使用）：
+
 ```bash
 gcloud iam service-accounts keys create ./keys/sa-catalog-publisher.json \
     --iam-account=sa-catalog-publisher@smiling-landing-472320-q0.iam.gserviceaccount.com \
@@ -99,6 +107,7 @@ gcloud iam service-accounts keys create ./keys/sa-catalog-publisher.json \
 ```
 
 ### 5.2 授权 Topic / Subscription
+
 ```bash
 # 发布端
 gcloud pubsub topics add-iam-policy-binding catalog.video.events \
@@ -114,35 +123,39 @@ gcloud pubsub subscriptions add-iam-policy-binding catalog.video.events.catalog-
 ```
 
 补充建议：
+
 - 监控或运维账号可对 DLQ 订阅授予 `roles/pubsub.subscriber`，以便拉取并人工处理。
 - 若部署在 Cloud Run，需在服务绑定的 Service Account 上附加上述角色。
 
 ---
 
 ## 6. 配置文件扩展（代码落地 TODO）
+
 在 `configs/config.yaml` 更新 `messaging.pubsub` 节点：
+
 ```yaml
 messaging:
   pubsub:
-    project_id: smiling-landing-472320-q0          # 替换为实际项目 ID
+    project_id: smiling-landing-472320-q0 # 替换为实际项目 ID
     topic_id: catalog.video.events
     subscription_id: catalog.video.events.catalog-reader
     dead_letter_topic_id: catalog.video.events.dlq
     ordering_key_enabled: true
     logging_enabled: true
     metrics_enabled: true
-    emulator_endpoint: ""                         # 本地 emulator 填 localhost:8085
+    emulator_endpoint: "" # 本地 emulator 填 localhost:8085
     publish_timeout: 5s
     receive:
       num_goroutines: 4
       max_outstanding_messages: 500
-      max_outstanding_bytes: 67108864             # 64 MiB
+      max_outstanding_bytes: 67108864 # 64 MiB
       max_extension: 60s
       max_extension_period: 600s
     exactly_once_delivery: true
 ```
 
 后续需要在 `internal/infrastructure/configloader` 中解析该结构，并在 Wire 中注入：
+
 - `pubsub.Client`
 - Outbox Publisher（后台 goroutine）
 - StreamingPull Consumer（后台 goroutine）
@@ -152,9 +165,12 @@ messaging:
 ---
 
 ## 7. 发布 / 消费编码约定
+
 ### 发布端（Outbox Publisher）
+
 - 取出 Outbox 行后构造 `videov1.Event`，使用 `proto.Marshal` 得到消息体。
 - `pubsub.Message` 设置：
+
   ```go
   protoEvent, err := events.ToProto(evt)
   if err != nil {
@@ -164,17 +180,19 @@ messaging:
   if err != nil {
       return fmt.Errorf("marshal event: %w", err)
   }
-  
+
   msg := &pubsub.Message{
       Data:        data,
       OrderingKey: evt.AggregateID.String(),
       Attributes:  events.BuildAttributes(evt, events.SchemaVersionV1, traceID),
   }
   ```
+
 - 调用 `topic.Publish(ctx, msg)` 后必须等待 `result.Get(ctx)`，确定成功再标记 Outbox 行 `published_at`。
 - 发布失败时根据 `publisher.min/max_backoff` 做指数退避，达到 `max_attempts` 时告警。
 
 ### 消费端（StreamingPull）
+
 - 启动前配置 `Subscription` 对象：
   ```go
   sub.ReceiveSettings.Synchronous = false
@@ -191,6 +209,7 @@ messaging:
 ---
 
 ## 8. 本地开发（Pub/Sub Emulator）
+
 1. 启动模拟器：
    ```bash
    gcloud beta emulators pubsub start --project=smiling-landing-472320-q0
@@ -200,10 +219,11 @@ messaging:
    export PUBSUB_EMULATOR_HOST=localhost:8085
    ```
 3. 注意：模拟器**不支持** Google Cloud 控制台或 `gcloud pubsub` 命令，需要通过客户端库或 HTTP/gRPC 请求创建资源。示例（REST 调用）：
+
    ```bash
    curl -X PUT \
      "http://localhost:8085/v1/projects/smiling-landing-472320-q0/topics/catalog.video.events"
-   
+
    curl -X PUT \
      "http://localhost:8085/v1/projects/smiling-landing-472320-q0/subscriptions/catalog.video.events.catalog-reader" \
      -H "Content-Type: application/json" \
@@ -212,11 +232,13 @@ messaging:
            "ackDeadlineSeconds": 60
          }'
    ```
+
 4. 运行服务时读取 `PUBSUB_EMULATOR_HOST` 覆盖客户端地址；本地仍需使用 Protobuf 序列化流程，确保与线上逻辑一致。
 
 ---
 
 ## 9. 验证步骤
+
 1. **发布端连通性**：使用临时工具发布测试事件（待实现，可先 `go run` 写入 Outbox 并观察 Publisher 日志）。
 2. **订阅端消费**：启动消费者后手动拉取：
    ```bash
@@ -236,6 +258,7 @@ messaging:
 ---
 
 ## 9. DLQ 处理流程
+
 1. **创建只读订阅**：为死信 Topic 创建独立订阅（示例 `catalog.video.events.dlq.monitor`），仅用于人工巡检：
    ```bash
    gcloud pubsub subscriptions create catalog.video.events.dlq.monitor \
@@ -252,6 +275,7 @@ messaging:
 ---
 
 ## 10. 运行与运维建议
+
 - **监控指标**（结合 `docs/pubsub-conventions.md` 中 Prometheus 示例）：
   - Outbox 发布：`outbox_publish_success_total`、`outbox_publish_failure_total`、`outbox_backlog`（Gauge）
   - 投影消费者：`projection_apply_success_total`、`projection_apply_failure_total`、`projection_event_lag_ms`
@@ -265,21 +289,13 @@ messaging:
 ---
 
 ## 11. 常见问题排查
-| 现象 | 可能原因 | 解决方案 |
-|------|----------|----------|
-| `schema validation error` | 发布 Payload 非 `videov1.Event` 或 Schema 未更新 | 确认使用 `proto.Marshal`，必要时重新生成 `.desc` 并更新 Topic 绑定 |
+
+| 现象                                     | 可能原因                                                                 | 解决方案                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `schema validation error`                | 发布 Payload 非 `videov1.Event` 或 Schema 未更新                         | 确认使用 `proto.Marshal`，必要时重新生成 `.desc` 并更新 Topic 绑定 |
 | `ordering key requires message ordering` | Topic 未启用 `--message-ordering` 或客户端未设置 `EnableMessageOrdering` | 重新创建 Topic/订阅；代码中设置 `sub.EnableMessageOrdering = true` |
-| `exceeded exactly once limits` | Exactly-once 与客户端版本不兼容 | 升级 `cloud.google.com/go/pubsub` ≥ 1.27 或暂时关闭该选项 |
-| Ack 成功但消息重复到达 | 订阅启用了 Exactly-once 但消息在 Ack 前重投 | 检查处理逻辑是否超时，确认 Inbox 幂等处理完整 |
-| Emulator 下无法校验 Schema | Emulator 不支持 Schema | 本地开发保持 Protobuf 流程即可，Schema 校验仅在线上项目启用 |
+| `exceeded exactly once limits`           | Exactly-once 与客户端版本不兼容                                          | 升级 `cloud.google.com/go/pubsub` ≥ 1.27 或暂时关闭该选项          |
+| Ack 成功但消息重复到达                   | 订阅启用了 Exactly-once 但消息在 Ack 前重投                              | 检查处理逻辑是否超时，确认 Inbox 幂等处理完整                      |
+| Emulator 下无法校验 Schema               | Emulator 不支持 Schema                                                   | 本地开发保持 Protobuf 流程即可，Schema 校验仅在线上项目启用        |
 
 ---
-
-## 12. 后续开发 Checklist
-- [ ] `internal/infrastructure/pubsub`：根据配置初始化 `pubsub.Client`，支持 emulator host。
-- [ ] `lingo-utils/outbox/publisher`：实现认领/发布/退避状态机（阶段 4）。
-- [ ] `internal/tasks/projection_consumer`：实现 StreamingPull + Inbox/投影写入（阶段 5）。
-- [ ] `configs/config.yaml` / README：补充 Pub/Sub 配置说明与启动命令。
-- [ ] 自动化脚本：在 `Makefile` 增加 `make pubsub-setup`（可选，封装 gcloud 命令）。
-
-完成以上步骤后，即可支撑 Catalog 服务的只读投影链路：写入主权库 → Outbox 发布 → Pub/Sub → StreamingPull → 投影表同步。

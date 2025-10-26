@@ -2,6 +2,10 @@ GOHOSTOS:=$(shell go env GOHOSTOS)
 GOPATH:=$(shell go env GOPATH)
 VERSION=$(shell git describe --tags --always)
 
+GOFUMPT?=gofumpt
+GOIMPORTS?=goimports
+REVIVE?=revive
+
 .PHONY: init
 # init env
 init:
@@ -11,17 +15,24 @@ init:
 	go install github.com/go-kratos/kratos/cmd/kratos/v2@latest
 	go install github.com/google/wire/cmd/wire@latest
 
-.PHONY: config
-# generate internal proto
-config:
-	buf generate --template '{"version":"v1","plugins":[{"plugin":"go","out":".","opt":["paths=source_relative"]}]}' --path internal/infrastructure/configloader/pb
+.PHONY: fmt
+# format go code
+fmt:
+	$(GOFUMPT) -w .
+	$(GOIMPORTS) -w .
+	go mod tidy
+
+.PHONY: vet
+# go vet static checks
+vet:
+	go vet ./...
 
 .PHONY: lint
 # run static analysis (buf lint + staticcheck + revive)
-lint:
+lint: vet
 	buf lint
 	staticcheck -checks=all,-ST1000 ./...
-	revive ./...
+	$(REVIVE) ./...
 
 .PHONY: build
 # build
@@ -36,6 +47,7 @@ test:
 .PHONY: generate
 # generate
 generate:
+	buf generate --template '{"version":"v1","plugins":[{"plugin":"go","out":".","opt":["paths=source_relative"]}]}' --path configs/conf.proto
 	buf generate --path api
 	sqlc generate
 	go generate ./...
@@ -44,7 +56,6 @@ generate:
 .PHONY: all
 # generate all
 all:
-	$(MAKE) config
 	$(MAKE) generate
 
 # show help

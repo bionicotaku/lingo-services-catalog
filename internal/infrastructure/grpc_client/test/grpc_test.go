@@ -66,10 +66,14 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 	logger := log.NewStdLogger(io.Discard)
 	cmdSvc := services.NewVideoCommandService(videoRepoStub{}, outboxRepoStub{}, noopTxManager{}, logger)
 	querySvc := services.NewVideoQueryService(videoRepoStub{}, noopTxManager{}, logger)
-	commandHandler := controllers.NewVideoCommandHandler(cmdSvc)
-	queryHandler := controllers.NewVideoQueryHandler(querySvc)
+	base := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
+	commandHandler := controllers.NewVideoCommandHandler(cmdSvc, base)
+	queryHandler := controllers.NewVideoQueryHandler(querySvc, base)
 
-	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
+	cfg := configloader.ServerConfig{
+		Address:      "127.0.0.1:0",
+		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
+	}
 	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
@@ -130,7 +134,10 @@ func TestNewGRPCClient_CallVideo(t *testing.T) {
 
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	cfg := configloader.GRPCClientConfig{Target: "dns:///" + addr}
+	cfg := configloader.GRPCClientConfig{
+		Target:       "dns:///" + addr,
+		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
+	}
 
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader/pb"
+	configpb "github.com/bionicotaku/kratos-template/configs"
 
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/go-kratos/kratos/v2/config"

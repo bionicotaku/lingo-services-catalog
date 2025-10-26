@@ -23,10 +23,12 @@ type ServiceInfo struct {
 
 // ServerConfig 收敛入站 gRPC 服务所需的网络与鉴权配置。
 type ServerConfig struct {
-	Network string
-	Address string
-	Timeout time.Duration
-	JWT     ServerJWTConfig
+	Network      string
+	Address      string
+	Timeout      time.Duration
+	JWT          ServerJWTConfig
+	Handlers     HandlerTimeoutConfig
+	MetadataKeys []string
 }
 
 // ServerJWTConfig 管理入站请求的 JWT 校验策略。
@@ -35,6 +37,13 @@ type ServerJWTConfig struct {
 	SkipValidate     bool
 	Required         bool
 	HeaderKey        string
+}
+
+// HandlerTimeoutConfig 定义不同类型 Handler 的超时策略。
+type HandlerTimeoutConfig struct {
+	Default time.Duration
+	Command time.Duration
+	Query   time.Duration
 }
 
 // DatabaseConfig 包含 PostgreSQL 连接池及事务默认值。
@@ -62,8 +71,9 @@ type TransactionConfig struct {
 
 // GRPCClientConfig 描述出站 gRPC 客户端所需信息。
 type GRPCClientConfig struct {
-	Target string
-	JWT    ClientJWTConfig
+	Target       string
+	JWT          ClientJWTConfig
+	MetadataKeys []string
 }
 
 // ClientJWTConfig 控制出站调用的 JWT 注入。

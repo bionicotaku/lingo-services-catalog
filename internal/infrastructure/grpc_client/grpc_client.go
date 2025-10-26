@@ -60,9 +60,10 @@ func NewGRPCClient(cfg configloader.GRPCClientConfig, metricsCfg *observability.
 	}
 
 	// 基础中间件链：panic 恢复 + metadata 传播，确保下游能收到必要头信息。
+	prefixes := cfg.MetadataKeys
 	mws := []middleware.Middleware{
 		recovery.Recovery(),
-		metadata.Client(),
+		metadata.Client(metadata.WithPropagatedPrefix(prefixes...)),
 	}
 	// 按需注入 JWT，中间件只在配置启用时生效。
 	if jwt != nil && !cfg.JWT.Disabled {

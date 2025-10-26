@@ -3,9 +3,14 @@ package configloader
 import (
 	"time"
 
-	configpb "github.com/bionicotaku/kratos-template/internal/infrastructure/configloader/pb"
+	configpb "github.com/bionicotaku/kratos-template/configs"
 
 	"google.golang.org/protobuf/types/known/durationpb"
+)
+
+const (
+	defaultHandlerTimeout = 5 * time.Second
+	defaultQueryTimeout   = 3 * time.Second
 )
 
 func fromProto(b *configpb.Bootstrap) RuntimeConfig {
@@ -40,7 +45,35 @@ func serverFromProto(s *configpb.Server) ServerConfig {
 			HeaderKey:        firstNonEmpty(jwt.GetHeaderKey(), "authorization"),
 		}
 	}
+	server.Handlers = handlerTimeoutFromProto(s.GetHandlers())
+	server.MetadataKeys = append([]string(nil), s.GetMetadataKeys()...)
 	return server
+}
+
+func handlerTimeoutFromProto(h *configpb.Server_Handlers) HandlerTimeoutConfig {
+	cfg := HandlerTimeoutConfig{
+		Default: defaultHandlerTimeout,
+		Command: defaultHandlerTimeout,
+		Query:   defaultQueryTimeout,
+	}
+	if h == nil {
+		cfg.Query = firstNonZero(cfg.Query, cfg.Default)
+		return cfg
+	}
+	if d := durationOrZero(h.GetDefaultTimeout()); d > 0 {
+		cfg.Default = d
+	}
+	if d := durationOrZero(h.GetCommandTimeout()); d > 0 {
+		cfg.Command = d
+	} else {
+		cfg.Command = cfg.Default
+	}
+	if d := durationOrZero(h.GetQueryTimeout()); d > 0 {
+		cfg.Query = d
+	} else {
+		cfg.Query = firstNonZero(cfg.Query, cfg.Default)
+	}
+	return cfg
 }
 
 func databaseFromProto(pg *configpb.Data_PostgreSQL) DatabaseConfig {
@@ -84,6 +117,7 @@ func grpcClientFromProto(client *configpb.Data_Client) GRPCClientConfig {
 			HeaderKey: firstNonEmpty(jwt.GetHeaderKey(), "authorization"),
 		}
 	}
+	cfg.MetadataKeys = append([]string(nil), client.GetMetadataKeys()...)
 	return cfg
 }
 
@@ -140,18 +174,18 @@ func metricsFromProto(m *configpb.Observability_Metrics) MetricsConfig {
 }
 
 func messagingFromProto(msg *configpb.Messaging, data *configpb.Data) MessagingConfig {
-    if msg == nil {
-        return MessagingConfig{}
-    }
-    cfg := MessagingConfig{
-        PubSub: pubsubFromProto(msg.GetPubsub()),
-        Outbox: outboxFromProto(msg.GetOutbox()),
-        Inbox:  inboxFromProto(msg.GetInbox()),
-    }
-    if data != nil && data.GetPostgres() != nil {
-        cfg.Schema = data.GetPostgres().GetSchema()
-    }
-    return cfg
+	if msg == nil {
+		return MessagingConfig{}
+	}
+	cfg := MessagingConfig{
+		PubSub: pubsubFromProto(msg.GetPubsub()),
+		Outbox: outboxFromProto(msg.GetOutbox()),
+		Inbox:  inboxFromProto(msg.GetInbox()),
+	}
+	if data != nil && data.GetPostgres() != nil {
+		cfg.Schema = data.GetPostgres().GetSchema()
+	}
+	return cfg
 }
 
 func pubsubFromProto(pb *configpb.PubSub) PubSubConfig {
@@ -243,11 +277,32 @@ func mapCopy(src map[string]string) map[string]string {
 	return dst
 }
 
+func firstNonZero(durations ...time.Duration) time.Duration {
+	for _, d := range durations {
+		if d > 0 {
+			return d
+		}
+	}
+	return 0
+}
+
 func fillDefaults(cfg *RuntimeConfig) {
 	if cfg.Server.JWT.HeaderKey == "" {
 		cfg.Server.JWT.HeaderKey = "authorization"
 	}
 	if cfg.GRPCClient.JWT.HeaderKey == "" {
 		cfg.GRPCClient.JWT.HeaderKey = "authorization"
+	}
+	defaultKeys := []string{
+		"x-md-global-user-id",
+		"x-md-idempotency-key",
+		"x-md-if-match",
+		"x-md-if-none-match",
+	}
+	if len(cfg.Server.MetadataKeys) == 0 {
+		cfg.Server.MetadataKeys = append([]string(nil), defaultKeys...)
+	}
+	if len(cfg.GRPCClient.MetadataKeys) == 0 {
+		cfg.GRPCClient.MetadataKeys = append([]string(nil), cfg.Server.MetadataKeys...)
 	}
 }

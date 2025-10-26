@@ -6,6 +6,18 @@ server:
     addr: 0.0.0.0:9000
     # 单次请求的超时时间
     timeout: 5s
+  handlers:
+    # 默认超时（当未配置专用超时时）
+    default_timeout: 5s
+    # 写模型命令类 RPC 超时
+    command_timeout: 5s
+    # 读模型查询类 RPC 超时
+    query_timeout: 3s
+  metadata_keys:
+    - x-md-global-user-id
+    - x-md-idempotency-key
+    - x-md-if-match
+    - x-md-if-none-match
   # Cloud Run JWT 权限验证（入站）
   jwt:
     # 预期的 audience，生产环境填写 Cloud Run URL，本地可留空
@@ -66,6 +78,11 @@ data:
       disabled: true
       # 注入 Token 的 Header 名称
       header_key: authorization
+    metadata_keys:
+      - x-md-global-user-id
+      - x-md-idempotency-key
+      - x-md-if-match
+      - x-md-if-none-match
 
 # 可观测性配置：追踪与指标
 observability:

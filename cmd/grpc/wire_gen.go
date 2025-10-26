@@ -100,9 +100,11 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	}
 	manager := txmanager.ProvideManager(txmanagerComponent)
 	videoCommandService := services.NewVideoCommandService(videoRepository, outboxRepository, manager, logger)
-	videoCommandHandler := controllers.NewVideoCommandHandler(videoCommandService)
+	handlerTimeouts := configloader.ProvideHandlerTimeouts(runtimeConfig)
+	baseHandler := controllers.NewBaseHandler(handlerTimeouts)
+	videoCommandHandler := controllers.NewVideoCommandHandler(videoCommandService, baseHandler)
 	videoQueryService := services.NewVideoQueryService(videoRepository, manager, logger)
-	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService)
+	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService, baseHandler)
 	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, videoCommandHandler, videoQueryHandler, logger)
 	gcpubsubConfig := configloader.ProvidePubSubConfig(messagingConfig)
 	dependencies := configloader.ProvidePubSubDependencies(logger)

@@ -68,13 +68,17 @@ func newVideoHandlers(t *testing.T) (*controllers.VideoCommandHandler, *controll
 	outbox := outboxRepoStub{}
 	cmdSvc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
 	querySvc := services.NewVideoQueryService(repo, noopTxManager{}, logger)
-	return controllers.NewVideoCommandHandler(cmdSvc), controllers.NewVideoQueryHandler(querySvc)
+	base := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
+	return controllers.NewVideoCommandHandler(cmdSvc, base), controllers.NewVideoQueryHandler(querySvc, base)
 }
 
 func startServer(t *testing.T) (string, func()) {
 	t.Helper()
 	commandHandler, queryHandler := newVideoHandlers(t)
-	cfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
+	cfg := configloader.ServerConfig{
+		Address:      "127.0.0.1:0",
+		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
+	}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
