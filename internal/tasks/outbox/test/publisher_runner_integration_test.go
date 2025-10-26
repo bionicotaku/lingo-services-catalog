@@ -67,7 +67,7 @@ func TestPublisherRunner_SuccessfulPublish(t *testing.T) {
 
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	meter := provider.Meter("kratos-template.outbox.test")
+	meter := provider.Meter("lingo-services-catalog.outbox.test")
 
 	runner := newPublisherRunner(t, repo, publisher, meter, outboxcfg.PublisherConfig{
 		BatchSize:      4,
@@ -155,7 +155,7 @@ func TestPublisherRunner_RetryOnFailure(t *testing.T) {
 
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	meter := provider.Meter("kratos-template.outbox.test")
+	meter := provider.Meter("lingo-services-catalog.outbox.test")
 
 	runner := newPublisherRunner(t, repo, publisher, meter, outboxcfg.PublisherConfig{
 		BatchSize:      2,
@@ -236,7 +236,7 @@ func TestPublisherRunner_RecoveryAfterTopicCreated(t *testing.T) {
 
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
-	meter := provider.Meter("kratos-template.outbox.test")
+	meter := provider.Meter("lingo-services-catalog.outbox.test")
 
 	runner := newPublisherRunner(t, repo, publisher, meter, outboxcfg.PublisherConfig{
 		BatchSize:      2,
@@ -307,7 +307,7 @@ func newTestPublisher(ctx context.Context, t *testing.T, server *pstest.Server, 
 		TopicID:          topicID,
 		EnableLogging:    boolPtr(false),
 		EnableMetrics:    &enableMetrics,
-		MeterName:        "kratos-template.gcpubsub.test",
+		MeterName:        "lingo-services-catalog.gcpubsub.test",
 		EmulatorEndpoint: server.Addr,
 	}
 

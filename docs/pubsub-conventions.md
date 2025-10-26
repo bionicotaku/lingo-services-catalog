@@ -2,7 +2,7 @@
 
 > **版本**: v1.0
 > **更新日期**: 2025-10-24
-> **适用范围**: kratos-template 微服务项目（Catalog Service）
+> **适用范围**: services-catalog 微服务项目（Catalog Service）
 
 本文档定义了基于 Google Cloud Pub/Sub 的事件驱动架构的配置规范和约定，确保生产者（Producer）和消费者（Consumer）之间的互操作性、可追溯性和一致性。
 

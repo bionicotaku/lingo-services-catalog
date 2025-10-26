@@ -29,7 +29,7 @@ type Task struct {
 // NewTask 构造投影消费任务。
 func NewTask(sub gcpubsub.Subscriber, inboxRepo *repositories.InboxRepository, projection *repositories.VideoProjectionRepository, tx txmanager.Manager, logger log.Logger, inboxCfg outboxcfg.InboxConfig) *Task {
 	helper := log.NewHelper(logger)
-	meter := otel.GetMeterProvider().Meter("kratos-template.projection")
+	meter := otel.GetMeterProvider().Meter("lingo-services-catalog.projection")
 
 	metrics := newProjectionMetrics(meter, helper)
 

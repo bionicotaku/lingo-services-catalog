@@ -1,314 +1,408 @@
-# kratos-template
+# Services-Catalog
 
-`kratos-template` 是一份 **单服务仓库模板**，用于快速构建基于 [Go-Kratos](https://go-kratos.dev/) 的微服务。每个业务服务（Catalogue、Progress、Media 等）都应从本模板派生，保持统一的目录结构、工具链和质量基线。
-
-> ✅ 模板仅定位于“单服务仓库”。生产环境中，每个微服务拥有独立仓库，但都共享这里的工程骨架与脚本。
+**Catalog 微服务** - 维护视频权威元数据，协调上传→转码→AI分析→上架的完整流程。
 
 ---
 
-## 总览
+## 概览
 
-```mermaid
-mindmap
-  root((kratos-template))
-    cmd
-      grpc<br/>(主入口)
-      http<br/>(可选调试入口)
-    configs
-      config.yaml
-      .env
-    internal
-      controllers
-      services
-      repositories
-      models
-        po
-        vo
-      clients
-      infrastructure
-      tasks
-    api
-      openapi
-      proto
-    migrations
-    test
-      full_e2e_projection.sh
-    Makefile
-    go.mod
-```
+Catalog 服务负责：
 
-模板开箱即用地提供：
+- **视频元数据管理**：维护视频的基础信息、媒体属性、AI分析结果
+- **生命周期协调**：管理视频从上传到发布的状态流转（`pending_upload` → `processing` → `ready` → `published`）
+- **事件驱动集成**：通过 Outbox + GCP Pub/Sub 发布领域事件，供下游服务（Search/Feed/Progress）消费
+- **读写分离**：写入主表 `catalog.videos`，通过投影机制维护只读表 `catalog.video_projection`
 
-- **Kratos + Wire**：gRPC/HTTP 服务启动、依赖注入、统一中间件。
-- **配置加载器**：`configloader` 支持 YAML + `.env`，环境变量覆盖后进行 protovalidate 校验。
-- **数据库 & Outbox**：`pgx/sqlc` 访问 Postgres，内置 Outbox + 投影任务骨架。
-- **统一脚本**：`make fmt/lint/test/build`、`buf`/`spectral` 校验、`wire` 生成。
-- **端到端脚本**：`test/full_e2e_projection.sh` 模拟创建/更新视频并验证投影结果。
-
----
-
-## 配置流程
-
-```mermaid
-flowchart LR
-    A[config.yaml] -->|基础配置| B(configloader.Load)
-    A2(.env/.env.local/configs/.env) -->|环境变量| B
-    B --> C{apply env overrides}
-    C --> D((protovalidate))
-    D --> E[RuntimeConfig]
-    E -->|Wire ProviderSet| F[cmd/grpc/main.go]
-    F --> G[Kratos App]
-```
-
-- 默认读取 `configs/config.yaml` 与 `configs/.env`（若存在）。
-- 环境变量优先级最高，可覆盖 YAML。
-- 通过 protovalidate 进行结构化校验，生成 `RuntimeConfig`，在 Wire 中拆分为 Logger、Observability、Database、Messaging 等依赖。
-
----
-
-## Wire 依赖拓扑
-
-```mermaid
-flowchart LR
-    subgraph Wire Providers
-      A[configloader.ProviderSet]
-      B[gclog.ProviderSet]
-      C[gcjwt.ProviderSet]
-      D[observability.ProviderSet]
-      E[pgxpoolx.ProviderSet]
-      F[txmanager.ProviderSet]
-      G[gcpubsub.ProviderSet]
-      H[grpc_server.ProviderSet]
-      I[repositories.ProviderSet]
-      J[services.ProviderSet]
-      K[controllers.ProviderSet]
-      L[tasks.outbox ProvideRunner]
-      M[tasks.projection ProvideTask]
-    end
-
-    A --> B
-    A --> C
-    A --> D
-    A --> E
-    A --> G
-
-    E --> F
-    B & C & D & E & F & G --> H
-    E --> I
-    F --> I
-    I --> J
-    J --> K
-    I --> L
-    I --> M
-    J --> L
-    J --> M
-    H & K & L & M --> N[newApp]
-    N --> O[kratos.App]
-```
-
-> `wire ./cmd/grpc` 会根据上述依赖图生成 `wire_gen.go`：先加载 `RuntimeConfig`，再初始化日志、JWT、观测、数据库、Outbox/投影任务，最终组装成 `kratos.App`。
-
----
-
-## 目录结构详解
-
-| 目录/文件 | 说明 | 常见内容 |
-| ---------- | ---- | -------- |
-| `cmd/grpc/` | Kratos gRPC 服务入口（必备）。`main.go` 调用 Wire 生成的 `wireApp`，组装所有依赖并运行；`wire.go` 列出 ProviderSet。 | `main.go`, `wire.go`, `wire_gen.go` |
-| `cmd/http/` | 可选 HTTP/REST 调试入口（默认不开启）。需要启用时，可复制 `cmd/grpc` 并调整中间件与监听端口。 | `main.go`（可选） |
-| `configs/` | 配置目录：`config.yaml` 提供基础配置，`.env` 存放环境变量覆盖项。configloader 与脚本会自动加载。 | `config.yaml`, `.env` |
-| `internal/controllers/` | Kratos gRPC/HTTP Handler，只负责解析请求、鉴权校验、调用 Service、输出 Problem/ETag/分页。 | `video_command_handler.go`, `video_query_handler.go`, `dto/` |
-| `internal/services/` | 业务用例层：事务、幂等、组合仓储与外部客户端；生成领域事件并写入 Outbox。 | `video_command_service.go`, `video_query_service.go`, `video_types.go` |
-| `internal/repositories/` | 数据访问层：通过 `pgx/sqlc` 操作 Postgres，或整合 GCS、Pub/Sub、第三方 API。所有 SQL 生成物位于 `internal/repositories/sqlc/`。 | `video_repo.go`, `outbox_repo.go`, `sqlc/` |
-| `internal/models/po` | Plain Object（数据库映射对象），通常由 `sqlc` 生成或手动维护。 | `video.go` |
-| `internal/models/vo` | View Object，面向上层返回或跨服务传输的数据结构。 | `video.go` |
-| `internal/clients/` | 访问其他服务/第三方的客户端封装，统一处理鉴权、超时、重试。需要注入时在目录下提供 `init.go` 注册 Wire Provider。 | `grpc_client.go`, `init.go`（可选） |
-| `internal/infrastructure/` | 底层设施：配置加载、Kratos server/client、日志、追踪、消息队列、JWT 等。服务启动时由 Wire 注入。 | `configloader/`, `grpc_server/`, `grpc_client/` |
-| `internal/tasks/` | Outbox 发布器、投影消费者、定时/延迟任务。所有任务必须监听 `ctx.Done()` 并保证幂等。 | `outbox/`, `projection/` |
-| `api/openapi/` | REST 契约（YAML）。使用 `spectral lint api/openapi/*.yaml` 校验。 | `video.yaml` 等 |
-| `api/proto/` | gRPC Proto 契约。使用 `buf lint` / `buf breaking` 管理，生成代码位于 `api/video/v1/*.pb.go`。 | `video.proto`, `events.proto` |
-| `migrations/` | SQL 迁移脚本（服务独有 schema）。开发期可通过 `psql` 执行，或结合 `golang-migrate/atlas`。 | `001_init_catalog_schema.sql` 等 |
-| `test/` | 集成/端到端脚本。模板内提供 `full_e2e_projection.sh` 验证 Outbox → 投影链路。 | `full_e2e_projection.sh` |
-| `Makefile` | 常用命令聚合：格式化、静态检查、测试、构建、代码生成等。 | `fmt`, `lint`, `test`, `build`, `proto`, `openapi` |
-| `go.mod` / `go.sum` | Go Module 配置。派生仓库需更新 module 名称并在初始化后运行 `go mod tidy`。 | — |
-示例目录树（核心文件）：
-
-```
-├── cmd/
-│   ├── grpc/main.go          # Kratos gRPC 入口，解析配置并调用 wire 生成的依赖
-│   └── grpc/wire.go          # 定义 ProviderSet，wire 自动生成 wire_gen.go
-├── configs/config.yaml       # 基础配置（gRPC 监听、Database、Observability、Messaging 等）
-├── configs/.env              # 环境变量覆盖项，推荐只在本地保存（勿提交敏感信息）
-├── internal/controllers/     # Handler；按领域拆分文件/子目录，也包含 dto/ 响应转换
-├── internal/services/        # 业务用例实现，组合仓储/客户端，统一返回 VO 或 Problem
-├── internal/repositories/    # 数据访问与映射（含 sqlc 生成代码、Outbox/InBox 仓储）
-├── internal/models/po        # 数据库存储模型（Plain Object）
-├── internal/models/vo        # 视图模型（View Object/DTO）
-├── internal/clients/         # 外部/跨服务客户端封装与 Wire Provider
-├── internal/infrastructure/  # configloader、grpc server/client、JWT、Pub/Sub 等底层设施
-├── internal/tasks/           # Outbox 发布器、投影消费者、定时任务实现
-├── api/openapi/              # REST 契约，运行 spectral lint 校验
-├── api/proto/                # gRPC Proto 契约，使用 buf lint/breaking 守护
-├── migrations/               # SQL 迁移脚本，遵循递增编号
-├── test/full_e2e_projection.sh # 端到端脚本：启动服务、调用 gRPC、验证投影/Outbox
-├── Makefile                  # 常用命令入口（fmt/lint/test/build/proto/openapi）
-├── go.mod / go.sum           # Go module 定义与依赖锁定
-└── buf.yaml / buf.gen.yaml   # buf 配置与生成模板
-```
-
-
-
-> 建议将此 README 作为团队风格指南：新建仓库后保持上述职责划分一致，便于脚手架和自动化工具复用。
-
+**架构特点：**
+- DDD-lite + CQRS + Event Sourcing
+- Kratos 微服务框架 + Wire 依赖注入
+- PostgreSQL (Supabase) + SQLC
+- Outbox Pattern + Projection Consumer
+- OpenTelemetry 可观测性
 
 ---
 
 ## 快速开始
 
-### 1. 克隆并初始化
+### 1. 环境准备
 
+**必需：**
+- Go 1.22+
+- PostgreSQL 15+ (推荐 Supabase)
+- GCP Pub/Sub (或本地 emulator)
+
+**工具链：**
 ```bash
-git clone --depth=1 git@github.com:your-org/kratos-template.git your-service
-cd your-service
-rm -rf .git && git init
-go mod edit -module github.com/your-org/your-service
-go mod tidy
+# 安装开发工具
+make init
+
+# 安装的工具包括：
+# - buf (Protocol Buffers 管理)
+# - wire (依赖注入代码生成)
+# - sqlc (SQL 查询代码生成)
+# - gofumpt, goimports (代码格式化)
+# - staticcheck, revive (静态检查)
 ```
 
-### 2. 配置环境
+### 2. 配置
 
-1. 复制或创建 `configs/.env`，至少设置 `DATABASE_URL`：
-   ```env
-   DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable&search_path=catalog
-   SERVICE_NAME=your-service
-   SERVICE_VERSION=0.1.0
-   APP_ENV=development
-   ```
-2. 如需本地 Pub/Sub / Kafka，可在 `.env` 中追加相关配置。
+创建 `configs/.env` 文件：
 
-### 3. 安装工具
+```env
+# 数据库连接（必需）
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable&search_path=catalog
 
-```bash
-make init    # 安装 buf、wire、protoc 插件等
+# 服务配置
+SERVICE_NAME=services-catalog
+SERVICE_VERSION=0.1.0
+APP_ENV=development
+PORT=9000
+
+# GCP Pub/Sub (可选，不配置则仅输出日志)
+PUBSUB_PROJECT_ID=your-project-id
+PUBSUB_VIDEO_TOPIC=video-events
+PUBSUB_VIDEO_SUBSCRIPTION=catalog-projection-sub
+
+# 可观测性 (可选)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
 
-### 4. 运行服务
+### 3. 数据库迁移
 
 ```bash
-go run ./cmd/grpc -conf configs/config.yaml
-# 或
-make build && ./bin/grpc
-```
-
----
-
-## 常用命令
-
-| 命令 | 作用 |
-| ---- | ---- |
-| `make init`  | 安装 buf、wire、protoc 插件等依赖工具 |
-| `make fmt`   | `gofumpt` + `goimports` + `go mod tidy` |
-| `make lint`  | `staticcheck` + `revive` + `buf lint` + `spectral lint` |
-| `make test`  | `go test ./...`（默认包含 race/free） |
-| `make build` | 构建 `./bin/grpc` |
-| `buf generate` | 生成 gRPC 代码 |
-| `spectral lint api/openapi/*.yaml` | 校验 REST 契约 |
-| `wire ./cmd/grpc` | 重新生成依赖注入代码 |
-
-> 执行任何提交前，务必确保 `make fmt lint test` 全部通过。
-
----
-
-## 数据库与迁移
-
-迁移脚本位于 `migrations/`，推荐使用 `golang-migrate` 或 `atlas`：
-
-```bash
+# 执行迁移脚本
 psql "$DATABASE_URL" -f migrations/001_init_catalog_schema.sql
 psql "$DATABASE_URL" -f migrations/002_create_catalog_event_tables.sql
-# ...
+psql "$DATABASE_URL" -f migrations/003_create_catalog_videos_table.sql
+psql "$DATABASE_URL" -f migrations/004_create_catalog_video_projection.sql
 ```
 
-如需 Testcontainers 集成测试，可参考模板中 `internal/repositories/test` 示例。
+### 4. 启动服务
+
+```bash
+# 开发模式
+go run ./cmd/grpc -conf configs/config.yaml
+
+# 或构建后运行
+make build
+./bin/grpc -conf configs/config.yaml
+```
+
+服务启动后监听：
+- **gRPC**: `0.0.0.0:9000`
+- **Metrics**: `0.0.0.0:9090/metrics` (如果启用)
 
 ---
 
-## 测试策略
+## 项目结构
 
-| 层级 | 目标 | 推荐工具 |
-| ---- | ---- | -------- |
-| Controllers | 验证 Problem/鉴权/ETag 分支 | `httptest`, `testify/require` |
-| Services | 业务逻辑、事务、幂等（覆盖率 ≥ 80%） | `testing`, gomock/testify |
-| Repositories | SQL/外部服务集成 | Testcontainers + Supabase/Postgres |
-| Tasks | Outbox 发布、重试、死信 | Fake dispatcher + 集成测试 |
-| 契约 | REST & gRPC 一致性 | `spectral lint`, `buf lint`, `buf breaking` |
+```
+services-catalog/
+├── cmd/grpc/               # Kratos gRPC 服务入口
+│   ├── main.go             # 主程序
+│   ├── wire.go             # Wire 依赖注入配置
+│   └── wire_gen.go         # Wire 生成代码（自动）
+├── configs/                # 配置文件
+│   ├── config.yaml         # 基础配置
+│   ├── conf.proto          # 配置结构定义
+│   └── .env                # 环境变量覆盖（不提交到 Git）
+├── api/
+│   └── video/v1/           # gRPC Proto 定义
+│       ├── video.proto     # 视频查询/命令服务
+│       ├── events.proto    # 领域事件定义
+│       └── error_reason.proto
+├── internal/
+│   ├── controllers/        # gRPC Handler（API 层）
+│   │   ├── video_command_handler.go
+│   │   ├── video_query_handler.go
+│   │   └── dto/            # 请求/响应转换
+│   ├── services/           # 业务逻辑层
+│   │   ├── video_command_service.go
+│   │   ├── video_query_service.go
+│   │   └── video_types.go
+│   ├── repositories/       # 数据访问层
+│   │   ├── video_repo.go
+│   │   ├── outbox_repo.go
+│   │   ├── video_projection_repo.go
+│   │   ├── sqlc/           # SQLC 生成代码
+│   │   └── mappers/        # DB 模型映射
+│   ├── models/
+│   │   ├── po/             # 持久化对象（数据库模型）
+│   │   ├── vo/             # 视图对象（返回给客户端）
+│   │   └── outbox_events/  # 领域事件构建器
+│   ├── infrastructure/     # 基础设施
+│   │   ├── configloader/   # 配置加载
+│   │   ├── grpc_server/    # gRPC 服务器配置
+│   │   └── grpc_client/    # gRPC 客户端配置
+│   └── tasks/              # 后台任务
+│       ├── outbox/         # Outbox 发布器
+│       └── projection/     # 投影消费者
+├── migrations/             # 数据库迁移脚本
+├── sqlc/
+│   └── schema/             # SQLC 使用的 Schema 定义
+├── test/                   # 端到端测试脚本
+│   └── full_e2e_projection.sh
+├── Makefile                # 常用命令
+├── buf.yaml                # Buf 配置
+├── sqlc.yaml               # SQLC 配置
+└── catalog design.md       # 详细设计文档
+```
 
-### 端到端脚本
+---
 
-`test/full_e2e_projection.sh` 会：
+## API 接口
 
-1. 自动加载 `configs/.env`，回收占用端口；
-2. 启动 `cmd/grpc` 并等待端口就绪；
-3. 执行 Create/Update gRPC 调用；
-4. 检查投影表与 Outbox 条目；
-5. 优雅关闭服务并清理临时文件。
+### VideoQueryService (只读查询)
 
-运行方式：
+```protobuf
+service VideoQueryService {
+  // 获取视频详情（从投影表读取）
+  rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
+}
+```
+
+**示例调用：**
+```bash
+grpcurl -plaintext \
+  -d '{"video_id":"550e8400-e29b-41d4-a716-446655440000"}' \
+  localhost:9000 video.v1.VideoQueryService/GetVideoDetail
+```
+
+### VideoCommandService (写操作)
+
+```protobuf
+service VideoCommandService {
+  // 创建新视频记录
+  rpc CreateVideo(CreateVideoRequest) returns (CreateVideoResponse);
+
+  // 更新视频元数据
+  rpc UpdateVideo(UpdateVideoRequest) returns (UpdateVideoResponse);
+
+  // 删除视频记录
+  rpc DeleteVideo(DeleteVideoRequest) returns (DeleteVideoResponse);
+}
+```
+
+**示例调用：**
+```bash
+# 创建视频
+grpcurl -plaintext \
+  -d '{
+    "upload_user_id":"123e4567-e89b-12d3-a456-426614174000",
+    "title":"My Video",
+    "description":"Test video",
+    "raw_file_reference":"gs://bucket/videos/test.mp4"
+  }' \
+  localhost:9000 video.v1.VideoCommandService/CreateVideo
+
+# 更新视频（例如：媒体处理完成后）
+grpcurl -plaintext \
+  -d '{
+    "video_id":"550e8400-e29b-41d4-a716-446655440000",
+    "media_status":"ready",
+    "duration_micros":120000000,
+    "thumbnail_url":"gs://bucket/thumbnails/test.jpg",
+    "hls_master_playlist":"gs://bucket/hls/test/master.m3u8"
+  }' \
+  localhost:9000 video.v1.VideoCommandService/UpdateVideo
+```
+
+---
+
+## 数据模型
+
+### 主表：catalog.videos
+
+**核心字段：**
+- `video_id` (UUID): 主键
+- `upload_user_id` (UUID): 上传者
+- `title`, `description`: 基础信息
+- `raw_file_reference`: 原始文件路径（GCS）
+- `status` (enum): 总体状态（`pending_upload` → `processing` → `ready` → `published`）
+- `version` (bigint): 乐观锁版本号
+
+**媒体处理字段：**
+- `media_status`, `media_job_id`, `media_emitted_at`
+- `duration_micros`, `encoded_resolution`, `thumbnail_url`, `hls_master_playlist`
+
+**AI 分析字段：**
+- `analysis_status`, `analysis_job_id`, `analysis_emitted_at`
+- `difficulty`, `summary`, `tags[]`, `raw_subtitle_url`
+
+### 只读投影表：catalog.video_projection
+
+仅包含状态为 `ready`/`published` 的视频核心字段，供高性能查询使用。
+
+---
+
+## 事件驱动集成
+
+### 发布的事件
+
+| 事件类型 | 触发时机 | 主要字段 | 订阅方 |
+|---------|---------|---------|--------|
+| `catalog.video.created` | 创建视频 | `video_id`, `title`, `upload_user_id` | Search, Feed, Reporting |
+| `catalog.video.updated` | 更新元数据 | `video_id`, 更新字段 | Search, Feed |
+| `catalog.video.deleted` | 删除视频 | `video_id` | Search, Feed |
+
+**事件流程：**
+1. Service 层在事务内同时写入业务数据 + Outbox 表
+2. Outbox 后台任务定期扫描未发布的事件
+3. 通过 GCP Pub/Sub 发布到 `video-events` Topic
+4. 投影消费者订阅事件并更新 `video_projection` 表
+5. 其他服务（Search/Feed）也可订阅相同事件
+
+---
+
+## 开发指南
+
+### 常用命令
 
 ```bash
+# 格式化代码
+make fmt
+
+# 静态检查
+make lint
+
+# 运行测试
+make test
+
+# 构建
+make build
+
+# 生成 gRPC 代码
+buf generate
+
+# 生成 SQLC 代码
+sqlc generate
+
+# 重新生成 Wire 代码
+wire ./cmd/grpc
+```
+
+### 添加新字段
+
+1. **更新数据库 Schema**：
+   - 在 `migrations/` 创建新迁移脚本
+   - 更新 `sqlc/schema/` 中的 Schema 定义
+
+2. **更新 SQLC 查询**：
+   - 在 `internal/repositories/sqlc/*.sql` 添加查询
+   - 运行 `sqlc generate`
+
+3. **更新模型**：
+   - 更新 `internal/models/po/video.go`
+   - 更新 `internal/models/vo/video.go`
+
+4. **更新 API**：
+   - 修改 `api/video/v1/*.proto`
+   - 运行 `buf generate`
+
+5. **更新业务逻辑**：
+   - 在 `internal/services/` 添加处理逻辑
+
+### 端到端测试
+
+```bash
+# 运行完整流程测试（创建→更新→验证投影）
 ./test/full_e2e_projection.sh
 ```
 
-脚本成功会输出：
+测试会自动：
+- 启动服务
+- 创建/更新视频
+- 验证 Outbox 事件已发布
+- 检查投影表已更新
+- 清理资源
 
+---
+
+## 生产部署
+
+### 环境变量（必需）
+
+```env
+DATABASE_URL=postgres://...          # 数据库连接
+PUBSUB_PROJECT_ID=production-project # GCP 项目 ID
+PUBSUB_VIDEO_TOPIC=video-events      # Pub/Sub Topic
+SERVICE_NAME=services-catalog
+APP_ENV=production
 ```
-✅ 全链路验证成功：video_id=..., outbox_events=3
-```
 
----
+### 健康检查
 
-## 自定义指南
+服务提供 gRPC Health Check：
 
-1. **模块名 & 依赖**：调整 `go.mod` 后，更新 import 路径与 README。
-2. **新增 API**：同时维护 `api/openapi` 和/或 `api/proto`，并运行 `make lint`。
-3. **数据库扩展**：在 `migrations/` 编写 SQL，同步更新 `internal/models/po` 与 `sqlc` 查询。
-4. **外部客户端**：在 `internal/clients` 创建子包并暴露 Wire Provider，Service 层通过接口注入。
-5. **任务/Outbox**：在 `internal/tasks` 注册消费者，重用 `lingo-utils/outbox` 的 Runner 与配置。
-6. **日志 & Trace**：使用 `lingo-utils/gclog`，确保敏感信息脱敏；通过 OTel 导出追踪与指标。
-
----
-
-## 生产部署提示
-
-- 容器镜像构建直接使用 `cmd/grpc`，通过环境变量注入配置。
-- `DATABASE_URL`、Pub/Sub/Kafka 地址、GCS 凭证等敏感配置建议使用 Secret Manager / Vault。
-- 配合 Cloud Run/GKE 时，可复用模板内的健康检查与优雅停机逻辑。
-- 建议在 CI 中执行：`make fmt lint test` → `buf lint` → 构建镜像 → 部署。
-
----
-
-## 常见问题
-
-**Q: 为什么服务启动时报 `data.postgres.dsn` 校验失败？**  
-A: 模板要求在 `.env`（或环境变量）中设置 `DATABASE_URL`；configloader 会在 protovalidate 前应用覆盖，否则会报错。
-
-**Q: 如何调试 gRPC？**  
-A: 安装 `grpcurl`，例如：
 ```bash
-grpcurl -plaintext -d '{"video_id":"..."}' localhost:9000 video.v1.VideoQueryService/GetVideoDetail
+grpc-health-probe -addr=localhost:9000
 ```
 
-**Q: 如何修改监听端口？**  
-A: 在 `.env` 设置 `PORT=9100`（或任意值）；`full_e2e_projection.sh` 会自动回收占用该端口的旧进程。
+### 监控指标
+
+通过 OpenTelemetry 暴露：
+- `projection_apply_success_total`: 投影事件应用成功次数
+- `projection_apply_failure_total`: 投影事件应用失败次数
+- `projection_event_lag_ms`: 事件延迟（毫秒）
 
 ---
 
-## 参考资源
+## 故障排查
 
+### 问题：投影延迟过高
+
+**检查：**
+1. 查看 `projection_event_lag_ms` 指标
+2. 检查 Pub/Sub 订阅积压：
+   ```bash
+   gcloud pubsub subscriptions describe catalog-projection-sub
+   ```
+
+**解决：**
+- 增加投影消费者实例数
+- 检查数据库性能（是否需要索引）
+
+### 问题：事件未发布到 Pub/Sub
+
+**检查：**
+1. 查询 Outbox 表：
+   ```sql
+   SELECT * FROM catalog.outbox_events WHERE published_at IS NULL;
+   ```
+2. 检查日志是否有发布错误
+
+**解决：**
+- 确认 GCP 凭证配置正确
+- 检查 Pub/Sub Topic 权限
+- 重启 Outbox 后台任务
+
+### 问题：视频状态卡在 processing
+
+**检查：**
+```sql
+SELECT video_id, status, media_status, analysis_status, error_message
+FROM catalog.videos
+WHERE status = 'processing' AND updated_at < NOW() - INTERVAL '1 hour';
+```
+
+**解决：**
+- 检查 Media/AI 服务是否正常回调
+- 查看 `error_message` 字段
+- 手动更新状态或触发重试
+
+---
+
+## 参考文档
+
+- [详细设计文档](./catalog%20design.md)
+- [只读投影方案](./docs/只读投影方案.md)
+- [GCP Pub/Sub 设置](./docs/gcp-pubsub-setup.md)
+- [Pub/Sub 约定](./docs/pubsub-conventions.md)
 - [Go-Kratos 官方文档](https://go-kratos.dev/)
-- [buf.build](https://buf.build/)
-- [lingo-utils](https://github.com/bionicotaku/lingo-utils)（内部复用库：配置、日志、Outbox、JWT 等）
-- [Supabase Postgres](https://supabase.com/)
-- [Google Cloud Pub/Sub Emulator](https://cloud.google.com/pubsub/docs/emulator)
+- [lingo-utils 工具库](https://github.com/bionicotaku/lingo-utils)
 
-如需更多背景与架构说明，可参考根目录 `docs/` 目录或项目概述文档。欢迎基于模板扩展并提交改进建议。祝开发顺利！
+---
+
+## 许可证
+
+内部项目，保留所有权利。

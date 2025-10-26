@@ -1,7 +1,7 @@
 # GCP Pub/Sub 配置落地指南
 
-> 版本：v1.0（2025-10-25）  
-> 适用范围：`kratos-template` Catalog 服务（Outbox 发布 + StreamingPull 投影）  
+> 版本：v1.0（2025-10-25）
+> 适用范围：`services-catalog` Catalog 服务（Outbox 发布 + StreamingPull 投影）
 > 维护人：Catalog Service Team
 
 本文档手把手指导如何在 Google Cloud 上为 Catalog 服务创建 Pub/Sub 资源、绑定 Schema、配置权限，并说明本地 Emulator、配置文件扩展与运维要点。所有命令以 `gcloud` CLI 为例，请在执行前替换示例项目 ID（文中使用 `smiling-landing-472320-q0` 占位）。

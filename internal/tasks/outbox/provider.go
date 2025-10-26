@@ -27,7 +27,7 @@ func ProvideRunner(
 		return nil
 	}
 
-	meter := otel.GetMeterProvider().Meter("kratos-template.outbox")
+	meter := otel.GetMeterProvider().Meter("lingo-services-catalog.outbox")
 	runner, err := outboxpublisher.NewRunner(outboxpublisher.RunnerParams{
 		Store:     repo.Shared(),
 		Publisher: publisher,
