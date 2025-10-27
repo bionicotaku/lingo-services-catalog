@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/errors"
@@ -14,14 +15,14 @@ import (
 
 // EventHandler 处理 Engagement Event，负责写入 catalog.video_user_states。
 type EventHandler struct {
-	repo    *repositories.VideoUserStatesRepository
+	repo    videoUserStatesStore
 	tx      txmanager.Manager
 	log     *log.Helper
 	metrics *metrics
 }
 
 // NewEventHandler 构造 Engagement Event 处理器。
-func NewEventHandler(repo *repositories.VideoUserStatesRepository, tx txmanager.Manager, logger log.Logger, metrics *metrics) *EventHandler {
+func NewEventHandler(repo videoUserStatesStore, tx txmanager.Manager, logger log.Logger, metrics *metrics) *EventHandler {
 	return &EventHandler{
 		repo:    repo,
 		tx:      tx,
@@ -87,3 +88,11 @@ func valueOrDefault(ptr *bool, def bool) bool {
 	}
 	return *ptr
 }
+
+// videoUserStatesStore 定义 Engagement Handler 所需的仓储接口。
+type videoUserStatesStore interface {
+	Get(ctx context.Context, sess txmanager.Session, userID, videoID uuid.UUID) (*po.VideoUserState, error)
+	Upsert(ctx context.Context, sess txmanager.Session, input repositories.UpsertVideoUserStateInput) error
+}
+
+var _ videoUserStatesStore = (*repositories.VideoUserStatesRepository)(nil)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
@@ -21,7 +20,7 @@ type Runner struct {
 // RunnerParams 注入 Runner 所需依赖。
 type RunnerParams struct {
 	Subscriber gcpubsub.Subscriber
-	Repository *repositories.VideoUserStatesRepository
+	Repository videoUserStatesStore
 	TxManager  txmanager.Manager
 	Logger     log.Logger
 }

@@ -41,7 +41,8 @@
 - [x] 扩展 `internal/models/outbox_events` 构造器，覆盖 `video.media_ready` 等事件 payload（2025-10-26 完成）
 - [x] 在 Service 层构建事件并调用 `OutboxRepository.Enqueue`（2025-10-26 完成）
   - [x] 调整 Outbox Runner（`internal/tasks/outbox`）批量参数、logging、metrics；新增 CLI `cmd/tasks/outbox`（2025-10-26：尊重 logging/metrics 开关、输出配置日志，新增独立 Runner CLI）
-- [ ] E2E 测试：创建视频→媒体/AI 回调→发布，确认 Pub/Sub 收到完整事件序列
+- [x] E2E 测试：创建视频→媒体/AI 回调→发布，确认 Pub/Sub 收到完整事件序列
+  - [x] 2025-10-27：完成，使用服务层用例驱动 Outbox Runner+pstest 验证 11 个领域事件按序发布
 
 ## 5. Engagement 投影 Runner
 - [x] 新增 `internal/tasks/engagement`（或同目录）消费 Engagement 事件
@@ -52,9 +53,11 @@
   - [x] 2025-10-27：创建 `engagement.Event` 解码器（兼容 JSON/Proto，含版本校验）
 - [x] 暴露指标 `catalog_engagement_apply_*`, `catalog_engagement_event_lag_ms`
   - [x] 2025-10-27：实现成功/失败计数器、滞后直方图；整合 OTEL Meter
-- [ ] 提供回放/偏移管理方案（可选：测试实现内存 offset）
-  - [ ] 2025-10-28：设计 offsetProvider 接口，可接入持久化（future），当前保留内存实现 + TODO
+- [ ] 提供回放/偏移管理方案（可选：测试实现内存 offset） *(Post-MVP 延后)*
+  - [ ] 2025-10-28：offsetProvider 设计/实现移至 Post-MVP（接口 + Postgres provider + Runner 集成 + 基础测试）
 - [x] 新增 CLI `cmd/tasks/engagement` 并在 README 记录启动方式
+- [x] 集成测试：`internal/tasks/engagement/test/runner_integration_test.go`（模拟 Pub/Sub + PG，覆盖重复/异常场景）
+  - [x] 2025-10-27：完成，使用自定义 Subscriber/TxManager 仿真重复、无效载荷与事务失败路径，覆盖 proto/json 消费
 
 ## 6. 非功能性完善
 - [ ] 日志：统一字段，新增事件日志
@@ -96,3 +99,4 @@
 - [ ] 引入指标 `catalog_idempotency_hits_total`、`catalog_idempotency_conflicts_total`
 - [ ] 设计并创建 `catalog.video_audit_trail` 与相关仓储、指标
 - [ ] 评估 BaseHandler、configloader Provider 等控制器/基础设施抽象统一方案
+- [ ] Engagement offsetProvider：持久化消费位点、回放/多实例策略（承接 TODO §5）
