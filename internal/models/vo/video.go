@@ -41,7 +41,7 @@ func NewVideoCreated(video *po.Video, eventID uuid.UUID, version int64, occurred
 
 // VideoDetail 封装视频只读视图，仅包含 ready/published 状态视频的核心信息。
 // 用于 GetVideoDetail RPC 响应。
-// 数据来源：catalog.video_projection 表
+// 数据来源：catalog.videos 主表
 type VideoDetail struct {
 	VideoID        uuid.UUID `json:"video_id"`
 	Title          string    `json:"title"`

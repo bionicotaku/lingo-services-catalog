@@ -11,13 +11,12 @@ Catalog 服务负责：
 - **视频元数据管理**：维护视频的基础信息、媒体属性、AI分析结果
 - **生命周期协调**：管理视频从上传到发布的状态流转（`pending_upload` → `processing` → `ready` → `published`）
 - **事件驱动集成**：通过 Outbox + GCP Pub/Sub 发布领域事件，供下游服务（Search/Feed/Progress）消费
-- **读写分离**：写入主表 `catalog.videos`，通过投影机制维护只读表 `catalog.video_projection`
 
 **架构特点：**
 - DDD-lite + CQRS + Event Sourcing
 - Kratos 微服务框架 + Wire 依赖注入
 - PostgreSQL (Supabase) + SQLC
-- Outbox Pattern + Projection Consumer
+- Outbox Pattern 驱动下游集成
 - OpenTelemetry 可观测性
 
 ---
@@ -61,7 +60,6 @@ PORT=9000
 # GCP Pub/Sub (可选，不配置则仅输出日志)
 PUBSUB_PROJECT_ID=your-project-id
 PUBSUB_VIDEO_TOPIC=video-events
-PUBSUB_VIDEO_SUBSCRIPTION=catalog-projection-sub
 
 # 可观测性 (可选)
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
@@ -155,7 +153,6 @@ services-catalog/
 │   ├── repositories/       # 数据访问层
 │   │   ├── video_repo.go
 │   │   ├── outbox_repo.go
-│   │   ├── video_projection_repo.go
 │   │   ├── sqlc/           # SQLC 生成代码
 │   │   └── mappers/        # DB 模型映射
 │   ├── models/
@@ -167,13 +164,11 @@ services-catalog/
 │   │   ├── grpc_server/    # gRPC 服务器配置
 │   │   └── grpc_client/    # gRPC 客户端配置
 │   └── tasks/              # 后台任务
-│       ├── outbox/         # Outbox 发布器
-│       └── projection/     # 投影消费者
+│       └── outbox/         # Outbox 发布器
 ├── migrations/             # 数据库迁移脚本
 ├── sqlc/
 │   └── schema/             # SQLC 使用的 Schema 定义
 ├── test/                   # 端到端测试脚本
-│   └── full_e2e_projection.sh
 ├── Makefile                # 常用命令
 ├── buf.yaml                # Buf 配置
 ├── sqlc.yaml               # SQLC 配置
@@ -261,12 +256,6 @@ grpcurl -plaintext \
 - `analysis_status`, `analysis_job_id`, `analysis_emitted_at`
 - `difficulty`, `summary`, `tags[]`, `raw_subtitle_url`
 
-### 只读投影表：catalog.video_projection
-
-仅包含状态为 `ready`/`published` 的视频核心字段，供高性能查询使用。
-
----
-
 ## 事件驱动集成
 
 ### 发布的事件
@@ -281,8 +270,7 @@ grpcurl -plaintext \
 1. Service 层在事务内同时写入业务数据 + Outbox 表
 2. Outbox 后台任务定期扫描未发布的事件
 3. 通过 GCP Pub/Sub 发布到 `video-events` Topic
-4. 投影消费者订阅事件并更新 `video_projection` 表
-5. 其他服务（Search/Feed）也可订阅相同事件
+4. 下游服务（Search/Feed 等）订阅事件并维护各自的读模型
 
 ---
 
@@ -334,22 +322,6 @@ wire ./cmd/grpc
 5. **更新业务逻辑**：
    - 在 `internal/services/` 添加处理逻辑
 
-### 端到端测试
-
-```bash
-# 运行完整流程测试（创建→更新→验证投影）
-./test/full_e2e_projection.sh
-```
-
-测试会自动：
-- 启动服务
-- 创建/更新视频
-- 验证 Outbox 事件已发布
-- 检查投影表已更新
-- 清理资源
-
----
-
 ## 生产部署
 
 ### 环境变量（必需）
@@ -370,29 +342,19 @@ APP_ENV=production
 grpc-health-probe -addr=localhost:9000
 ```
 
+## 故障排查
+
 ### 监控指标
 
-通过 OpenTelemetry 暴露：
-- `projection_apply_success_total`: 投影事件应用成功次数
-- `projection_apply_failure_total`: 投影事件应用失败次数
-- `projection_event_lag_ms`: 事件延迟（毫秒）
+通过 OpenTelemetry 暴露关键指标：
+- `catalog_outbox_publish_success_total` / `_failure_total`
+- `catalog_outbox_publish_latency_ms`
+- `catalog_engagement_apply_success_total` / `_failure_total`
+- `catalog_engagement_event_lag_ms`
 
 ---
 
 ## 故障排查
-
-### 问题：投影延迟过高
-
-**检查：**
-1. 查看 `projection_event_lag_ms` 指标
-2. 检查 Pub/Sub 订阅积压：
-   ```bash
-   gcloud pubsub subscriptions describe catalog-projection-sub
-   ```
-
-**解决：**
-- 增加投影消费者实例数
-- 检查数据库性能（是否需要索引）
 
 ### 问题：事件未发布到 Pub/Sub
 

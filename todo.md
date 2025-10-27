@@ -3,7 +3,7 @@
 > 目标：根据《MVP.md》落地 Catalog 服务 MVP，并准备验收。所有任务按照“架构 → 数据 → 接口 → 业务 → 事件 → 读模型 → 非功能 → 验收”顺序推进。若任务已完成，请在前端勾选并附验证记录；部分任务依赖其他微服务协作时需在备注中标明负责人。
 
 ## 0. 预备检查
-- [ ] 阅读并确认 `AGENTS.md`、`MVP.md`、`只读投影方案.md` 内容一致
+- [ ] 阅读并确认 `AGENTS.md`、`MVP.md` 内容一致（`只读投影方案.md` 已归档）
 - [ ] 与 Upload/Media/AI/Gateway 团队同步接口变更计划（Confluence+Slack）
 - [ ] 更新 `services-catalog/README.md` 标题及简介为 Catalog 服务
 
@@ -32,7 +32,7 @@
    - [x] 输出领域事件并写入 Outbox
      - [x] 2025-10-26：扩展 proto/outbox 以覆盖 `catalog.video.media_ready`、`catalog.video.ai_enriched`、`catalog.video.processing_failed`、`catalog.video.visibility_changed` 并在 Service 层落地（已完成，make lint && make test）
 2. **Query**
-   - [x] 实现 `CatalogQueryService` 使用投影读取（含 Engagement 降级逻辑）
+  - [x] 实现 `CatalogQueryService` 基于主表读取（含 Engagement 降级逻辑）
    - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
    - [x] 集成 `HandlerMetadata` 解析，按用户权限过滤（2025-10-26：服务层从 Context 读取 metadata 校验 user_id，匿名/非法请求统一处理）
    - [x] 2025-10-26：配置 `metadata_keys` 补充 `x-md-actor-type`/`x-md-actor-id` 并在文档中解释来源与用途（已更新 config.yaml、conf.proto、加载器测试）

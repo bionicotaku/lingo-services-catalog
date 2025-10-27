@@ -7,7 +7,5 @@ import "github.com/google/wire"
 var ProviderSet = wire.NewSet(
 	NewVideoRepository,  // ← Video 仓储（基于 sqlc）
 	NewOutboxRepository, // ← Outbox 仓储
-	NewInboxRepository,
-	NewVideoProjectionRepository,
 	NewVideoUserStatesRepository,
 )

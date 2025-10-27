@@ -135,19 +135,6 @@ type CatalogVideo struct {
 	ErrorMessage      pgtype.Text        `json:"error_message"`
 }
 
-// 只读投影：事件驱动维护的视频副本
-type CatalogVideoProjection struct {
-	VideoID        uuid.UUID          `json:"video_id"`
-	Title          string             `json:"title"`
-	Status         po.VideoStatus     `json:"status"`
-	MediaStatus    po.StageStatus     `json:"media_status"`
-	AnalysisStatus po.StageStatus     `json:"analysis_status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	Version        int64              `json:"version"`
-	OccurredAt     pgtype.Timestamptz `json:"occurred_at"`
-}
-
 type CatalogVideoUserState struct {
 	UserID        uuid.UUID          `json:"user_id"`
 	VideoID       uuid.UUID          `json:"video_id"`

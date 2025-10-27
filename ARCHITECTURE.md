@@ -11,7 +11,7 @@
 - **单一写入者**：Catalog 负责 `videos` 表的所有写入；其他服务只能通过 Catalog 端口提交更新。
 - **分层字段**：基础层、媒体层、AI 语义层、可见性层分别由各责任方生产，由 Catalog 聚合。
 - **事件驱动**：所有变更同步写入 Outbox，发布供 Search / Feed / RecSys 消费。
-- **只读投影**：Catalog 对外读流量来自专门的投影进程（`catalog-read`）消费事件构建的 `catalog_read` 视图；Gateway 仅作为反向 RPC 代理，不持久化任何数据。
+- **只读投影**：早期方案曾通过独立投影进程维护 `catalog_read` 视图；当前版本取消该进程，Catalog 直接从主表 `catalog.videos` 读取，后续若需要外部只读副本由下游服务自行维护。
 - **访问控制**：外部经 Gateway；内部写接口仅接受受信服务身份，并要求幂等。
 
 ---
@@ -306,7 +306,7 @@ comment on trigger set_updated_at_on_videos on catalog.videos
 
 ## 4. 服务结构与仓库布局
 
-参考 `kratos-gateway/README.md`，Catalog 读写面分为两个进程：权威写侧（`catalog`）与只读投影消费者（`catalog-read`）。在 monorepo 中对应的目录骨架如下：
+历史版本参考：Catalog 曾将读写面拆分为权威写侧（`catalog`）与只读投影消费者（`catalog-read`）。当前实现仅保留写侧，以下目录结构仅作设计档案参考：
 
 ```text
 services/catalog/
@@ -327,6 +327,7 @@ services/catalog/
 ├── api/openapi             # REST 契约（Spectral lint）
 └── migrations              # Supabase Postgres 迁移脚本
 
+<!-- 历史设计：catalog-read 投影进程在当前版本已移除，以下结构仅保留做参考。 -->
 services/catalog-read/
 ├── cmd/consumer            # StreamingPull 消费入口（订阅 video.events）
 ├── internal
@@ -365,11 +366,11 @@ service CatalogQueryService {
 ```
 
 - `GetVideoMetadata`：返回与用户无关的客观元数据（媒体、AI 字段等），可供 Gateway 或内部服务组合使用。
-- `GetVideoDetail`：返回 `GetVideoMetadataResponse` 全字段，并追加用户态布尔字段 `has_liked`、`has_bookmarked`、`has_watched`；这三项来自 `catalog_read.user_video_projection`（用户 × 视频投影表）按 `(user_id, video_id)` 查询的结果。接口支持 `If-None-Match`，并在内部并行调用 Progress/Profile；若超时或失败返回 `partial=true` 并省略用户态字段，保证详情页可降级展示。
+- `GetVideoDetail`：返回 `GetVideoMetadataResponse` 全字段，并追加用户态布尔字段 `has_liked`、`has_bookmarked`、`has_watched`；这些字段来自 `catalog.video_user_states` 投影。接口支持 `If-None-Match`，并在内部并行调用 Progress/Profile；若超时或失败返回 `partial=true` 并省略用户态字段，保证详情页可降级展示。
 - `ListUserPublicVideos`：过滤 `status=published`，未来扩展 `visibility_status=public` 时保持契约不变；提供游标与 `Link` 风格信息。
 - `ListMyUploads`：校验 `user_id`，返回所有状态及处理进度，默认按 `created_at desc` 排序，可携带 `stage_filter` 参数筛选。
 
-> 注意：公开 REST（`/api/v1/video*`）由 Gateway 反向代理到 `CatalogQueryService`，实际读数据来自独立的 `catalog_read` 投影；Gateway 本身不持久化数据。若投影滞后，可临时回退到主库读取，但需记录审计并尽快恢复投影。
+> 注意：当前实现直接访问 Catalog 主库；`catalog_read` 投影流程已停用，以下描述保留作未来扩展参考。
 
 ### 5.2 `CatalogLifecycleService`
 
@@ -461,14 +462,11 @@ service CatalogAdminService {
 - 发布消息时使用 `aggregate_id` 作为 **ordering key**，携带 `event_id`、`trace_id`、`occurred_at`、`version`、`actor` 等元数据，payload 按 `kratos-gateway/只读投影方案.md` 约定的 Protobuf schema 序列化。
 - 实现细节（退避参数、Exactly-once、DLQ、监控指标）统一复用《只读投影方案》中的参考实现，Catalog 服务无需单独定制。
 
-### 6.2 CatalogRead 投影（StreamingPull）
+### 6.2 读模型策略
 
-- 独立的 `catalog-read` 进程以 StreamingPull 方式消费 `video.events`，事务内执行两步：先向 `catalog_read.inbox(event_id)` 插入去重记录，再对 `catalog_read.video_projection` 做 `UPSERT ... WHERE version < EXCLUDED.version`，保持读模型最新。
-- 投影表存储对外 REST 所需字段（video_id、title、duration、thumbnail、visibility、publish_time、analysis 摘要等）以及事件版本号，便于回放与一致性校验。DDL、索引与回放流程沿用《只读投影方案》4.2 节的实现。
-- 额外维护 `catalog_read.user_video_projection`（主键 `(user_id, video_id)`），由 Engagement 事件流驱动写入，字段包含 `has_liked`、`has_bookmarked`、`has_watched` 以及事件版本；`GetVideoDetail` 在读取视频投影后同步查询该表，组合出用户态布尔字段。
-- 进程运行于 Catalog 服务侧（或独立部署），Gateway 仅负责将用户请求反向代理至 `CatalogQueryService`，后者读取 `catalog_read` 投影响应用户。
-- 消费成功后才 Ack，暂时错误保持未 Ack 以便 Pub/Sub 重投；Poison 消息依赖订阅配置的 Dead-letter Topic。`catalog-read` 暴露 `catalog_projection_lag_seconds` 等指标用于监控。
-- 如投影滞后或失效，可临时回退到主库读取，但需记录审计、触发告警，并尽快恢复事件消费。
+- 当前版本取消 Catalog 内部的 `catalog-read` 投影进程，所有读流量直接访问主表 `catalog.videos` 并结合 `catalog.video_user_states` 投影聚合用户态字段。
+- Outbox 事件仍持续发布，Search / Feed / Progress 等下游服务可根据自身诉求消费事件构建各自读模型。
+- 若后续需要恢复集中式投影，可在新进程中复用现有 Outbox 事件与 `video_user_states` 表设计，独立部署并提供只读接口。
 
 ---
 
@@ -500,7 +498,7 @@ service CatalogAdminService {
 
 ### 7.5 Gateway → Catalog
 
-- Gateway 作为纯反向代理，将外部 REST `/api/v1/video*` 请求转换为 gRPC 调用 `CatalogQueryService`，响应体在 Catalog 侧基于 `catalog_read` 投影生成，并遵循 Problem Details / ETag / 游标规范。
+- Gateway 作为纯反向代理，将外部 REST `/api/v1/video*` 请求转换为 gRPC 调用 `CatalogQueryService`，响应体由 Catalog 基于主库数据组装，并遵循 Problem Details / ETag / 游标规范。
 - 投影异常时，可在 Catalog 内部回退到主库或其他兜底路径，Gateway 无需感知；所有回退与降级需在 Catalog 侧记录审计并暴露告警。
 
 ### 7.6 Feed / Search / RecSys → Catalog
@@ -518,7 +516,7 @@ service CatalogAdminService {
 | 超时     | 外部调用（Engagement、数据库）设置 `<500ms` 超时；Lifecycle 请求整体超时 `3s`。                                                                                                                                    |
 | 日志     | 使用 `log/slog` JSON，字段：`ts`, `level`, `msg`, `trace_id`, `video_id`, `status`, `actor`。                                                                                                                      |
 | 追踪     | OpenTelemetry span，如 `Catalog.RegisterUpload`，记录 `status`, `video_id`, `error`。                                                                                                                              |
-| 指标     | 暴露 `catalog_processing_status_total`, `catalog_visibility_change_total`, `catalog_outbox_lag_seconds`, `catalog_idempotency_hits_total`；`catalog-read` 进程追加 `catalog_projection_lag_seconds` 监控投影延迟。 |
+| 指标     | 暴露 `catalog_processing_status_total`, `catalog_visibility_change_total`, `catalog_outbox_lag_seconds`, `catalog_idempotency_hits_total`, `catalog_engagement_event_lag_ms` 等核心指标。 |
 | 安全     | gRPC 双向 TLS + OIDC 服务鉴权；只读接口支持用户 JWT（Gateway 透传）。                                                                                                                                              |
 | 配额     | `RegisterUpload` 前调用 `QuotaChecker`；超限返回 429。                                                                                                                                                             |
 | 审计     | 所有状态变更写入 `video_audit_trail`，提供 Admin 查询接口。                                                                                                                                                        |

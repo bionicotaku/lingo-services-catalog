@@ -46,7 +46,7 @@ func main() {
 		return
 	}
 
-	helper.Info("starting engagement projection task")
+	helper.Info("starting engagement runner")
 
 	runCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -56,5 +56,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	helper.Info("engagement projection task stopped")
+	helper.Info("engagement runner stopped")
 }

@@ -71,8 +71,8 @@ type Video struct {
 	ErrorMessage      *string     // 最近一次失败/拒绝原因
 }
 
-// VideoReadyView 表示 catalog.video_projection 表的数据实体。
-// 只包含状态为 ready/published 的视频的核心字段。
+// VideoReadyView 表示从 catalog.videos 主表读取的只读视图。
+// 仅携带展示层所需字段，限制状态在 ready/published 范围。
 type VideoReadyView struct {
 	VideoID        uuid.UUID   // 主键
 	Title          string      // 标题

@@ -10,7 +10,6 @@ import (
 
 	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
-	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/projection"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
 	"github.com/go-kratos/kratos/v2"
@@ -35,7 +34,6 @@ func newApp(
 	gs *grpc.Server,
 	meta configloader.ServiceInfo,
 	publisher *outboxpublisher.Runner,
-	projectionTask *projection.Task,
 	engagementRunner *engagement.Runner,
 ) *kratos.App {
 	options := []kratos.Option{
@@ -55,9 +53,6 @@ func newApp(
 	var workers []worker
 	if publisher != nil {
 		workers = append(workers, worker{name: "outbox publisher", run: publisher.Run})
-	}
-	if projectionTask != nil {
-		workers = append(workers, worker{name: "projection consumer", run: projectionTask.Run})
 	}
 	if engagementRunner != nil {
 		workers = append(workers, worker{name: "engagement consumer", run: engagementRunner.Run})

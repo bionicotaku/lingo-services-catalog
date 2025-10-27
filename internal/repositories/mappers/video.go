@@ -103,19 +103,6 @@ func VideoReadyViewFromFindRow(v catalogsql.FindVideoByIDRow) *po.VideoReadyView
 	}
 }
 
-// VideoReadyViewFromListRow 将 ListReadyVideosForTest 查询结果转换为 po.VideoReadyView。
-func VideoReadyViewFromListRow(v catalogsql.ListReadyVideosForTestRow) *po.VideoReadyView {
-	return &po.VideoReadyView{
-		VideoID:        v.VideoID,
-		Title:          v.Title,
-		Status:         po.VideoStatus(v.Status),
-		MediaStatus:    po.StageStatus(v.MediaStatus),
-		AnalysisStatus: po.StageStatus(v.AnalysisStatus),
-		CreatedAt:      mustTimestamp(v.CreatedAt),
-		UpdatedAt:      mustTimestamp(v.UpdatedAt),
-	}
-}
-
 func mustTimestamp(ts pgtype.Timestamptz) time.Time {
 	if !ts.Valid {
 		return time.Time{}

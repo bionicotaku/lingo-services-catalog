@@ -14,7 +14,6 @@ import (
 )
 
 const findVideoByID = `-- name: FindVideoByID :one
-
 SELECT
     video_id,
     title,
@@ -23,7 +22,7 @@ SELECT
     analysis_status,
     created_at,
     updated_at
-FROM catalog.video_projection
+FROM catalog.videos
 WHERE video_id = $1
   AND status IN ('ready', 'published')
 `
@@ -38,8 +37,6 @@ type FindVideoByIDRow struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
-// Video 只读投影查询相关 SQL
-// 根据 video_id 从投影表查询视频详情（仅返回 ready/published 状态的视频）
 func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (FindVideoByIDRow, error) {
 	row := q.db.QueryRow(ctx, findVideoByID, videoID)
 	var i FindVideoByIDRow
@@ -100,58 +97,6 @@ func (q *Queries) ListPublicVideos(ctx context.Context, arg ListPublicVideosPara
 	items := []ListPublicVideosRow{}
 	for rows.Next() {
 		var i ListPublicVideosRow
-		if err := rows.Scan(
-			&i.VideoID,
-			&i.Title,
-			&i.Status,
-			&i.MediaStatus,
-			&i.AnalysisStatus,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listReadyVideosForTest = `-- name: ListReadyVideosForTest :many
-SELECT
-    video_id,
-    title,
-    status,
-    media_status,
-    analysis_status,
-    created_at,
-    updated_at
-FROM catalog.video_projection
-WHERE status IN ('ready', 'published')
-ORDER BY created_at DESC
-`
-
-type ListReadyVideosForTestRow struct {
-	VideoID        uuid.UUID          `json:"video_id"`
-	Title          string             `json:"title"`
-	Status         po.VideoStatus     `json:"status"`
-	MediaStatus    po.StageStatus     `json:"media_status"`
-	AnalysisStatus po.StageStatus     `json:"analysis_status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-}
-
-func (q *Queries) ListReadyVideosForTest(ctx context.Context) ([]ListReadyVideosForTestRow, error) {
-	rows, err := q.db.Query(ctx, listReadyVideosForTest)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListReadyVideosForTestRow{}
-	for rows.Next() {
-		var i ListReadyVideosForTestRow
 		if err := rows.Scan(
 			&i.VideoID,
 			&i.Title,

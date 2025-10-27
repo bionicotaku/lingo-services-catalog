@@ -297,32 +297,6 @@ func TestVideoReadyViewFromFindRow(t *testing.T) {
 	assert.True(t, now.Equal(view.UpdatedAt))
 }
 
-func TestVideoReadyViewFromListRow(t *testing.T) {
-	now := time.Now().UTC()
-	videoID := uuid.New()
-
-	row := catalogsql.ListReadyVideosForTestRow{
-		VideoID:        videoID,
-		Title:          "Test Video",
-		Status:         po.VideoStatusPublished,
-		MediaStatus:    po.StageReady,
-		AnalysisStatus: po.StageReady,
-		CreatedAt:      pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:      pgtype.Timestamptz{Time: now, Valid: true},
-	}
-
-	view := mappers.VideoReadyViewFromListRow(row)
-
-	require.NotNil(t, view)
-	assert.Equal(t, videoID, view.VideoID)
-	assert.Equal(t, "Test Video", view.Title)
-	assert.Equal(t, po.VideoStatusPublished, view.Status)
-	assert.Equal(t, po.StageReady, view.MediaStatus)
-	assert.Equal(t, po.StageReady, view.AnalysisStatus)
-	assert.True(t, now.Equal(view.CreatedAt))
-	assert.True(t, now.Equal(view.UpdatedAt))
-}
-
 func TestToPgText(t *testing.T) {
 	t.Run("non-nil string", func(t *testing.T) {
 		value := "test"

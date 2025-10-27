@@ -114,7 +114,7 @@ func (x *GetVideoDetailResponse) GetDetail() *VideoDetail {
 }
 
 // VideoDetail 只读视图，仅包含 ready/published 状态视频的核心字段。
-// 数据来源：catalog.video_projection 表
+// 数据来源：catalog.videos 主表以及 engagement 投影
 type VideoDetail struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`                      // 视频 ID
