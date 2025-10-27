@@ -98,6 +98,27 @@ func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
 	}
 }
 
+// VideoMetadataFromRow 将 sqlc GetVideoMetadataRow 转换为元数据实体。
+func VideoMetadataFromRow(row catalogsql.GetVideoMetadataRow) *po.VideoMetadata {
+	return &po.VideoMetadata{
+		VideoID:           row.VideoID,
+		Status:            row.Status,
+		MediaStatus:       row.MediaStatus,
+		AnalysisStatus:    row.AnalysisStatus,
+		DurationMicros:    int8Ptr(row.DurationMicros),
+		EncodedResolution: textPtr(row.EncodedResolution),
+		EncodedBitrate:    int4Ptr(row.EncodedBitrate),
+		ThumbnailURL:      textPtr(row.ThumbnailUrl),
+		HLSMasterPlaylist: textPtr(row.HlsMasterPlaylist),
+		Difficulty:        textPtr(row.Difficulty),
+		Summary:           textPtr(row.Summary),
+		Tags:              append([]string(nil), row.Tags...),
+		RawSubtitleURL:    textPtr(row.RawSubtitleUrl),
+		UpdatedAt:         mustTimestamp(row.UpdatedAt),
+		Version:           row.Version,
+	}
+}
+
 // VideoReadyViewFromFindRow 将 FindVideoByID 查询结果转换为 po.VideoReadyView。
 func VideoReadyViewFromFindRow(v catalogsql.FindVideoByIDRow) *po.VideoReadyView {
 	return &po.VideoReadyView{

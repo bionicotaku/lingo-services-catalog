@@ -26,6 +26,23 @@ func NewVideoQueryHandler(svc *services.VideoQueryService, base *BaseHandler) *V
 	return &VideoQueryHandler{BaseHandler: base, svc: svc}
 }
 
+// GetVideoMetadata 返回独立的媒体/AI 元数据。
+func (h *VideoQueryHandler) GetVideoMetadata(ctx context.Context, req *videov1.GetVideoMetadataRequest) (*videov1.GetVideoMetadataResponse, error) {
+	videoID, err := dto.ParseVideoID(req.GetVideoId())
+	if err != nil {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), err.Error())
+	}
+
+	timeoutCtx, cancel := h.WithTimeout(ctx, HandlerTypeQuery)
+	defer cancel()
+
+	meta, err := h.svc.GetVideoMetadata(timeoutCtx, videoID)
+	if err != nil {
+		return nil, err
+	}
+	return dto.NewGetVideoMetadataResponse(meta), nil
+}
+
 // GetVideoDetail 实现 VideoQueryService.GetVideoDetail RPC。
 func (h *VideoQueryHandler) GetVideoDetail(ctx context.Context, req *videov1.GetVideoDetailRequest) (*videov1.GetVideoDetailResponse, error) {
 	videoID, err := dto.ParseVideoID(req.GetVideoId())
@@ -39,11 +56,11 @@ func (h *VideoQueryHandler) GetVideoDetail(ctx context.Context, req *videov1.Get
 
 	timeoutCtx = InjectHandlerMetadata(timeoutCtx, meta)
 
-	detail, err := h.svc.GetVideoDetail(timeoutCtx, videoID)
+	detail, metadata, err := h.svc.GetVideoDetail(timeoutCtx, videoID)
 	if err != nil {
 		return nil, err
 	}
-	return dto.NewGetVideoDetailResponse(detail), nil
+	return dto.NewGetVideoDetailResponse(detail, metadata), nil
 }
 
 // ListUserPublicVideos 实现公共视频列表查询。
@@ -73,7 +90,16 @@ func (h *VideoQueryHandler) ListMyUploads(ctx context.Context, req *videov1.List
 
 	timeoutCtx = InjectHandlerMetadata(timeoutCtx, meta)
 
-	items, nextToken, svcErr := h.svc.ListMyUploads(timeoutCtx, req.GetPageSize(), req.GetPageToken(), req.GetStatusFilter())
+	statuses, err := dto.ParseStatusFilters(req.GetStatusFilter())
+	if err != nil {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), err.Error())
+	}
+	stages, err := dto.ParseStageFilters(req.GetStageFilter())
+	if err != nil {
+		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), err.Error())
+	}
+
+	items, nextToken, svcErr := h.svc.ListMyUploads(timeoutCtx, req.GetPageSize(), req.GetPageToken(), statuses, stages)
 	if svcErr != nil {
 		return nil, svcErr
 	}

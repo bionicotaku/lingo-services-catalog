@@ -26,6 +26,25 @@ const (
 	VideoStatusArchived      VideoStatus = "archived"       // 主动归档或长期下架
 )
 
+// VideoMetadata 表示主表中的媒体/AI 元数据快照。
+type VideoMetadata struct {
+	VideoID           uuid.UUID
+	Status            VideoStatus
+	MediaStatus       StageStatus
+	AnalysisStatus    StageStatus
+	DurationMicros    *int64
+	EncodedResolution *string
+	EncodedBitrate    *int32
+	ThumbnailURL      *string
+	HLSMasterPlaylist *string
+	Difficulty        *string
+	Summary           *string
+	Tags              []string
+	RawSubtitleURL    *string
+	UpdatedAt         time.Time
+	Version           int64
+}
+
 // StageStatus 表示分阶段执行状态。
 // 对应数据库枚举类型 catalog.stage_status。
 type StageStatus string

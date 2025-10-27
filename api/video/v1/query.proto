@@ -8,9 +8,18 @@ import "buf/validate/validate.proto";
 
 // CatalogQueryService 提供视频只读查询能力。
 service CatalogQueryService {
+  rpc GetVideoMetadata(GetVideoMetadataRequest) returns (GetVideoMetadataResponse);
   rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
   rpc ListUserPublicVideos(ListUserPublicVideosRequest) returns (ListUserPublicVideosResponse);
   rpc ListMyUploads(ListMyUploadsRequest) returns (ListMyUploadsResponse);
+}
+
+message GetVideoMetadataRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetVideoMetadataResponse {
+  VideoMetadata metadata = 1;
 }
 
 message GetVideoDetailRequest {
@@ -19,6 +28,7 @@ message GetVideoDetailRequest {
 
 message GetVideoDetailResponse {
   VideoDetail detail = 1;
+  VideoMetadata metadata = 2;
 }
 
 message VideoDetail {
@@ -34,6 +44,23 @@ message VideoDetail {
   bool has_watched = 10;
 }
 
+message VideoMetadata {
+  string status = 1;
+  string media_status = 2;
+  string analysis_status = 3;
+  int64 duration_micros = 4;
+  string encoded_resolution = 5;
+  int32 encoded_bitrate = 6;
+  string thumbnail_url = 7;
+  string hls_master_playlist = 8;
+  string difficulty = 9;
+  string summary = 10;
+  repeated string tags = 11;
+  string raw_subtitle_url = 12;
+  string updated_at = 13;
+  int64 version = 14;
+}
+
 message ListUserPublicVideosRequest {
   int32 page_size = 1;
   string page_token = 2;
@@ -47,7 +74,21 @@ message ListUserPublicVideosResponse {
 message ListMyUploadsRequest {
   int32 page_size = 1;
   string page_token = 2;
-  repeated string status_filter = 3;
+  repeated string status_filter = 3 [(buf.validate.field).repeated.items.string = {in: [
+    "pending_upload",
+    "processing",
+    "ready",
+    "published",
+    "failed",
+    "rejected",
+    "archived"
+  ]}];
+  repeated string stage_filter = 4 [(buf.validate.field).repeated.items.string = {in: [
+    "pending",
+    "processing",
+    "ready",
+    "failed"
+  ]}];
 }
 
 message ListMyUploadsResponse {

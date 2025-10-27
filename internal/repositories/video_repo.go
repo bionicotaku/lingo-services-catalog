@@ -87,6 +87,7 @@ type ListUserUploadsInput struct {
 	CursorCreatedAt *time.Time
 	CursorVideoID   *uuid.UUID
 	StatusFilter    []po.VideoStatus
+	StageFilter     []po.StageStatus
 }
 
 // Create 创建新视频记录，video_id 由数据库自动生成。
@@ -195,6 +196,24 @@ func (r *VideoRepository) GetByID(ctx context.Context, sess txmanager.Session, v
 	return mappers.VideoFromCatalog(record), nil
 }
 
+// GetMetadata 返回视频的媒体/AI 元数据。
+func (r *VideoRepository) GetMetadata(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoMetadata, error) {
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	row, err := queries.GetVideoMetadata(ctx, videoID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrVideoNotFound
+		}
+		r.log.WithContext(ctx).Errorf("get video metadata failed: video_id=%s err=%v", videoID, err)
+		return nil, fmt.Errorf("get video metadata: %w", err)
+	}
+	return mappers.VideoMetadataFromRow(row), nil
+}
+
 // ListPublicVideos 返回公开可见的视频列表。
 func (r *VideoRepository) ListPublicVideos(ctx context.Context, sess txmanager.Session, input ListPublicVideosInput) ([]po.VideoListEntry, error) {
 	queries := r.queries
@@ -257,6 +276,7 @@ func (r *VideoRepository) ListUserUploads(ctx context.Context, sess txmanager.Se
 	params := catalogsql.ListUserUploadsParams{
 		UploadUserID:    input.UploadUserID,
 		StatusFilter:    toStatusFilter(input.StatusFilter),
+		StageFilter:     toStageFilter(input.StageFilter),
 		CursorCreatedAt: cursorCreated,
 		CursorVideoID:   toPgUUID(input.CursorVideoID),
 		Limit:           limit,
@@ -311,6 +331,17 @@ func toPgUUID(id *uuid.UUID) pgtype.UUID {
 }
 
 func toStatusFilter(filter []po.VideoStatus) interface{} {
+	if len(filter) == 0 {
+		return nil
+	}
+	result := make([]string, len(filter))
+	for i, s := range filter {
+		result[i] = string(s)
+	}
+	return result
+}
+
+func toStageFilter(filter []po.StageStatus) interface{} {
 	if len(filter) == 0 {
 		return nil
 	}

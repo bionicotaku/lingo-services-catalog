@@ -179,6 +179,10 @@ func (s *videoRepoStub) FindByID(_ context.Context, _ txmanager.Session, _ uuid.
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (s *videoRepoStub) GetMetadata(_ context.Context, _ txmanager.Session, _ uuid.UUID) (*po.VideoMetadata, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
 func (s *videoRepoStub) ListPublicVideos(_ context.Context, _ txmanager.Session, _ repositories.ListPublicVideosInput) ([]po.VideoListEntry, error) {
 	return nil, nil
 }

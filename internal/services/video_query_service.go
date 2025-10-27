@@ -23,6 +23,7 @@ import (
 // VideoQueryRepo 定义读模型所需的访问接口。
 type VideoQueryRepo interface {
 	FindByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error)
+	GetMetadata(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoMetadata, error)
 	ListPublicVideos(ctx context.Context, sess txmanager.Session, input repositories.ListPublicVideosInput) ([]po.VideoListEntry, error)
 	ListUserUploads(ctx context.Context, sess txmanager.Session, input repositories.ListUserUploadsInput) ([]po.MyUploadEntry, error)
 }
@@ -45,23 +46,50 @@ func NewVideoQueryService(repo VideoQueryRepo, userState *repositories.VideoUser
 	}
 }
 
+// GetVideoMetadata 查询视频的媒体/AI 元数据。
+func (s *VideoQueryService) GetVideoMetadata(ctx context.Context, videoID uuid.UUID) (*vo.VideoMetadata, error) {
+	var record *po.VideoMetadata
+	err := s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
+		var repoErr error
+		record, repoErr = s.repo.GetMetadata(txCtx, sess, videoID)
+		return repoErr
+	})
+	if err != nil {
+		if errors.Is(err, repositories.ErrVideoNotFound) {
+			return nil, ErrVideoNotFound
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			s.log.WithContext(ctx).Warnf("get video metadata timeout: video_id=%s", videoID)
+			return nil, errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "query timeout")
+		}
+		s.log.WithContext(ctx).Errorf("get video metadata failed: video_id=%s err=%v", videoID, err)
+		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to query video metadata").WithCause(fmt.Errorf("get video metadata: %w", err))
+	}
+	return vo.NewVideoMetadataFromPO(record), nil
+}
+
 // GetVideoDetail 查询视频详情（优先使用投影表）。
-func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (*vo.VideoDetail, error) {
+func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUID) (*vo.VideoDetail, *vo.VideoMetadata, error) {
 	var (
-		videoView *po.VideoReadyView
-		state     *po.VideoUserState
+		videoView   *po.VideoReadyView
+		state       *po.VideoUserState
+		metadataRow *po.VideoMetadata
 	)
 	var userID *uuid.UUID
 	if meta, ok := metadata.FromContext(ctx); ok {
 		if parsed, ok := meta.UserUUID(); ok {
 			userID = &parsed
 		} else if strings.TrimSpace(meta.UserID) != "" {
-			return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "invalid user id metadata")
+			return nil, nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_ID_INVALID.String(), "invalid user id metadata")
 		}
 	}
 	err := s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
 		var repoErr error
 		videoView, repoErr = s.repo.FindByID(txCtx, sess, videoID)
+		if repoErr != nil {
+			return repoErr
+		}
+		metadataRow, repoErr = s.repo.GetMetadata(txCtx, sess, videoID)
 		if repoErr != nil {
 			return repoErr
 		}
@@ -76,27 +104,27 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 	})
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
-			return nil, ErrVideoNotFound
+			return nil, nil, ErrVideoNotFound
 		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			s.log.WithContext(ctx).Warnf("get video detail timeout: video_id=%s", videoID)
-			return nil, errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "query timeout")
+			return nil, nil, errors.GatewayTimeout(videov1.ErrorReason_ERROR_REASON_QUERY_TIMEOUT.String(), "query timeout")
 		}
 		s.log.WithContext(ctx).Errorf("get video detail failed: video_id=%s err=%v", videoID, err)
-		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to query video").WithCause(fmt.Errorf("find video by id: %w", err))
+		return nil, nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to query video").WithCause(fmt.Errorf("find video by id: %w", err))
 	}
 
 	s.log.WithContext(ctx).Debugf("GetVideoDetail: video_id=%s, status=%s", videoView.VideoID, videoView.Status)
 	detail := vo.NewVideoDetail(videoView)
 	if detail == nil {
-		return nil, ErrVideoNotFound
+		return nil, nil, ErrVideoNotFound
 	}
 	if state != nil {
 		detail.HasLiked = state.HasLiked
 		detail.HasBookmarked = state.HasBookmarked
 		detail.HasWatched = state.HasWatched
 	}
-	return detail, nil
+	return detail, vo.NewVideoMetadataFromPO(metadataRow), nil
 }
 
 // ListUserPublicVideos 返回公开视频列表。
@@ -152,7 +180,7 @@ func (s *VideoQueryService) ListUserPublicVideos(ctx context.Context, pageSize i
 }
 
 // ListMyUploads 返回用户上传列表。
-func (s *VideoQueryService) ListMyUploads(ctx context.Context, pageSize int32, pageToken string, statusFilter []string) ([]vo.MyUploadListItem, string, error) {
+func (s *VideoQueryService) ListMyUploads(ctx context.Context, pageSize int32, pageToken string, statusFilter []po.VideoStatus, stageFilter []po.StageStatus) ([]vo.MyUploadListItem, string, error) {
 	meta, _ := metadata.FromContext(ctx)
 	rawUserID := strings.TrimSpace(meta.UserID)
 	if rawUserID == "" {
@@ -167,15 +195,12 @@ func (s *VideoQueryService) ListMyUploads(ctx context.Context, pageSize int32, p
 	if err != nil {
 		return nil, "", errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "invalid page_token")
 	}
-	statusFilterEnum, err := parseStatusFilter(statusFilter)
-	if err != nil {
-		return nil, "", err
-	}
 
 	input := repositories.ListUserUploadsInput{
 		UploadUserID: userID,
 		Limit:        limit + 1,
-		StatusFilter: statusFilterEnum,
+		StatusFilter: statusFilter,
+		StageFilter:  stageFilter,
 	}
 	if cursor != nil {
 		input.CursorCreatedAt = &cursor.CreatedAt
@@ -252,21 +277,4 @@ func decodeCursor(token string) (*pageCursor, error) {
 		return nil, err
 	}
 	return &cursor, nil
-}
-
-func parseStatusFilter(values []string) ([]po.VideoStatus, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-	result := make([]po.VideoStatus, 0, len(values))
-	for _, val := range values {
-		s := po.VideoStatus(strings.ToLower(strings.TrimSpace(val)))
-		switch s {
-		case po.VideoStatusPendingUpload, po.VideoStatusProcessing, po.VideoStatusReady, po.VideoStatusPublished, po.VideoStatusFailed, po.VideoStatusRejected, po.VideoStatusArchived:
-			result = append(result, s)
-		default:
-			return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), fmt.Sprintf("invalid status filter: %s", val))
-		}
-	}
-	return result, nil
 }

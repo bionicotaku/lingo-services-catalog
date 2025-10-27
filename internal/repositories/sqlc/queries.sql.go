@@ -52,6 +52,68 @@ func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (FindVid
 	return i, err
 }
 
+const getVideoMetadata = `-- name: GetVideoMetadata :one
+SELECT
+    video_id,
+    status,
+    media_status,
+    analysis_status,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    raw_subtitle_url,
+    updated_at,
+    version
+FROM catalog.videos
+WHERE video_id = $1
+`
+
+type GetVideoMetadataRow struct {
+	VideoID           uuid.UUID          `json:"video_id"`
+	Status            po.VideoStatus     `json:"status"`
+	MediaStatus       po.StageStatus     `json:"media_status"`
+	AnalysisStatus    po.StageStatus     `json:"analysis_status"`
+	DurationMicros    pgtype.Int8        `json:"duration_micros"`
+	EncodedResolution pgtype.Text        `json:"encoded_resolution"`
+	EncodedBitrate    pgtype.Int4        `json:"encoded_bitrate"`
+	ThumbnailUrl      pgtype.Text        `json:"thumbnail_url"`
+	HlsMasterPlaylist pgtype.Text        `json:"hls_master_playlist"`
+	Difficulty        pgtype.Text        `json:"difficulty"`
+	Summary           pgtype.Text        `json:"summary"`
+	Tags              []string           `json:"tags"`
+	RawSubtitleUrl    pgtype.Text        `json:"raw_subtitle_url"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	Version           int64              `json:"version"`
+}
+
+func (q *Queries) GetVideoMetadata(ctx context.Context, videoID uuid.UUID) (GetVideoMetadataRow, error) {
+	row := q.db.QueryRow(ctx, getVideoMetadata, videoID)
+	var i GetVideoMetadataRow
+	err := row.Scan(
+		&i.VideoID,
+		&i.Status,
+		&i.MediaStatus,
+		&i.AnalysisStatus,
+		&i.DurationMicros,
+		&i.EncodedResolution,
+		&i.EncodedBitrate,
+		&i.ThumbnailUrl,
+		&i.HlsMasterPlaylist,
+		&i.Difficulty,
+		&i.Summary,
+		&i.Tags,
+		&i.RawSubtitleUrl,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const listPublicVideos = `-- name: ListPublicVideos :many
 SELECT
     video_id,
@@ -135,16 +197,23 @@ WHERE upload_user_id = $1
       )
   AND (
         $3 IS NULL
-        OR created_at < $3
-        OR (created_at = $3 AND video_id < $4)
+        OR cardinality($3) = 0
+        OR media_status = ANY($3)
+        OR analysis_status = ANY($3)
+      )
+  AND (
+        $4 IS NULL
+        OR created_at < $4
+        OR (created_at = $4 AND video_id < $5)
       )
 ORDER BY created_at DESC, video_id DESC
-LIMIT $5
+LIMIT $6
 `
 
 type ListUserUploadsParams struct {
 	UploadUserID    uuid.UUID   `json:"upload_user_id"`
 	StatusFilter    interface{} `json:"status_filter"`
+	StageFilter     interface{} `json:"stage_filter"`
 	CursorCreatedAt interface{} `json:"cursor_created_at"`
 	CursorVideoID   pgtype.UUID `json:"cursor_video_id"`
 	Limit           int32       `json:"limit"`
@@ -165,6 +234,7 @@ func (q *Queries) ListUserUploads(ctx context.Context, arg ListUserUploadsParams
 	rows, err := q.db.Query(ctx, listUserUploads,
 		arg.UploadUserID,
 		arg.StatusFilter,
+		arg.StageFilter,
 		arg.CursorCreatedAt,
 		arg.CursorVideoID,
 		arg.Limit,

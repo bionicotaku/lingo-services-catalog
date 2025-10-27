@@ -32,10 +32,11 @@
    - [x] 输出领域事件并写入 Outbox
      - [x] 2025-10-26：扩展 proto/outbox 以覆盖 `catalog.video.media_ready`、`catalog.video.ai_enriched`、`catalog.video.processing_failed`、`catalog.video.visibility_changed` 并在 Service 层落地（已完成，make lint && make test）
 2. **Query**
-  - [x] 实现 `CatalogQueryService` 基于主表读取（含 Engagement 降级逻辑）
-   - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
-   - [x] 集成 `HandlerMetadata` 解析，按用户权限过滤（2025-10-26：服务层从 Context 读取 metadata 校验 user_id，匿名/非法请求统一处理）
-   - [x] 2025-10-26：配置 `metadata_keys` 补充 `x-md-actor-type`/`x-md-actor-id` 并在文档中解释来源与用途（已更新 config.yaml、conf.proto、加载器测试）
+ - [x] 实现 `CatalogQueryService` 基于主表读取（含 Engagement 降级逻辑）
+  - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
+  - [x] 集成 `HandlerMetadata` 解析，按用户权限过滤（2025-10-26：服务层从 Context 读取 metadata 校验 user_id，匿名/非法请求统一处理）
+  - [x] 2025-10-26：配置 `metadata_keys` 补充 `x-md-actor-type`/`x-md-actor-id` 并在文档中解释来源与用途（已更新 config.yaml、conf.proto、加载器测试）
+  - [x] 2025-10-27：补齐仓储集成测试覆盖分页与过滤（`ListPublicVideos`、`ListUserUploads`、`GetMetadata`），并通过 `make lint` + `go test ./...`
 
 ## 4. 事件构建与 Outbox Runner
 - [x] 扩展 `internal/models/outbox_events` 构造器，覆盖 `video.media_ready` 等事件 payload（2025-10-26 完成）

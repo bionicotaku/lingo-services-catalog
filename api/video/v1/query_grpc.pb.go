@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	CatalogQueryService_GetVideoMetadata_FullMethodName     = "/video.v1.CatalogQueryService/GetVideoMetadata"
 	CatalogQueryService_GetVideoDetail_FullMethodName       = "/video.v1.CatalogQueryService/GetVideoDetail"
 	CatalogQueryService_ListUserPublicVideos_FullMethodName = "/video.v1.CatalogQueryService/ListUserPublicVideos"
 	CatalogQueryService_ListMyUploads_FullMethodName        = "/video.v1.CatalogQueryService/ListMyUploads"
@@ -30,6 +31,7 @@ const (
 //
 // CatalogQueryService 提供视频只读查询能力。
 type CatalogQueryServiceClient interface {
+	GetVideoMetadata(ctx context.Context, in *GetVideoMetadataRequest, opts ...grpc.CallOption) (*GetVideoMetadataResponse, error)
 	GetVideoDetail(ctx context.Context, in *GetVideoDetailRequest, opts ...grpc.CallOption) (*GetVideoDetailResponse, error)
 	ListUserPublicVideos(ctx context.Context, in *ListUserPublicVideosRequest, opts ...grpc.CallOption) (*ListUserPublicVideosResponse, error)
 	ListMyUploads(ctx context.Context, in *ListMyUploadsRequest, opts ...grpc.CallOption) (*ListMyUploadsResponse, error)
@@ -41,6 +43,16 @@ type catalogQueryServiceClient struct {
 
 func NewCatalogQueryServiceClient(cc grpc.ClientConnInterface) CatalogQueryServiceClient {
 	return &catalogQueryServiceClient{cc}
+}
+
+func (c *catalogQueryServiceClient) GetVideoMetadata(ctx context.Context, in *GetVideoMetadataRequest, opts ...grpc.CallOption) (*GetVideoMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVideoMetadataResponse)
+	err := c.cc.Invoke(ctx, CatalogQueryService_GetVideoMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *catalogQueryServiceClient) GetVideoDetail(ctx context.Context, in *GetVideoDetailRequest, opts ...grpc.CallOption) (*GetVideoDetailResponse, error) {
@@ -79,6 +91,7 @@ func (c *catalogQueryServiceClient) ListMyUploads(ctx context.Context, in *ListM
 //
 // CatalogQueryService 提供视频只读查询能力。
 type CatalogQueryServiceServer interface {
+	GetVideoMetadata(context.Context, *GetVideoMetadataRequest) (*GetVideoMetadataResponse, error)
 	GetVideoDetail(context.Context, *GetVideoDetailRequest) (*GetVideoDetailResponse, error)
 	ListUserPublicVideos(context.Context, *ListUserPublicVideosRequest) (*ListUserPublicVideosResponse, error)
 	ListMyUploads(context.Context, *ListMyUploadsRequest) (*ListMyUploadsResponse, error)
@@ -92,6 +105,9 @@ type CatalogQueryServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedCatalogQueryServiceServer struct{}
 
+func (UnimplementedCatalogQueryServiceServer) GetVideoMetadata(context.Context, *GetVideoMetadataRequest) (*GetVideoMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVideoMetadata not implemented")
+}
 func (UnimplementedCatalogQueryServiceServer) GetVideoDetail(context.Context, *GetVideoDetailRequest) (*GetVideoDetailResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVideoDetail not implemented")
 }
@@ -120,6 +136,24 @@ func RegisterCatalogQueryServiceServer(s grpc.ServiceRegistrar, srv CatalogQuery
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&CatalogQueryService_ServiceDesc, srv)
+}
+
+func _CatalogQueryService_GetVideoMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVideoMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CatalogQueryServiceServer).GetVideoMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CatalogQueryService_GetVideoMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CatalogQueryServiceServer).GetVideoMetadata(ctx, req.(*GetVideoMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _CatalogQueryService_GetVideoDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -183,6 +217,10 @@ var CatalogQueryService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "video.v1.CatalogQueryService",
 	HandlerType: (*CatalogQueryServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetVideoMetadata",
+			Handler:    _CatalogQueryService_GetVideoMetadata_Handler,
+		},
 		{
 			MethodName: "GetVideoDetail",
 			Handler:    _CatalogQueryService_GetVideoDetail_Handler,

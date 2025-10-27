@@ -11,6 +11,26 @@ FROM catalog.videos
 WHERE video_id = $1
   AND status IN ('ready', 'published');
 
+-- name: GetVideoMetadata :one
+SELECT
+    video_id,
+    status,
+    media_status,
+    analysis_status,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    raw_subtitle_url,
+    updated_at,
+    version
+FROM catalog.videos
+WHERE video_id = $1;
+
 -- name: ListPublicVideos :many
 SELECT
     video_id,
@@ -46,6 +66,12 @@ WHERE upload_user_id = sqlc.arg('upload_user_id')
         sqlc.narg('status_filter') IS NULL
         OR cardinality(sqlc.narg('status_filter')) = 0
         OR status = ANY(sqlc.narg('status_filter'))
+      )
+  AND (
+        sqlc.narg('stage_filter') IS NULL
+        OR cardinality(sqlc.narg('stage_filter')) = 0
+        OR media_status = ANY(sqlc.narg('stage_filter'))
+        OR analysis_status = ANY(sqlc.narg('stage_filter'))
       )
   AND (
         sqlc.narg('cursor_created_at') IS NULL

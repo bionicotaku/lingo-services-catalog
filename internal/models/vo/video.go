@@ -71,6 +71,66 @@ func NewVideoDetail(video *po.VideoReadyView) *VideoDetail {
 	}
 }
 
+// VideoMetadata 表示独立的媒体/AI 元数据视图。
+type VideoMetadata struct {
+	Status            string    `json:"status"`
+	MediaStatus       string    `json:"media_status"`
+	AnalysisStatus    string    `json:"analysis_status"`
+	DurationMicros    int64     `json:"duration_micros"`
+	EncodedResolution string    `json:"encoded_resolution"`
+	EncodedBitrate    int32     `json:"encoded_bitrate"`
+	ThumbnailURL      string    `json:"thumbnail_url"`
+	HLSMasterPlaylist string    `json:"hls_master_playlist"`
+	Difficulty        string    `json:"difficulty"`
+	Summary           string    `json:"summary"`
+	Tags              []string  `json:"tags"`
+	RawSubtitleURL    string    `json:"raw_subtitle_url"`
+	UpdatedAt         time.Time `json:"updated_at"`
+	Version           int64     `json:"version"`
+}
+
+// NewVideoMetadataFromPO 将持久层元数据转换为 VO。
+func NewVideoMetadataFromPO(meta *po.VideoMetadata) *VideoMetadata {
+	if meta == nil {
+		return nil
+	}
+	vm := &VideoMetadata{
+		Status:         string(meta.Status),
+		MediaStatus:    string(meta.MediaStatus),
+		AnalysisStatus: string(meta.AnalysisStatus),
+		UpdatedAt:      meta.UpdatedAt,
+		Version:        meta.Version,
+	}
+	if meta.DurationMicros != nil {
+		vm.DurationMicros = *meta.DurationMicros
+	}
+	if meta.EncodedResolution != nil {
+		vm.EncodedResolution = *meta.EncodedResolution
+	}
+	if meta.EncodedBitrate != nil {
+		vm.EncodedBitrate = *meta.EncodedBitrate
+	}
+	if meta.ThumbnailURL != nil {
+		vm.ThumbnailURL = *meta.ThumbnailURL
+	}
+	if meta.HLSMasterPlaylist != nil {
+		vm.HLSMasterPlaylist = *meta.HLSMasterPlaylist
+	}
+	if meta.Difficulty != nil {
+		vm.Difficulty = *meta.Difficulty
+	}
+	if meta.Summary != nil {
+		vm.Summary = *meta.Summary
+	}
+	if meta.Tags != nil {
+		vm.Tags = append([]string(nil), meta.Tags...)
+	}
+	if meta.RawSubtitleURL != nil {
+		vm.RawSubtitleURL = *meta.RawSubtitleURL
+	}
+	return vm
+}
+
 // VideoListItem 表示公开视频列表中的条目。
 type VideoListItem struct {
 	VideoID        uuid.UUID

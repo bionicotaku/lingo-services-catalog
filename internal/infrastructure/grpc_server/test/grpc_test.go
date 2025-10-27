@@ -49,6 +49,10 @@ func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*p
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (videoRepoStub) GetMetadata(context.Context, txmanager.Session, uuid.UUID) (*po.VideoMetadata, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
 func (videoRepoStub) ListPublicVideos(context.Context, txmanager.Session, repositories.ListPublicVideosInput) ([]po.VideoListEntry, error) {
 	return nil, nil
 }
