@@ -74,7 +74,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 psql "$DATABASE_URL" -f migrations/001_init_catalog_schema.sql
 psql "$DATABASE_URL" -f migrations/002_create_catalog_event_tables.sql
 psql "$DATABASE_URL" -f migrations/003_create_catalog_videos_table.sql
-psql "$DATABASE_URL" -f migrations/004_create_catalog_video_projection.sql
+psql "$DATABASE_URL" -f migrations/004_create_catalog_video_user_states.sql
 ```
 
 ### 4. 启动服务

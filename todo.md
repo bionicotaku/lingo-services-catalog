@@ -9,7 +9,7 @@
 
 ## 1. 数据层建设
 1. **Schema 迁移** *(进行中)*
-   - [x] 新增 `migrations/005_create_catalog_video_user_states.sql`
+  - [x] 新增 `migrations/004_create_catalog_video_user_states.sql`
    - [ ] 运行全部迁移，使用 `psql` 验证表/索引/触发器存在
 2. **sqlc 与模型**
    - [x] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_states`）

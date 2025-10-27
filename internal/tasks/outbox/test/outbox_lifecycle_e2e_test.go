@@ -12,6 +12,7 @@ import (
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
@@ -19,16 +20,126 @@ import (
 	"github.com/stretchr/testify/require"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"google.golang.org/protobuf/proto"
-
-	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 )
 
-// TestOutboxPublisher_EndToEndLifecycle 验证 Catalog 写模型通过 Outbox → Pub/Sub 的完整事件链路。
-func TestOutboxPublisher_EndToEndLifecycle(t *testing.T) {
-	ctx := context.Background()
+var expectedLifecycleTypes = []videov1.EventType{
+	videov1.EventType_EVENT_TYPE_VIDEO_CREATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED,
+	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
+	videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED,
+}
 
+type lifecycleTestEnv struct {
+	ctx           context.Context
+	pool          *pgxpool.Pool
+	outboxRepo    *repositories.OutboxRepository
+	registerSvc   *services.RegisterUploadService
+	processingSvc *services.ProcessingStatusService
+	mediaSvc      *services.MediaInfoService
+	aiSvc         *services.AIAttributesService
+	visibilitySvc *services.VisibilityService
+	server        *pstest.Server
+}
+
+type lifecycleFlowResult struct {
+	VideoID        uuid.UUID
+	MediaJobID     string
+	AnalysisJobID  string
+	DurationMicros int64
+	Resolution     string
+	Bitrate        int32
+	Thumbnail      string
+	Playlist       string
+	Difficulty     string
+	Summary        string
+	SubtitleURL    string
+}
+
+func TestOutboxPublisher_EndToEndLifecycle(t *testing.T) {
+	env := newLifecycleTestEnv(t)
+	result := runLifecycleFlow(t, env)
+
+	msgs := waitForMessages(t, env.server, len(expectedLifecycleTypes))
+	events := decodeMessages(t, msgs)
+	require.Len(t, events, len(expectedLifecycleTypes))
+
+	for i, evt := range events {
+		require.Equal(t, expectedLifecycleTypes[i], evt.EventType)
+		require.Equal(t, result.VideoID.String(), evt.AggregateId)
+		require.Equal(t, "video", evt.AggregateType)
+
+		switch evt.EventType {
+		case videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY:
+			payload := evt.GetMediaReady()
+			require.NotNil(t, payload)
+			require.Equal(t, result.MediaJobID, payload.GetJobId())
+			require.Equal(t, "ready", payload.GetMediaStatus())
+			require.Equal(t, result.Resolution, payload.GetEncodedResolution())
+		case videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED:
+			payload := evt.GetAiEnriched()
+			require.NotNil(t, payload)
+			require.Equal(t, result.AnalysisJobID, payload.GetJobId())
+			require.Equal(t, result.Difficulty, payload.GetDifficulty())
+			require.Equal(t, result.Summary, payload.GetSummary())
+			require.Equal(t, result.SubtitleURL, payload.GetRawSubtitleUrl())
+		case videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED:
+			payload := evt.GetVisibilityChanged()
+			require.NotNil(t, payload)
+			require.Equal(t, "published", payload.GetStatus())
+			require.Equal(t, "ready", payload.GetPreviousStatus())
+		}
+	}
+
+	pending, err := env.outboxRepo.CountPending(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), pending)
+}
+
+func TestOutboxPublisher_MediaReadyIdempotent(t *testing.T) {
+	env := newLifecycleTestEnv(t)
+	result := runLifecycleFlow(t, env)
+
+	initialMsgs := waitForMessages(t, env.server, len(expectedLifecycleTypes))
+	initialEvents := decodeMessages(t, initialMsgs)
+	require.Equal(t, 1, countEventType(initialEvents, videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY))
+
+	mediaStatus := po.StageReady
+	_, err := env.mediaSvc.UpdateMediaInfo(env.ctx, services.UpdateMediaInfoInput{
+		VideoID:           result.VideoID,
+		DurationMicros:    &result.DurationMicros,
+		EncodedResolution: &result.Resolution,
+		EncodedBitrate:    &result.Bitrate,
+		ThumbnailURL:      &result.Thumbnail,
+		HLSMasterPlaylist: &result.Playlist,
+		MediaStatus:       &mediaStatus,
+	})
+	require.NoError(t, err)
+
+	updatedMsgs := waitForMessages(t, env.server, len(initialMsgs)+1)
+	updatedEvents := decodeMessages(t, updatedMsgs)
+	require.Equal(t, len(initialEvents)+1, len(updatedEvents))
+	require.Equal(t, 1, countEventType(updatedEvents, videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY))
+	last := updatedEvents[len(updatedEvents)-1]
+	require.Equal(t, videov1.EventType_EVENT_TYPE_VIDEO_UPDATED, last.EventType)
+
+	pending, err := env.outboxRepo.CountPending(env.ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), pending)
+}
+
+func newLifecycleTestEnv(t *testing.T) *lifecycleTestEnv {
+	t.Helper()
+
+	ctx := context.Background()
 	dsn, terminate := startPostgres(ctx, t)
-	defer terminate()
+	t.Cleanup(terminate)
 
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
@@ -37,27 +148,30 @@ func TestOutboxPublisher_EndToEndLifecycle(t *testing.T) {
 	ensureAuthUsersTable(ctx, t, pool)
 	applyMigrations(ctx, t, pool)
 
-	repoLogger := log.NewStdLogger(io.Discard)
-	outboxRepo := repositories.NewOutboxRepository(pool, repoLogger, defaultOutboxConfig)
-	videoRepo := repositories.NewVideoRepository(pool, repoLogger)
-
-	txMgr, err := txmanager.NewManager(pool, txmanager.Config{}, txmanager.Dependencies{Logger: repoLogger})
+	logger := log.NewStdLogger(io.Discard)
+	outboxRepo := repositories.NewOutboxRepository(pool, logger, defaultOutboxConfig)
+	videoRepo := repositories.NewVideoRepository(pool, logger)
+	txMgr, err := txmanager.NewManager(pool, txmanager.Config{}, txmanager.Dependencies{Logger: logger})
 	require.NoError(t, err)
 
-	commandSvc := services.NewVideoCommandService(videoRepo, outboxRepo, txMgr, repoLogger)
-	registerSvc := services.NewRegisterUploadService(commandSvc)
-	processingSvc := services.NewProcessingStatusService(commandSvc, videoRepo)
-	mediaSvc := services.NewMediaInfoService(commandSvc, videoRepo)
-	aiSvc := services.NewAIAttributesService(commandSvc, videoRepo)
-	visibilitySvc := services.NewVisibilityService(commandSvc, videoRepo)
+	commandSvc := services.NewVideoCommandService(videoRepo, outboxRepo, txMgr, logger)
+	env := &lifecycleTestEnv{
+		ctx:           ctx,
+		pool:          pool,
+		outboxRepo:    outboxRepo,
+		registerSvc:   services.NewRegisterUploadService(commandSvc),
+		processingSvc: services.NewProcessingStatusService(commandSvc, videoRepo),
+		mediaSvc:      services.NewMediaInfoService(commandSvc, videoRepo),
+		aiSvc:         services.NewAIAttributesService(commandSvc, videoRepo),
+		visibilitySvc: services.NewVisibilityService(commandSvc, videoRepo),
+	}
 
-	pstestServer := pstest.NewServer()
-	t.Cleanup(func() { _ = pstestServer.Close() })
+	server := pstest.NewServer()
+	t.Cleanup(func() { _ = server.Close() })
+	env.server = server
 
-	projectID := "catalog-test"
-	topicID := "catalog-video-events"
-	component, cleanupPublisher, publisher := newTestPublisher(ctx, t, pstestServer, projectID, topicID)
-	defer cleanupPublisher()
+	component, cleanupPublisher, publisher := newTestPublisher(ctx, t, server, "catalog-test", "catalog-video-events")
+	t.Cleanup(cleanupPublisher)
 	t.Cleanup(func() { _ = component })
 
 	reader := sdkmetric.NewManualReader()
@@ -76,25 +190,32 @@ func TestOutboxPublisher_EndToEndLifecycle(t *testing.T) {
 		LockTTL:        time.Second,
 	})
 
-	runCtx, cancelRun := context.WithCancel(ctx)
+	runCtx, cancel := context.WithCancel(ctx)
 	errCh := make(chan error, 1)
 	go func() { errCh <- runner.Run(runCtx) }()
-	defer func() {
-		cancelRun()
+	t.Cleanup(func() {
+		cancel()
 		select {
-		case runErr := <-errCh:
-			if runErr != nil && !errors.Is(runErr, context.Canceled) {
-				require.NoError(t, runErr)
+		case err := <-errCh:
+			if err != nil && !errors.Is(err, context.Canceled) {
+				t.Fatalf("outbox runner error: %v", err)
 			}
 		case <-time.After(time.Second):
 			t.Fatalf("outbox runner did not stop in time")
 		}
-	}()
+	})
 
+	return env
+}
+
+func runLifecycleFlow(t *testing.T, env *lifecycleTestEnv) lifecycleFlowResult {
+	t.Helper()
+
+	ctx := env.ctx
 	uploaderID := uuid.New()
-	insertUser(ctx, t, pool, uploaderID)
+	insertUser(ctx, t, env.pool, uploaderID)
 
-	created, err := registerSvc.RegisterUpload(ctx, services.RegisterUploadInput{
+	created, err := env.registerSvc.RegisterUpload(ctx, services.RegisterUploadInput{
 		UploadUserID:     uploaderID,
 		Title:            "Lifecycle E2E",
 		Description:      strPtr("integration test flow"),
@@ -103,110 +224,88 @@ func TestOutboxPublisher_EndToEndLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	videoID := created.VideoID
 
-	mediaJobID := "media-job-001"
+	result := lifecycleFlowResult{
+		VideoID:        videoID,
+		MediaJobID:     "media-job-001",
+		AnalysisJobID:  "analysis-job-001",
+		DurationMicros: 120_000_000,
+		Resolution:     "1920x1080",
+		Bitrate:        3200,
+		Thumbnail:      "https://cdn.example/thumb.jpg",
+		Playlist:       "https://cdn.example/master.m3u8",
+		Difficulty:     "B2",
+		Summary:        "Test summary for AI enrichment",
+		SubtitleURL:    "https://cdn.example/subtitle.vtt",
+	}
+
 	mediaStart := time.Now().UTC().Add(50 * time.Millisecond)
-	require.NoError(t, invokeProcessing(processingSvc, services.ProcessingStageMedia, videoID, po.StagePending, po.StageProcessing, mediaJobID, mediaStart, nil))
-
+	require.NoError(t, invokeProcessing(env.processingSvc, services.ProcessingStageMedia, videoID, po.StagePending, po.StageProcessing, result.MediaJobID, mediaStart, nil))
 	mediaReadyAt := mediaStart.Add(150 * time.Millisecond)
-	require.NoError(t, invokeProcessing(processingSvc, services.ProcessingStageMedia, videoID, po.StageProcessing, po.StageReady, mediaJobID, mediaReadyAt, nil))
+	require.NoError(t, invokeProcessing(env.processingSvc, services.ProcessingStageMedia, videoID, po.StageProcessing, po.StageReady, result.MediaJobID, mediaReadyAt, nil))
 
-	duration := int64(120_000_000)
-	resolution := "1920x1080"
-	bitrate := int32(3200)
-	thumbnail := "https://cdn.example/thumb.jpg"
-	playlist := "https://cdn.example/master.m3u8"
 	mediaStatus := po.StageReady
-	_, err = mediaSvc.UpdateMediaInfo(ctx, services.UpdateMediaInfoInput{
+	_, err = env.mediaSvc.UpdateMediaInfo(ctx, services.UpdateMediaInfoInput{
 		VideoID:           videoID,
-		DurationMicros:    &duration,
-		EncodedResolution: &resolution,
-		EncodedBitrate:    &bitrate,
-		ThumbnailURL:      &thumbnail,
-		HLSMasterPlaylist: &playlist,
+		DurationMicros:    &result.DurationMicros,
+		EncodedResolution: &result.Resolution,
+		EncodedBitrate:    &result.Bitrate,
+		ThumbnailURL:      &result.Thumbnail,
+		HLSMasterPlaylist: &result.Playlist,
 		MediaStatus:       &mediaStatus,
 	})
 	require.NoError(t, err)
 
-	analysisJobID := "analysis-job-001"
 	analysisStart := mediaReadyAt.Add(100 * time.Millisecond)
-	require.NoError(t, invokeProcessing(processingSvc, services.ProcessingStageAnalysis, videoID, po.StagePending, po.StageProcessing, analysisJobID, analysisStart, nil))
-
+	require.NoError(t, invokeProcessing(env.processingSvc, services.ProcessingStageAnalysis, videoID, po.StagePending, po.StageProcessing, result.AnalysisJobID, analysisStart, nil))
 	analysisReadyAt := analysisStart.Add(150 * time.Millisecond)
-	require.NoError(t, invokeProcessing(processingSvc, services.ProcessingStageAnalysis, videoID, po.StageProcessing, po.StageReady, analysisJobID, analysisReadyAt, nil))
+	require.NoError(t, invokeProcessing(env.processingSvc, services.ProcessingStageAnalysis, videoID, po.StageProcessing, po.StageReady, result.AnalysisJobID, analysisReadyAt, nil))
 
-	difficulty := "B2"
-	summary := "Test summary for AI enrichment"
-	subtitleURL := "https://cdn.example/subtitle.vtt"
 	analysisStatus := po.StageReady
-	_, err = aiSvc.UpdateAIAttributes(ctx, services.UpdateAIAttributesInput{
+	_, err = env.aiSvc.UpdateAIAttributes(ctx, services.UpdateAIAttributesInput{
 		VideoID:        videoID,
-		Difficulty:     &difficulty,
-		Summary:        &summary,
-		RawSubtitleURL: &subtitleURL,
+		Difficulty:     &result.Difficulty,
+		Summary:        &result.Summary,
+		RawSubtitleURL: &result.SubtitleURL,
 		AnalysisStatus: &analysisStatus,
 	})
 	require.NoError(t, err)
 
-	_, err = visibilitySvc.UpdateVisibility(ctx, services.UpdateVisibilityInput{
+	_, err = env.visibilitySvc.UpdateVisibility(ctx, services.UpdateVisibilityInput{
 		VideoID: videoID,
 		Action:  services.VisibilityPublish,
 	})
 	require.NoError(t, err)
 
-	expectedTypes := []videov1.EventType{
-		videov1.EventType_EVENT_TYPE_VIDEO_CREATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED,
-		videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-		videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED,
-	}
+	return result
+}
 
+func waitForMessages(t *testing.T, server *pstest.Server, want int) []*pstest.Message {
+	t.Helper()
 	require.Eventually(t, func() bool {
-		return len(pstestServer.Messages()) >= len(expectedTypes)
-	}, 10*time.Second, 50*time.Millisecond, "pubsub did not receive all events")
+		return len(server.Messages()) >= want
+	}, 10*time.Second, 50*time.Millisecond, "pubsub did not receive enough messages")
+	return server.Messages()
+}
 
-	msgs := pstestServer.Messages()
-	require.Len(t, msgs, len(expectedTypes))
-
+func decodeMessages(t *testing.T, msgs []*pstest.Message) []*videov1.Event {
+	t.Helper()
+	events := make([]*videov1.Event, len(msgs))
 	for i, msg := range msgs {
 		var evt videov1.Event
 		require.NoError(t, proto.Unmarshal(msg.Data, &evt))
-		require.Equal(t, expectedTypes[i], evt.EventType)
-		require.Equal(t, videoID.String(), evt.AggregateId)
-		require.Equal(t, "video", evt.AggregateType)
+		events[i] = &evt
+	}
+	return events
+}
 
-		switch evt.EventType {
-		case videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY:
-			payload := evt.GetMediaReady()
-			require.NotNil(t, payload)
-			require.Equal(t, mediaJobID, payload.GetJobId())
-			require.Equal(t, "ready", payload.GetMediaStatus())
-			require.Equal(t, resolution, payload.GetEncodedResolution())
-		case videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED:
-			payload := evt.GetAiEnriched()
-			require.NotNil(t, payload)
-			require.Equal(t, analysisJobID, payload.GetJobId())
-			require.Equal(t, difficulty, payload.GetDifficulty())
-			require.Equal(t, summary, payload.GetSummary())
-			foundSubtitle := payload.GetRawSubtitleUrl()
-			require.Equal(t, subtitleURL, foundSubtitle)
-		case videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED:
-			payload := evt.GetVisibilityChanged()
-			require.NotNil(t, payload)
-			require.Equal(t, "published", payload.GetStatus())
-			require.Equal(t, "ready", payload.GetPreviousStatus())
+func countEventType(events []*videov1.Event, typ videov1.EventType) int {
+	count := 0
+	for _, evt := range events {
+		if evt.EventType == typ {
+			count++
 		}
 	}
-
-	pending, err := outboxRepo.CountPending(ctx)
-	require.NoError(t, err)
-	require.Equal(t, int64(0), pending, "outbox should have no pending events")
+	return count
 }
 
 func ensureAuthUsersTable(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
