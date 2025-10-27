@@ -26,8 +26,6 @@ type UpdateAIAttributesInput struct {
 	JobID           string
 	EmittedAt       time.Time
 	ExpectedVersion *int64
-	ActorType       string
-	ActorID         string
 	IdempotencyKey  string
 }
 
@@ -47,7 +45,7 @@ func (s *AIAttributesService) UpdateAIAttributes(ctx context.Context, input Upda
 	if input.VideoID == uuid.Nil {
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "video_id is required")
 	}
-	current, err := s.repo.GetByID(ctx, nil, input.VideoID)
+	current, err := s.repo.GetLifecycleSnapshot(ctx, nil, input.VideoID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
 			return nil, ErrVideoNotFound
@@ -83,8 +81,6 @@ func (s *AIAttributesService) UpdateAIAttributes(ctx context.Context, input Upda
 		emitted := input.EmittedAt.UTC()
 		updateInput.AnalysisEmittedAt = &emitted
 	}
-	updateInput.ActorType = input.ActorType
-	updateInput.ActorID = input.ActorID
 	updateInput.IdempotencyKey = input.IdempotencyKey
 	updateInput.ExpectedVersion = input.ExpectedVersion
 

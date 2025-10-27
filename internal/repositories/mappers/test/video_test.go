@@ -296,7 +296,7 @@ func TestVideoReadyViewFromFindRow(t *testing.T) {
 	now := time.Now().UTC()
 	videoID := uuid.New()
 
-	row := catalogsql.FindVideoByIDRow{
+	row := catalogsql.FindPublishedVideoRow{
 		VideoID:        videoID,
 		Title:          "Test Video",
 		Status:         po.VideoStatusPublished,

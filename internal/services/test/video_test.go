@@ -175,7 +175,7 @@ func (s *videoRepoStub) Delete(_ context.Context, _ txmanager.Session, _ uuid.UU
 	return s.deleteVideo, nil
 }
 
-func (s *videoRepoStub) FindByID(_ context.Context, _ txmanager.Session, _ uuid.UUID) (*po.VideoReadyView, error) {
+func (s *videoRepoStub) FindPublishedByID(_ context.Context, _ txmanager.Session, _ uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 

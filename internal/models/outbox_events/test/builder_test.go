@@ -300,15 +300,13 @@ func TestNewVideoProcessingFailedEvent(t *testing.T) {
 func TestNewVideoVisibilityChangedEvent(t *testing.T) {
 	now := time.Now().UTC()
 	reason := "manual publish"
-	actorType := "staff"
-	actorID := "moderator"
 	video := &po.Video{
 		VideoID:   uuid.New(),
 		Status:    po.VideoStatusPublished,
 		UpdatedAt: now,
 	}
 
-	evt, err := outboxevents.NewVideoVisibilityChangedEvent(video, po.VideoStatusReady, &reason, &actorType, &actorID, uuid.New(), now)
+	evt, err := outboxevents.NewVideoVisibilityChangedEvent(video, po.VideoStatusReady, &reason, uuid.New(), now)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -325,9 +323,6 @@ func TestNewVideoVisibilityChangedEvent(t *testing.T) {
 	pb, err := outboxevents.ToProto(evt)
 	if err != nil {
 		t.Fatalf("ToProto: %v", err)
-	}
-	if pb.GetVisibilityChanged().GetActorType() != actorType {
-		t.Fatalf("actor type mismatch")
 	}
 	if pb.GetVisibilityChanged().GetPreviousStatus() != string(po.VideoStatusReady) {
 		t.Fatalf("proto previous status mismatch")

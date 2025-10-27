@@ -194,7 +194,7 @@ services/catalog/
 - 通用请求头：`x-md-global-user-id`、`x-md-if-match`/`x-md-if-none-match`，均由内嵌 BaseHandler 注入。
 - 所有写请求包含：
   - `expected_version`（或 `expected_status`）。
-  - `actor` 信息（`actor_type`, `actor_id`）。
+  - （Post-MVP）`actor` 信息（`actor_type`, `actor_id`）；MVP 阶段暂不下传，使用统一的 `x-md-global-user-id`。
 - 关键 RPC：
   1. `RegisterUpload`：创建视频，返回 `video_id`, `version`, `occurred_at`, `event_id`。
   2. `UpdateOriginalMedia`：补写 `raw_file_*` 属性。
@@ -224,11 +224,11 @@ services/catalog/
 | `catalog.video.media_ready`        | 媒体阶段成功          | 媒体字段全量快照、`version`, `occurred_at`, `job_id`                                                         | Media Pipeline, Monitoring    |
 | `catalog.video.ai_enriched`        | AI 阶段成功           | AI 字段全量快照、`version`, `occurred_at`, `job_id`                                                          | Search, Recommendation        |
 | `catalog.video.processing_failed`  | 任一阶段失败          | `failed_stage`, `error_message`, `version`, `occurred_at`, `job_id`                                          | Alerting, Support             |
-| `catalog.video.visibility_changed` | 发布/拒绝/恢复        | `status`, `previous_status`, `publish_time`, `takedown_reason`, `actor`                                      | Feed, Gateway Cache           |
+| `catalog.video.visibility_changed` | 发布/拒绝/恢复        | `status`, `previous_status`, `publish_time`, `takedown_reason`（actor 元数据 Post-MVP 预留）                 | Feed, Gateway Cache           |
 | `catalog.video.deleted`            | 删除视频（暂非 MVP）  | `video_id`, `version`, `occurred_at`                                                                         | Downstream 清理任务           |
 
 - Payload 以 Protobuf 定义在 `api/video/v1/events.proto`，字段只新增不复用 tag。
-- 事件 Headers：`trace_id`, `actor_type`, `actor_id`, `schema_version`。
+- 事件 Headers：`trace_id`, `schema_version`（`actor_type/actor_id` Post-MVP 预留）。
 
 ### 7.2 Outbox 发布
 
@@ -279,18 +279,18 @@ services/catalog/
   - 入站：`gcjwt.ServerMiddleware` 校验 OIDC audience (`catalog-lifecycle`, `catalog-query`)；本地可 `skip_validate`。
   - 出站：调用其他服务采用 `gcjwt.ClientMiddleware` 注入服务间 token。
 - 授权：
-  - Lifecycle 接口校验 `actor_type`（枚举：`upload_service`, `media_service`, `ai_service`, `safety_service`, `operator`）。
+- Lifecycle 接口校验 `actor_type`（Post-MVP 规划，MVP 阶段可跳过；如需启用，枚举值参考：`upload_service`, `media_service`, `ai_service`, `safety_service`, `operator`）。
   - Query 接口根据 Gateway 注入的用户信息判断是否允许访问非公开视频。
 - 元数据：统一使用 `x-md-*` / `x-md-global-*` 前缀，Server 端仅允许白名单字段透传。
 
 ### 9.3 观测
 
-- 日志：`log/slog` JSON，字段 `ts`, `level`, `msg`, `trace_id`, `span_id`, `video_id`, `status`, `actor_type`。
+- 日志：`log/slog` JSON，字段 `ts`, `level`, `msg`, `trace_id`, `span_id`, `video_id`, `status`（`actor_type` Post-MVP 预留）。
 - 指标：
   - `catalog_lifecycle_duration_ms{method}`
   - `catalog_outbox_lag_seconds`
   - `catalog_engagement_lag_ms`
-- 追踪：每个 gRPC 方法创建 span，附加属性 `video.id`, `actor.type`, `status`, `version`。
+- 追踪：每个 gRPC 方法创建 span，附加属性 `video.id`, `status`, `version`（`actor.type` Post-MVP 预留）。
 
 ### 9.4 性能
 
@@ -351,7 +351,7 @@ services/catalog/
 | 用户态投影滞后     | 用户态数据陈旧 | 监控 `catalog_engagement_lag_ms`，>5 分钟触发告警并回放 Engagement 事件 |
 | Outbox 累积        | 事件延迟       | 设置 `available_at` + 再平衡 Runner；记录 `delivery_attempts`            |
 | 读库膨胀           | 存储压力       | 定期归档早期投影数据或引入物化视图刷新策略                               |
-| 服务间鉴权误配     | 写接口被滥用   | 在 config.yaml 明确 `allowed_actor_types`，上线前联调 IAM                |
+| 服务间鉴权误配     | 写接口被滥用   | 在 config.yaml 明确 `allowed_actor_types`（Post-MVP），上线前联调 IAM    |
 
 ### 12.2 回滚策略
 

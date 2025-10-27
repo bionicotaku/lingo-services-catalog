@@ -96,7 +96,7 @@ type Server struct {
 	Grpc          *Server_GRPC           `protobuf:"bytes,1,opt,name=grpc,proto3" json:"grpc,omitempty"`
 	Jwt           *Server_JWT            `protobuf:"bytes,2,opt,name=jwt,proto3" json:"jwt,omitempty"`
 	Handlers      *Server_Handlers       `protobuf:"bytes,3,opt,name=handlers,proto3" json:"handlers,omitempty"`
-	MetadataKeys  []string               `protobuf:"bytes,4,rep,name=metadata_keys,json=metadataKeys,proto3" json:"metadata_keys,omitempty"` // 透传 header 列表，如 x-md-global-user-id / x-md-actor-type 等
+	MetadataKeys  []string               `protobuf:"bytes,4,rep,name=metadata_keys,json=metadataKeys,proto3" json:"metadata_keys,omitempty"` // 透传 header 列表，如 x-md-global-user-id（actor 字段 Post-MVP 可追加）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

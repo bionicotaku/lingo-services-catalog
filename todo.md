@@ -19,7 +19,7 @@
 ## 2. gRPC 契约与配置
 - [x] 拆分 proto：`CatalogQueryService`、`CatalogLifecycleService`、事件定义；补充请求/响应/错误消息（2025-10-27：完成拆分并为 Lifecycle RPC 增加独立响应消息；handler/service 已切换至新 proto）
 - [x] 调整 `buf.gen.yaml`/`buf.yaml` 并跑 `buf lint`、`buf breaking`
-- [ ] 更新 `configs/conf.proto` 增加 `allowed_actor_types`、`metadata_keys` 注释
+- [ ] （Post-MVP）当重新引入操作者审计时，更新 `configs/conf.proto` 及 `metadata_keys` 注释
 - [ ] 调整 `configs/config.yaml` 默认值（服务名、metadata 列表、JWT audience）
 
 ## 3. 业务用例实现
@@ -36,6 +36,7 @@
   - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag
   - [x] 集成 `HandlerMetadata` 解析，按用户权限过滤（2025-10-26：服务层从 Context 读取 metadata 校验 user_id，匿名/非法请求统一处理）
   - [x] 2025-10-26：配置 `metadata_keys` 补充 `x-md-actor-type`/`x-md-actor-id` 并在文档中解释来源与用途（已更新 config.yaml、conf.proto、加载器测试）
+  - [x] 2025-10-27：根据最新决策暂时移除 `x-md-actor-*` 消费逻辑，文档中标注为 Post-MVP 扩展
   - [x] 2025-10-27：补齐仓储集成测试覆盖分页与过滤（`ListPublicVideos`、`ListUserUploads`、`GetMetadata`），并通过 `make lint` + `go test ./...`
 
 ## 4. 事件构建与 Outbox Runner
@@ -65,7 +66,7 @@
 - [ ] 指标：`catalog_lifecycle_duration_ms`, `catalog_outbox_lag_seconds`
 - [ ] 追踪：在 controller/service 添加关键 span 属性
 - [ ] 超时配置：全部外部调用使用 `context.WithTimeout`，并在 config 中可配置
-- [ ] 安全：校验 `allowed_actor_types`，补充本地跳过说明
+- [ ] （Post-MVP）安全：若重新引入 `actor_type`，补充校验与本地跳过说明
 
 ## 7. 文档与工具
 - [ ] 更新 `services-catalog/README.md`（启动步骤、grpcurl 示例、观测指标）

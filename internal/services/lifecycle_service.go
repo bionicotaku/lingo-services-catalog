@@ -67,8 +67,6 @@ func (s *LifecycleService) ArchiveVideo(ctx context.Context, input ArchiveVideoI
 		Action:          VisibilityArchive,
 		Reason:          input.Reason,
 		ExpectedVersion: input.ExpectedVersion,
-		ActorType:       input.ActorType,
-		ActorID:         input.ActorID,
 		IdempotencyKey:  input.IdempotencyKey,
 	})
 }
@@ -78,7 +76,5 @@ type ArchiveVideoInput struct {
 	VideoID         uuid.UUID
 	Reason          *string
 	ExpectedVersion *int64
-	ActorType       string
-	ActorID         string
 	IdempotencyKey  string
 }

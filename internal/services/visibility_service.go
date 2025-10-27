@@ -32,8 +32,6 @@ type UpdateVisibilityInput struct {
 	Action          UpdateVisibilityAction
 	Reason          *string
 	ExpectedVersion *int64
-	ActorType       string
-	ActorID         string
 	IdempotencyKey  string
 }
 
@@ -53,7 +51,7 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 	if input.VideoID == uuid.Nil {
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "video_id is required")
 	}
-	current, err := s.repo.GetByID(ctx, nil, input.VideoID)
+	current, err := s.repo.GetLifecycleSnapshot(ctx, nil, input.VideoID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
 			return nil, ErrVideoNotFound
@@ -86,8 +84,6 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 		Status:       &statusValue,
 		ErrorMessage: input.Reason,
 	}
-	updateInput.ActorType = input.ActorType
-	updateInput.ActorID = input.ActorID
 	updateInput.IdempotencyKey = input.IdempotencyKey
 	updateInput.ExpectedVersion = input.ExpectedVersion
 
@@ -102,20 +98,10 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 			if previous.Status == updated.Status {
 				return nil, nil
 			}
-			var actorTypePtr *string
-			var actorIDPtr *string
-			if input.ActorType != "" {
-				actorTypePtr = &input.ActorType
-			}
-			if input.ActorID != "" {
-				actorIDPtr = &input.ActorID
-			}
 			event, err := outboxevents.NewVideoVisibilityChangedEvent(
 				updated,
 				previous.Status,
 				input.Reason,
-				actorTypePtr,
-				actorIDPtr,
 				uuid.New(),
 				visibilityOccurredAt(updated),
 			)

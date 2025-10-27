@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const findVideoByID = `-- name: FindVideoByID :one
+const findPublishedVideo = `-- name: FindPublishedVideo :one
 SELECT
     video_id,
     title,
@@ -27,7 +27,7 @@ WHERE video_id = $1
   AND status IN ('ready', 'published')
 `
 
-type FindVideoByIDRow struct {
+type FindPublishedVideoRow struct {
 	VideoID        uuid.UUID          `json:"video_id"`
 	Title          string             `json:"title"`
 	Status         po.VideoStatus     `json:"status"`
@@ -37,9 +37,10 @@ type FindVideoByIDRow struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (FindVideoByIDRow, error) {
-	row := q.db.QueryRow(ctx, findVideoByID, videoID)
-	var i FindVideoByIDRow
+// 读取前台查询可见的视频（仅 ready/published），字段裁剪
+func (q *Queries) FindPublishedVideo(ctx context.Context, videoID uuid.UUID) (FindPublishedVideoRow, error) {
+	row := q.db.QueryRow(ctx, findPublishedVideo, videoID)
+	var i FindPublishedVideoRow
 	err := row.Scan(
 		&i.VideoID,
 		&i.Title,
@@ -48,6 +49,77 @@ func (q *Queries) FindVideoByID(ctx context.Context, videoID uuid.UUID) (FindVid
 		&i.AnalysisStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getVideoLifecycleSnapshot = `-- name: GetVideoLifecycleSnapshot :one
+SELECT
+    video_id,
+    upload_user_id,
+    created_at,
+    updated_at,
+    title,
+    description,
+    raw_file_reference,
+    status,
+    version,
+    media_status,
+    analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
+    raw_file_size,
+    raw_resolution,
+    raw_bitrate,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    raw_subtitle_url,
+    error_message
+FROM catalog.videos
+WHERE video_id = $1
+`
+
+// 读取生命周期写流程所需的完整快照，无状态限制
+func (q *Queries) GetVideoLifecycleSnapshot(ctx context.Context, videoID uuid.UUID) (CatalogVideo, error) {
+	row := q.db.QueryRow(ctx, getVideoLifecycleSnapshot, videoID)
+	var i CatalogVideo
+	err := row.Scan(
+		&i.VideoID,
+		&i.UploadUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Title,
+		&i.Description,
+		&i.RawFileReference,
+		&i.Status,
+		&i.Version,
+		&i.MediaStatus,
+		&i.AnalysisStatus,
+		&i.MediaJobID,
+		&i.MediaEmittedAt,
+		&i.AnalysisJobID,
+		&i.AnalysisEmittedAt,
+		&i.RawFileSize,
+		&i.RawResolution,
+		&i.RawBitrate,
+		&i.DurationMicros,
+		&i.EncodedResolution,
+		&i.EncodedBitrate,
+		&i.ThumbnailUrl,
+		&i.HlsMasterPlaylist,
+		&i.Difficulty,
+		&i.Summary,
+		&i.Tags,
+		&i.RawSubtitleUrl,
+		&i.ErrorMessage,
 	)
 	return i, err
 }

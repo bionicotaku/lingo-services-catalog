@@ -271,7 +271,7 @@ func NewVideoProcessingFailedEvent(video *po.Video, stage string, jobID *string,
 }
 
 // NewVideoVisibilityChangedEvent 构建可见性变更事件。
-func NewVideoVisibilityChangedEvent(video *po.Video, previous po.VideoStatus, reason *string, actorType *string, actorID *string, eventID uuid.UUID, occurredAt time.Time) (*DomainEvent, error) {
+func NewVideoVisibilityChangedEvent(video *po.Video, previous po.VideoStatus, reason *string, eventID uuid.UUID, occurredAt time.Time) (*DomainEvent, error) {
 	if video == nil {
 		return nil, ErrNilVideo
 	}
@@ -290,11 +290,9 @@ func NewVideoVisibilityChangedEvent(video *po.Video, previous po.VideoStatus, re
 	}
 
 	payload := &VideoVisibilityChanged{
-		VideoID:   video.VideoID,
-		Status:    video.Status,
-		Reason:    reason,
-		ActorType: actorType,
-		ActorID:   actorID,
+		VideoID: video.VideoID,
+		Status:  video.Status,
+		Reason:  reason,
 	}
 	if previous != "" {
 		prev := previous

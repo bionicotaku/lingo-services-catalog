@@ -132,36 +132,3 @@ RETURNING
     tags,
     raw_subtitle_url,
     error_message;
-
--- name: GetVideoByID :one
-SELECT
-    video_id,
-    upload_user_id,
-    created_at,
-    updated_at,
-    title,
-    description,
-    raw_file_reference,
-    status,
-    version,
-    media_status,
-    analysis_status,
-    media_job_id,
-    media_emitted_at,
-    analysis_job_id,
-    analysis_emitted_at,
-    raw_file_size,
-    raw_resolution,
-    raw_bitrate,
-    duration_micros,
-    encoded_resolution,
-    encoded_bitrate,
-    thumbnail_url,
-    hls_master_playlist,
-    difficulty,
-    summary,
-    tags,
-    raw_subtitle_url,
-    error_message
-FROM catalog.videos
-WHERE video_id = $1;

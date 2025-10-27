@@ -292,7 +292,7 @@ comment on trigger set_updated_at_on_videos on catalog.videos
 
 辅助表：
 
-- `catalog.video_audit_trail(video_id, from_status, to_status, actor_type, actor_id, reason, metadata, occurred_at)`
+- `catalog.video_audit_trail(video_id, from_status, to_status, actor_type, actor_id, reason, metadata, occurred_at)`（Post-MVP 预留，当前实现未写入 actor 信息）
 - `catalog.video_outbox(event_id UUID, video_id TEXT, event_type TEXT, payload JSONB, occurred_at TIMESTAMPTZ, published_at TIMESTAMPTZ NULL)`
 - `catalog.idempotency_keys(key TEXT PRIMARY KEY, video_id TEXT, response JSONB, created_at TIMESTAMPTZ)`
 - （可选）`catalog.tags(tag_id TEXT PRIMARY KEY, name TEXT, category TEXT)` — 仅在需要集中管理标签元数据时启用
@@ -397,7 +397,7 @@ service CatalogLifecycleService {
 }
 ```
 
-- 安全：要求 mTLS + OIDC（audience=`catalog-lifecycle`）并校验 `actor_type`（`upload_service`、`media_service`、`ai_service`、`safety_service`、`operator`）。
+- 安全：要求 mTLS + OIDC（audience=`catalog-lifecycle`），`actor_type` 校验留待 Post-MVP（当前生命周期 RPC 仅使用 `x-md-global-user-id`）。
 - 幂等：所有写请求必须包含 `idempotency_key`，重复请求返回首个结果。
 - 并发控制：需传入 `expected_status` 或 `expected_version`，冲突返回 `codes.FailedPrecondition`（Problem type `status-conflict`）。
 - 版本策略：Service 在事务内 `SELECT ... FOR UPDATE` 锁定记录，校验 `expected_version`，成功后执行 `version = version + 1` 并返回最新版本；所有事件使用该版本号，读模型以此做幂等。
@@ -450,12 +450,12 @@ service CatalogAdminService {
 | `catalog.video.stage_updated`      | 任一阶段（媒体/分析）状态变化            | `video_id`, `stage`, `previous_stage_status`, `new_stage_status`, `status`, `trace_id`, `version` | Catalog Read 投影, Monitoring, Media 控制台 |
 | `catalog.video.media_ready`        | `UpdateMediaInfo` 成功                   | `video_id`, `duration_micros`, `thumbnail_url`, `hls_master_playlist`, `version`                  | Catalog Read 投影, Feed, Search, AI         |
 | `catalog.video.ai_enriched`        | `UpdateAIAttributes` 成功                | `video_id`, `difficulty`, `summary`, `tags`, `raw_subtitle_url`, `version`                        | Catalog Read 投影, Search, RecSys           |
-| `catalog.video.visibility_changed` | `FinalizeVisibility` 或 `OverrideStatus` | `video_id`, `visibility_status`, `publish_time`, `region_restrictions`, `version`                 | Catalog Read 投影, Feed, Search             |
+| `catalog.video.visibility_changed` | `FinalizeVisibility` 或 `OverrideStatus` | `video_id`, `visibility_status`, `publish_time`, `region_restrictions`, `version`（actor 元数据 Post-MVP 预留） | Catalog Read 投影, Feed, Search             |
 | `catalog.video.processing_failed`  | 状态转为 `failed`                        | `video_id`, `error_message`, `failed_stage`                                                       | Alerting, Upload, Support                   |
-| `catalog.video.restored`           | 从失败/拒绝恢复                          | `video_id`, `previous_status`, `new_status`, `actor`                                              | Audit, Reporting                            |
+| `catalog.video.restored`           | 从失败/拒绝恢复                          | `video_id`, `previous_status`, `new_status`（actor 元数据 Post-MVP 预留）                         | Audit, Reporting                            |
 
 - **事件字段约束（MVP）**
-  - 每条事件至少包含：`event_id`、`aggregate_id=video_id`、`version`、`occurred_at`、`actor`。
+  - 每条事件至少包含：`event_id`、`aggregate_id=video_id`、`version`、`occurred_at`。（`actor` 字段 Post-MVP 规划，当前未输出）
   - `media_ready` / `ai_enriched` 必须输出完整快照字段（媒体/AI 相关列），以便下游覆盖更新；不返回 delta。
   - `stage_updated` 仅描写状态变化，可选 `error_message`；`processing_failed` 承载错误详情。
   - 所有事件 payload 使用 Protobuf，并保留向后兼容新增字段策略（仅追加字段，禁止复用 tag）。
@@ -463,7 +463,7 @@ service CatalogAdminService {
 ### 6.1 Outbox 发布（Pub/Sub）
 
 - Outbox Relay 通过 `LISTEN/NOTIFY` + 指数退避轮询相结合的策略认领事件，批量（100~500 条）执行 `FOR UPDATE SKIP LOCKED`，按 `occurred_at` 顺序发布到 **Pub/Sub Topic `video.events`** 并写回 `published_at`。发布失败会设置 `next_retry_at` 并退避重试。
-- 发布消息时使用 `aggregate_id` 作为 **ordering key**，携带 `event_id`、`trace_id`、`occurred_at`、`version`、`actor` 等元数据，payload 按 `kratos-gateway/只读投影方案.md` 约定的 Protobuf schema 序列化。
+- 发布消息时使用 `aggregate_id` 作为 **ordering key**，携带 `event_id`、`trace_id`、`occurred_at`、`version` 等元数据（`actor_*` 头字段 Post-MVP 预留），payload 按 `kratos-gateway/只读投影方案.md` 约定的 Protobuf schema 序列化。
 - 实现细节（退避参数、Exactly-once、DLQ、监控指标）统一复用《只读投影方案》中的参考实现，Catalog 服务无需单独定制。
 
 ### 6.2 读模型策略
@@ -518,7 +518,7 @@ service CatalogAdminService {
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 幂等     | 写接口均要求 `Idempotency-Key`，`catalog.idempotency_keys` 存储响应；重复请求返回首个结果。                                                                                                                        |
 | 超时     | 外部调用（Engagement、数据库）设置 `<500ms` 超时；Lifecycle 请求整体超时 `3s`。                                                                                                                                    |
-| 日志     | 使用 `log/slog` JSON，字段：`ts`, `level`, `msg`, `trace_id`, `video_id`, `status`, `actor`。                                                                                                                      |
+| 日志     | 使用 `log/slog` JSON，字段：`ts`, `level`, `msg`, `trace_id`, `video_id`, `status`（`actor` 字段 Post-MVP 预留）。                                                                                                 |
 | 追踪     | OpenTelemetry span，如 `Catalog.RegisterUpload`，记录 `status`, `video_id`, `error`。                                                                                                                              |
 | 指标     | 暴露 `catalog_processing_status_total`, `catalog_visibility_change_total`, `catalog_outbox_lag_seconds`, `catalog_idempotency_hits_total`, `catalog_engagement_event_lag_ms` 等核心指标。 |
 | 安全     | gRPC 双向 TLS + OIDC 服务鉴权；只读接口支持用户 JWT（Gateway 透传）。                                                                                                                                              |

@@ -1,16 +1,16 @@
 package services
 
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
-    outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
-    "github.com/bionicotaku/lingo-services-catalog/internal/models/po"
+	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
+	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 
-    "github.com/bionicotaku/lingo-utils/txmanager"
-    "github.com/go-kratos/kratos/v2/errors"
-    "github.com/google/uuid"
+	"github.com/bionicotaku/lingo-utils/txmanager"
+	"github.com/go-kratos/kratos/v2/errors"
+	"github.com/google/uuid"
 )
 
 // ErrVideoNotFound 是当视频未找到时返回的哨兵错误。
@@ -18,7 +18,7 @@ var ErrVideoNotFound = errors.NotFound(videov1.ErrorReason_ERROR_REASON_VIDEO_NO
 
 // VideoLookupRepo 抽象出读取单个视频实体所需的仓储能力。
 type VideoLookupRepo interface {
-    GetByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error)
+	GetLifecycleSnapshot(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error)
 }
 
 // VideoRevision 表示视频写操作后的最新快照及事件元数据。

@@ -24,8 +24,6 @@ func ToRegisterUploadInput(req *videov1.RegisterUploadRequest, meta metadata.Han
 		UploadUserID:     uploaderID,
 		Title:            req.GetTitle(),
 		RawFileReference: req.GetRawFileReference(),
-		ActorType:        meta.ActorType,
-		ActorID:          meta.ActorID,
 		IdempotencyKey:   meta.IdempotencyKey,
 	}
 	if req.Description != nil {
@@ -43,8 +41,6 @@ func ToUpdateOriginalMediaInput(req *videov1.UpdateOriginalMediaRequest, meta me
 	}
 	input := services.UpdateOriginalMediaInput{
 		VideoID:        videoID,
-		ActorType:      meta.ActorType,
-		ActorID:        meta.ActorID,
 		IdempotencyKey: meta.IdempotencyKey,
 	}
 	if req.RawFileSize != nil {
@@ -91,8 +87,6 @@ func ToUpdateProcessingStatusInput(req *videov1.UpdateProcessingStatusRequest, m
 		JobID:          req.GetJobId(),
 		EmittedAt:      emittedAt,
 		ErrorMessage:   optionalStringPointer(req.ErrorMessage),
-		ActorType:      meta.ActorType,
-		ActorID:        meta.ActorID,
 		IdempotencyKey: meta.IdempotencyKey,
 	}
 	if req.ExpectedStatus != nil {
@@ -126,8 +120,6 @@ func ToUpdateMediaInfoInput(req *videov1.UpdateMediaInfoRequest, meta metadata.H
 		EncodedBitrate:    optionalInt32Pointer(req.EncodedBitrate),
 		ThumbnailURL:      optionalStringPointer(req.ThumbnailUrl),
 		HLSMasterPlaylist: optionalStringPointer(req.HlsMasterPlaylist),
-		ActorType:         meta.ActorType,
-		ActorID:           meta.ActorID,
 		IdempotencyKey:    meta.IdempotencyKey,
 		JobID:             req.GetJobId(),
 		EmittedAt:         emittedAt,
@@ -162,8 +154,6 @@ func ToUpdateAIAttributesInput(req *videov1.UpdateAIAttributesRequest, meta meta
 		Summary:        optionalStringPointer(req.Summary),
 		RawSubtitleURL: optionalStringPointer(req.RawSubtitleUrl),
 		ErrorMessage:   optionalStringPointer(req.ErrorMessage),
-		ActorType:      meta.ActorType,
-		ActorID:        meta.ActorID,
 		IdempotencyKey: meta.IdempotencyKey,
 		JobID:          req.GetJobId(),
 		EmittedAt:      emittedAt,
@@ -192,8 +182,6 @@ func ToArchiveVideoInput(req *videov1.ArchiveVideoRequest, meta metadata.Handler
 	input := services.ArchiveVideoInput{
 		VideoID:        videoID,
 		Reason:         optionalStringPointer(req.Reason),
-		ActorType:      meta.ActorType,
-		ActorID:        meta.ActorID,
 		IdempotencyKey: meta.IdempotencyKey,
 	}
 	if req.ExpectedVersion != nil {

@@ -20,13 +20,11 @@ type UpdateOriginalMediaInput struct {
 	RawResolution   *string
 	RawBitrate      *int32
 	ExpectedVersion *int64
-	ActorType       string
-	ActorID         string
 	IdempotencyKey  string
 }
 
 type originalMediaRepo interface {
-	GetByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error)
+	GetLifecycleSnapshot(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error)
 }
 
 // OriginalMediaService 负责记录上传完成后的原始媒体属性。
@@ -49,7 +47,7 @@ func (s *OriginalMediaService) UpdateOriginalMedia(ctx context.Context, input Up
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "no media fields provided")
 	}
 
-	current, err := s.repo.GetByID(ctx, nil, input.VideoID)
+	current, err := s.repo.GetLifecycleSnapshot(ctx, nil, input.VideoID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
 			return nil, ErrVideoNotFound
@@ -62,8 +60,6 @@ func (s *OriginalMediaService) UpdateOriginalMedia(ctx context.Context, input Up
 		RawFileSize:     input.RawFileSize,
 		RawResolution:   input.RawResolution,
 		RawBitrate:      input.RawBitrate,
-		ActorType:       input.ActorType,
-		ActorID:         input.ActorID,
 		IdempotencyKey:  input.IdempotencyKey,
 		ExpectedVersion: input.ExpectedVersion,
 	}

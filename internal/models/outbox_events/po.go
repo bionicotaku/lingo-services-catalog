@@ -150,8 +150,6 @@ type VideoVisibilityChanged struct {
 	PreviousStatus *po.VideoStatus
 	PublishedAt    *time.Time
 	Reason         *string
-	ActorType      *string
-	ActorID        *string
 }
 
 const (

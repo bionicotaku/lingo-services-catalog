@@ -41,11 +41,11 @@ func (videoRepoStub) Delete(context.Context, txmanager.Session, uuid.UUID) (*po.
 	return nil, repositories.ErrVideoNotFound
 }
 
-func (videoRepoStub) GetByID(context.Context, txmanager.Session, uuid.UUID) (*po.Video, error) {
+func (videoRepoStub) GetLifecycleSnapshot(context.Context, txmanager.Session, uuid.UUID) (*po.Video, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 
-func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
+func (videoRepoStub) FindPublishedByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }
 

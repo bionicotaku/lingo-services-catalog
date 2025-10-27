@@ -33,7 +33,7 @@ message Server {
   GRPC grpc = 1;
   JWT jwt = 2;
   Handlers handlers = 3;
-  repeated string metadata_keys = 4;  // 透传 header 列表，如 x-md-global-user-id / x-md-actor-type 等
+  repeated string metadata_keys = 4;  // 透传 header 列表，如 x-md-global-user-id（actor 字段 Post-MVP 可追加）
 }
 
 message Data {

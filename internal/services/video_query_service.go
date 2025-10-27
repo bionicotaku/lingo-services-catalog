@@ -22,7 +22,7 @@ import (
 
 // VideoQueryRepo 定义读模型所需的访问接口。
 type VideoQueryRepo interface {
-	FindByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error)
+	FindPublishedByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error)
 	GetMetadata(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoMetadata, error)
 	ListPublicVideos(ctx context.Context, sess txmanager.Session, input repositories.ListPublicVideosInput) ([]po.VideoListEntry, error)
 	ListUserUploads(ctx context.Context, sess txmanager.Session, input repositories.ListUserUploadsInput) ([]po.MyUploadEntry, error)
@@ -85,7 +85,7 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 	}
 	err := s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
 		var repoErr error
-		videoView, repoErr = s.repo.FindByID(txCtx, sess, videoID)
+		videoView, repoErr = s.repo.FindPublishedByID(txCtx, sess, videoID)
 		if repoErr != nil {
 			return repoErr
 		}

@@ -187,7 +187,7 @@ type queryRepoStub struct {
 	lastUploadsInput repositories.ListUserUploadsInput
 }
 
-func (q *queryRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
+func (q *queryRepoStub) FindPublishedByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
 	q.detailCalls++
 	if q.detail == nil {
 		return nil, repositories.ErrVideoNotFound

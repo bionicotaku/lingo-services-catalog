@@ -1081,8 +1081,6 @@ type Event_VideoVisibilityChanged struct {
 	PreviousStatus *string                `protobuf:"bytes,5,opt,name=previous_status,json=previousStatus,proto3,oneof" json:"previous_status,omitempty"`
 	PublishedAt    *string                `protobuf:"bytes,6,opt,name=published_at,json=publishedAt,proto3,oneof" json:"published_at,omitempty"`
 	Reason         *string                `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	ActorType      *string                `protobuf:"bytes,8,opt,name=actor_type,json=actorType,proto3,oneof" json:"actor_type,omitempty"`
-	ActorId        *string                `protobuf:"bytes,9,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1166,25 +1164,11 @@ func (x *Event_VideoVisibilityChanged) GetReason() string {
 	return ""
 }
 
-func (x *Event_VideoVisibilityChanged) GetActorType() string {
-	if x != nil && x.ActorType != nil {
-		return *x.ActorType
-	}
-	return ""
-}
-
-func (x *Event_VideoVisibilityChanged) GetActorId() string {
-	if x != nil && x.ActorId != nil {
-		return *x.ActorId
-	}
-	return ""
-}
-
 var File_api_video_v1_events_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\x96 \n" +
+	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\xc2\x1f\n" +
 	"\x05Event\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x122\n" +
 	"\n" +
@@ -1333,7 +1317,7 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	" \x01(\tR\x0eanalysisStatusB\x10\n" +
 	"\x0e_error_messageB\t\n" +
 	"\a_job_idB\r\n" +
-	"\v_emitted_at\x1a\x89\x03\n" +
+	"\v_emitted_at\x1a\xb5\x02\n" +
 	"\x16VideoVisibilityChanged\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
@@ -1342,15 +1326,11 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12,\n" +
 	"\x0fprevious_status\x18\x05 \x01(\tH\x00R\x0epreviousStatus\x88\x01\x01\x12&\n" +
 	"\fpublished_at\x18\x06 \x01(\tH\x01R\vpublishedAt\x88\x01\x01\x12\x1b\n" +
-	"\x06reason\x18\a \x01(\tH\x02R\x06reason\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"actor_type\x18\b \x01(\tH\x03R\tactorType\x88\x01\x01\x12\x1e\n" +
-	"\bactor_id\x18\t \x01(\tH\x04R\aactorId\x88\x01\x01B\x12\n" +
+	"\x06reason\x18\a \x01(\tH\x02R\x06reason\x88\x01\x01B\x12\n" +
 	"\x10_previous_statusB\x0f\n" +
 	"\r_published_atB\t\n" +
-	"\a_reasonB\r\n" +
-	"\v_actor_typeB\v\n" +
-	"\t_actor_idB\t\n" +
+	"\a_reasonJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"B\t\n" +
 	"\apayload*\x96\x02\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +

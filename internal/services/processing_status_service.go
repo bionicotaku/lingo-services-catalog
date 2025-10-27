@@ -34,8 +34,6 @@ type UpdateProcessingStatusInput struct {
 	EmittedAt       time.Time
 	ErrorMessage    *string
 	ExpectedVersion *int64
-	ActorType       string
-	ActorID         string
 	IdempotencyKey  string
 }
 
@@ -61,7 +59,7 @@ func (s *ProcessingStatusService) UpdateProcessingStatus(ctx context.Context, in
 	if err := validateStage(input.Stage); err != nil {
 		return nil, err
 	}
-	current, err := s.repo.GetByID(ctx, nil, input.VideoID)
+	current, err := s.repo.GetLifecycleSnapshot(ctx, nil, input.VideoID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
 			return nil, ErrVideoNotFound
@@ -74,8 +72,6 @@ func (s *ProcessingStatusService) UpdateProcessingStatus(ctx context.Context, in
 	}
 
 	updateInput := buildStageUpdateInput(input, current)
-	updateInput.ActorType = input.ActorType
-	updateInput.ActorID = input.ActorID
 	updateInput.IdempotencyKey = input.IdempotencyKey
 	updateInput.ExpectedVersion = input.ExpectedVersion
 

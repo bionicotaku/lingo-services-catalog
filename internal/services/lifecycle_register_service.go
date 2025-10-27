@@ -12,8 +12,6 @@ type RegisterUploadInput struct {
 	Title            string
 	Description      *string
 	RawFileReference string
-	ActorType        string
-	ActorID          string
 	IdempotencyKey   string
 }
 

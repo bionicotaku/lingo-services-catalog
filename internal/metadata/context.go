@@ -14,8 +14,6 @@ type HandlerMetadata struct {
 	IfMatch        string
 	IfNoneMatch    string
 	UserID         string
-	ActorType      string
-	ActorID        string
 }
 
 // IsZero 判断 Metadata 是否为空。
@@ -23,9 +21,7 @@ func (m HandlerMetadata) IsZero() bool {
 	return m.IdempotencyKey == "" &&
 		m.IfMatch == "" &&
 		m.IfNoneMatch == "" &&
-		m.UserID == "" &&
-		m.ActorType == "" &&
-		m.ActorID == ""
+		m.UserID == ""
 }
 
 // UserUUID 尝试解析 user_id 为 UUID。

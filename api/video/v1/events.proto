@@ -144,7 +144,7 @@ message Event {
     optional string previous_status = 5;
     optional string published_at = 6;
     optional string reason = 7;
-    optional string actor_type = 8;
-    optional string actor_id = 9;
+    // reserved 8, 9 for future actor metadata (temporary removal during MVP)
+    reserved 8, 9;
   }
 }

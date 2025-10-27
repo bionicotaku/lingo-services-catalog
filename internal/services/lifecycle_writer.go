@@ -48,8 +48,6 @@ func NewLifecycleWriter(repo LifecycleRepo, outbox LifecycleOutboxWriter, tx txm
 }
 
 type operationMetadata struct {
-	ActorType      string
-	ActorID        string
 	IdempotencyKey string
 }
 
@@ -59,8 +57,6 @@ type CreateVideoInput struct {
 	Title            string
 	Description      *string
 	RawFileReference string
-	ActorType        string
-	ActorID          string
 	IdempotencyKey   string
 }
 
@@ -90,8 +86,6 @@ type UpdateVideoInput struct {
 	AnalysisJobID     *string
 	AnalysisEmittedAt *time.Time
 	ExpectedVersion   *int64
-	ActorType         string
-	ActorID           string
 	IdempotencyKey    string
 }
 
@@ -118,11 +112,7 @@ func (w *LifecycleWriter) CreateVideo(ctx context.Context, input CreateVideoInpu
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "raw_file_reference is required")
 	}
 
-	meta := operationMetadata{
-		ActorType:      input.ActorType,
-		ActorID:        input.ActorID,
-		IdempotencyKey: input.IdempotencyKey,
-	}
+	meta := operationMetadata{IdempotencyKey: input.IdempotencyKey}
 
 	var (
 		created    *po.Video
@@ -167,7 +157,7 @@ func (w *LifecycleWriter) CreateVideo(ctx context.Context, input CreateVideoInpu
 		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to create video").WithCause(fmt.Errorf("create video: %w", err))
 	}
 
-	w.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s actor_type=%s actor_id=%s", created.VideoID, input.Title, input.ActorType, input.ActorID)
+	w.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s", created.VideoID, input.Title)
 	return NewVideoRevision(created, event, occurredAt), nil
 }
 
@@ -191,11 +181,7 @@ func (w *LifecycleWriter) UpdateVideo(ctx context.Context, input UpdateVideoInpu
 		return nil, errors.Conflict(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "version conflict")
 	}
 
-	meta := operationMetadata{
-		ActorType:      input.ActorType,
-		ActorID:        input.ActorID,
-		IdempotencyKey: input.IdempotencyKey,
-	}
+	meta := operationMetadata{IdempotencyKey: input.IdempotencyKey}
 
 	var (
 		updated     *po.Video
@@ -289,7 +275,7 @@ func (w *LifecycleWriter) UpdateVideo(ctx context.Context, input UpdateVideoInpu
 		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to update video").WithCause(fmt.Errorf("update video: %w", err))
 	}
 
-	w.log.WithContext(ctx).Infof("UpdateVideo: video_id=%s actor_type=%s actor_id=%s", updated.VideoID, input.ActorType, input.ActorID)
+	w.log.WithContext(ctx).Infof("UpdateVideo: video_id=%s", updated.VideoID)
 	return NewVideoRevision(updated, updateEvent, occurredAt), nil
 }
 
@@ -343,12 +329,6 @@ func (w *LifecycleWriter) enqueueOutbox(ctx context.Context, sess txmanager.Sess
 	}
 
 	attributes := outboxevents.BuildAttributes(event, outboxevents.SchemaVersionV1, outboxevents.TraceIDFromContext(ctx))
-	if meta.ActorType != "" {
-		attributes["actor_type"] = meta.ActorType
-	}
-	if meta.ActorID != "" {
-		attributes["actor_id"] = meta.ActorID
-	}
 	if meta.IdempotencyKey != "" {
 		attributes["idempotency_key"] = meta.IdempotencyKey
 	}

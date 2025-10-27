@@ -1,4 +1,39 @@
--- name: FindVideoByID :one
+-- 读取生命周期写流程所需的完整快照，无状态限制
+-- name: GetVideoLifecycleSnapshot :one
+SELECT
+    video_id,
+    upload_user_id,
+    created_at,
+    updated_at,
+    title,
+    description,
+    raw_file_reference,
+    status,
+    version,
+    media_status,
+    analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
+    raw_file_size,
+    raw_resolution,
+    raw_bitrate,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    raw_subtitle_url,
+    error_message
+FROM catalog.videos
+WHERE video_id = $1;
+
+-- 读取前台查询可见的视频（仅 ready/published），字段裁剪
+-- name: FindPublishedVideo :one
 SELECT
     video_id,
     title,

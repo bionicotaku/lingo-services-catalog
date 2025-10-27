@@ -5,7 +5,7 @@ sql:
     queries:
       - "internal/repositories/sqlc/commands.sql"
       - "internal/repositories/sqlc/queries.sql"
-      - "internal/repositories/sqlc/user_states.sql"
+      - "internal/repositories/sqlc/engagement_projection.sql"
     engine: postgresql
     gen:
       go:

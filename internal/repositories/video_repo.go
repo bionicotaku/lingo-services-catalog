@@ -178,20 +178,20 @@ func (r *VideoRepository) Delete(ctx context.Context, sess txmanager.Session, vi
 	return mappers.VideoFromCatalog(record), nil
 }
 
-// GetByID 返回视频主表记录（无锁）。
-func (r *VideoRepository) GetByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error) {
+// GetLifecycleSnapshot 返回生命周期服务需要的完整视频快照（不做状态过滤）。
+func (r *VideoRepository) GetLifecycleSnapshot(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error) {
 	queries := r.queries
 	if sess != nil {
 		queries = queries.WithTx(sess.Tx())
 	}
 
-	record, err := queries.GetVideoByID(ctx, videoID)
+	record, err := queries.GetVideoLifecycleSnapshot(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrVideoNotFound
 		}
-		r.log.WithContext(ctx).Errorf("get video by id failed: video_id=%s err=%v", videoID, err)
-		return nil, fmt.Errorf("get video by id: %w", err)
+		r.log.WithContext(ctx).Errorf("get lifecycle snapshot failed: video_id=%s err=%v", videoID, err)
+		return nil, fmt.Errorf("get lifecycle snapshot: %w", err)
 	}
 	return mappers.VideoFromCatalog(record), nil
 }
@@ -303,20 +303,20 @@ func (r *VideoRepository) ListUserUploads(ctx context.Context, sess txmanager.Se
 	return items, nil
 }
 
-// FindByID 根据 video_id 从只读视图查询视频详情（仅返回 ready/published 状态的视频）。
-func (r *VideoRepository) FindByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error) {
+// FindPublishedByID 返回仅对外可见的视频概要（限制在 ready/published）。
+func (r *VideoRepository) FindPublishedByID(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.VideoReadyView, error) {
 	queries := r.queries
 	if sess != nil {
 		queries = queries.WithTx(sess.Tx())
 	}
 
-	record, err := queries.FindVideoByID(ctx, videoID)
+	record, err := queries.FindPublishedVideo(ctx, videoID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrVideoNotFound
 		}
-		r.log.WithContext(ctx).Errorf("find video by id failed: video_id=%s err=%v", videoID, err)
-		return nil, fmt.Errorf("find video by id: %w", err)
+		r.log.WithContext(ctx).Errorf("find published video failed: video_id=%s err=%v", videoID, err)
+		return nil, fmt.Errorf("find published video: %w", err)
 	}
 	return mappers.VideoReadyViewFromFindRow(record), nil
 }

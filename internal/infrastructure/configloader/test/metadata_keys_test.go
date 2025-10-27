@@ -26,14 +26,15 @@ func TestLoadMetadataKeys(t *testing.T) {
     - x-md-idempotency-key
     - x-md-if-match
     - x-md-if-none-match
-    - x-md-actor-type
-    - x-md-actor-id
 
 data:
   postgres:
     dsn: postgres://user:pass@localhost:5432/postgres?sslmode=disable
     max_open_conns: 1
     min_open_conns: 0
+  grpc_client:
+    metadata_keys:
+      - x-md-global-user-id
 `
 
 	if err := os.WriteFile(cfgPath, []byte(configYAML), 0o600); err != nil {
@@ -45,19 +46,18 @@ data:
 		t.Fatalf("load runtime config: %v", err)
 	}
 
-	expected := []string{
+	serverExpected := []string{
 		"x-md-global-user-id",
 		"x-md-idempotency-key",
 		"x-md-if-match",
 		"x-md-if-none-match",
-		"x-md-actor-type",
-		"x-md-actor-id",
 	}
-	if got := runtimeCfg.Server.MetadataKeys; !equalStrings(got, expected) {
-		t.Fatalf("server metadata keys mismatch: got %v want %v", got, expected)
+	if got := runtimeCfg.Server.MetadataKeys; !equalStrings(got, serverExpected) {
+		t.Fatalf("server metadata keys mismatch: got %v want %v", got, serverExpected)
 	}
-	if got := runtimeCfg.GRPCClient.MetadataKeys; !equalStrings(got, expected) {
-		t.Fatalf("client metadata keys mismatch: got %v want %v", got, expected)
+	clientExpected := []string{"x-md-global-user-id"}
+	if got := runtimeCfg.GRPCClient.MetadataKeys; !equalStrings(got, clientExpected) {
+		t.Fatalf("client metadata keys mismatch: got %v want %v", got, clientExpected)
 	}
 }
 

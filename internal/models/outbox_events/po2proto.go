@@ -198,8 +198,6 @@ func encodeVideoVisibilityChanged(evt *DomainEvent, payload *VideoVisibilityChan
 		OccurredAt: evt.OccurredAt.UTC().Format(time.RFC3339Nano),
 		Status:     string(payload.Status),
 		Reason:     payload.Reason,
-		ActorType:  payload.ActorType,
-		ActorId:    payload.ActorID,
 	}
 	if payload.PreviousStatus != nil {
 		value := string(*payload.PreviousStatus)

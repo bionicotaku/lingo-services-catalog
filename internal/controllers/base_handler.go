@@ -97,8 +97,6 @@ func (h *BaseHandler) ExtractMetadata(ctx context.Context) metadata.HandlerMetad
 		IfMatch:        firstMetadata(md, headerIfMatch),
 		IfNoneMatch:    firstMetadata(md, headerIfNoneMatch),
 		UserID:         firstMetadata(md, headerUserID),
-		ActorType:      firstMetadata(md, "x-md-actor-type"),
-		ActorID:        firstMetadata(md, "x-md-actor-id"),
 	}
 }
 

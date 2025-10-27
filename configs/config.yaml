@@ -25,10 +25,7 @@ server:
     - x-md-if-match
     # x-md-if-none-match: 条件读取/缓存验证（仅本服务使用）
     - x-md-if-none-match
-    # x-md-actor-type: 行为主体类型（upload_service/media_service/ai_service/operator 等）
-    - x-md-actor-type
-    # x-md-actor-id: 行为主体唯一标识（服务名或操作员 ID）
-    - x-md-actor-id
+    # （Post-MVP）若重新启用操作者审计，可在此追加 x-md-actor-type / x-md-actor-id
   # Cloud Run JWT 权限验证（入站）
   jwt:
     # 预期的 audience，生产环境填写 Cloud Run URL，本地可留空
@@ -91,10 +88,8 @@ data:
       header_key: authorization
     # 仅列出需要继续往下游传播的键，通常包含 x-md-global-* 前缀
     metadata_keys:
-      # 透传跨服务身份与操作主体信息（供下游继续判断权限）。
+      # 仅透传跨服务身份；操作者字段留待 Post-MVP 再启用
       - x-md-global-user-id
-      - x-md-actor-type
-      - x-md-actor-id
 
 # 可观测性配置：追踪与指标
 observability:

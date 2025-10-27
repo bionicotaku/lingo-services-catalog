@@ -119,8 +119,8 @@ func VideoMetadataFromRow(row catalogsql.GetVideoMetadataRow) *po.VideoMetadata 
 	}
 }
 
-// VideoReadyViewFromFindRow 将 FindVideoByID 查询结果转换为 po.VideoReadyView。
-func VideoReadyViewFromFindRow(v catalogsql.FindVideoByIDRow) *po.VideoReadyView {
+// VideoReadyViewFromFindRow 将 FindPublishedVideo 查询结果转换为 po.VideoReadyView。
+func VideoReadyViewFromFindRow(v catalogsql.FindPublishedVideoRow) *po.VideoReadyView {
 	return &po.VideoReadyView{
 		VideoID:        v.VideoID,
 		Title:          v.Title,
