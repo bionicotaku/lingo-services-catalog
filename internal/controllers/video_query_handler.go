@@ -12,7 +12,7 @@ import (
 
 // VideoQueryHandler 负责处理视频查询相关的 gRPC 请求。
 type VideoQueryHandler struct {
-	videov1.UnimplementedVideoQueryServiceServer
+	videov1.UnimplementedCatalogQueryServiceServer
 
 	*BaseHandler
 	svc *services.VideoQueryService

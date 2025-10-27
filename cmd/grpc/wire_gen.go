@@ -8,10 +8,9 @@ package main
 
 import (
 	"context"
-
 	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
-	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
+	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
@@ -23,7 +22,9 @@ import (
 	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
+)
 
+import (
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -98,14 +99,21 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 		return nil, nil, err
 	}
 	manager := txmanager.ProvideManager(txmanagerComponent)
-	videoCommandService := services.NewVideoCommandService(videoRepository, outboxRepository, manager, logger)
+	lifecycleWriter := services.NewLifecycleWriter(videoRepository, outboxRepository, manager, logger)
+	registerUploadService := services.NewRegisterUploadService(lifecycleWriter)
+	originalMediaService := services.NewOriginalMediaService(lifecycleWriter, videoRepository)
+	processingStatusService := services.NewProcessingStatusService(lifecycleWriter, videoRepository)
+	mediaInfoService := services.NewMediaInfoService(lifecycleWriter, videoRepository)
+	aiAttributesService := services.NewAIAttributesService(lifecycleWriter, videoRepository)
+	visibilityService := services.NewVisibilityService(lifecycleWriter, videoRepository)
+	lifecycleService := services.NewLifecycleService(registerUploadService, originalMediaService, processingStatusService, mediaInfoService, aiAttributesService, visibilityService)
 	handlerTimeouts := configloader.ProvideHandlerTimeouts(runtimeConfig)
 	baseHandler := controllers.NewBaseHandler(handlerTimeouts)
-	videoCommandHandler := controllers.NewVideoCommandHandler(videoCommandService, baseHandler)
+	lifecycleHandler := controllers.NewLifecycleHandler(lifecycleService, baseHandler)
 	videoUserStatesRepository := repositories.NewVideoUserStatesRepository(pool, logger)
 	videoQueryService := services.NewVideoQueryService(videoRepository, videoUserStatesRepository, manager, logger)
 	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService, baseHandler)
-	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, videoCommandHandler, videoQueryHandler, logger)
+	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, lifecycleHandler, videoQueryHandler, logger)
 	gcpubsubConfig := configloader.ProvidePubSubConfig(messagingConfig)
 	dependencies := configloader.ProvidePubSubDependencies(logger)
 	gcpubsubComponent, cleanup6, err := gcpubsub.NewComponent(contextContext, gcpubsubConfig, dependencies)

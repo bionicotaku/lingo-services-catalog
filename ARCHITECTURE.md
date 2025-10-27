@@ -391,6 +391,9 @@ service CatalogLifecycleService {
   // AI 服务调用；写入分析结果与标签
   rpc UpdateAIAttributes(UpdateAIAttributesRequest) returns (VideoRevision);
 
+  // Safety/运营调用；归档视频（撤出公开列表）
+  rpc ArchiveVideo(ArchiveVideoRequest) returns (VideoRevision);
+
 }
 ```
 
@@ -401,6 +404,7 @@ service CatalogLifecycleService {
 - 原始媒体更新：上传完成后由 Upload 服务调用 `UpdateOriginalMedia` 写入 `raw_file_size`、`raw_resolution`、`raw_bitrate` 等字段，并将 `version` 自增 1。
 - 阶段更新：`UpdateProcessingStatus` 需要携带 `stage`（`MEDIA`/`ANALYSIS`）与目标阶段状态；当 `new_status=processing` 或 `failed` 时必须传入新的 `job_id` 和可选原因，Service 会锁定记录、更新阶段状态并刷新 `media_job_id`/`analysis_job_id`。
 - 媒体/AI 结果回写：`UpdateMediaInfo`、`UpdateAIAttributes` 请求必须携带 `job_id` 与 `emitted_at`。Service 在事务内比对 `media_job_id`/`analysis_job_id` 与 `media_emitted_at`/`analysis_emitted_at`，只有在 `emitted_at` 更新、更晚的情况下才写入并自增 `version`，同时使用 `idempotency_key=job_id` 保证重复回调安全。
+- 归档：`ArchiveVideo` 由运营或自动策略调用，将 `status` 置为 `archived`，记录归档原因，并生成 `catalog.video.visibility_changed` 事件；归档后的视频不再出现在公开列表，可通过后续运营流程重新发布。
 
 ### 5.3 `CatalogAdminService`（post mvp 后续扩展）
 

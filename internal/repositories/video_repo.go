@@ -61,12 +61,16 @@ type UpdateVideoInput struct {
 	HLSMasterPlaylist *string
 	Difficulty        *string
 	Summary           *string
+	Tags              []string
 	RawSubtitleURL    *string
 	ErrorMessage      *string
 	MediaJobID        *string
 	MediaEmittedAt    *time.Time
 	AnalysisJobID     *string
 	AnalysisEmittedAt *time.Time
+	RawFileSize       *int64
+	RawResolution     *string
+	RawBitrate        *int32
 }
 
 // ListPublicVideosInput 描述公开视频分页查询参数。
@@ -129,6 +133,9 @@ func (r *VideoRepository) Update(ctx context.Context, sess txmanager.Session, in
 		input.Status,
 		input.MediaStatus,
 		input.AnalysisStatus,
+		input.RawFileSize,
+		input.RawResolution,
+		input.RawBitrate,
 		input.DurationMicros,
 		input.EncodedResolution,
 		input.EncodedBitrate,
@@ -136,6 +143,7 @@ func (r *VideoRepository) Update(ctx context.Context, sess txmanager.Session, in
 		input.AnalysisJobID,
 		input.MediaEmittedAt,
 		input.AnalysisEmittedAt,
+		input.Tags,
 	))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

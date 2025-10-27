@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 
-	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 	"github.com/google/uuid"
 )
 
@@ -13,19 +12,22 @@ type RegisterUploadInput struct {
 	Title            string
 	Description      *string
 	RawFileReference string
+	ActorType        string
+	ActorID          string
+	IdempotencyKey   string
 }
 
 // RegisterUploadService 封装上传注册用例，复用现有写模型实现。
 type RegisterUploadService struct {
-	commands *VideoCommandService
+	writer *LifecycleWriter
 }
 
 // NewRegisterUploadService 构造上传注册服务。
-func NewRegisterUploadService(commands *VideoCommandService) *RegisterUploadService {
-	return &RegisterUploadService{commands: commands}
+func NewRegisterUploadService(writer *LifecycleWriter) *RegisterUploadService {
+	return &RegisterUploadService{writer: writer}
 }
 
 // RegisterUpload 创建视频基础记录，并写入 Outbox 事件。
-func (s *RegisterUploadService) RegisterUpload(ctx context.Context, input RegisterUploadInput) (*vo.VideoCreated, error) {
-	return s.commands.CreateVideo(ctx, CreateVideoInput(input))
+func (s *RegisterUploadService) RegisterUpload(ctx context.Context, input RegisterUploadInput) (*VideoRevision, error) {
+	return s.writer.CreateVideo(ctx, CreateVideoInput(input))
 }

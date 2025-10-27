@@ -8,7 +8,6 @@ import (
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
 	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
-	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 
 	"github.com/go-kratos/kratos/v2/errors"
@@ -29,24 +28,28 @@ const (
 
 // UpdateVisibilityInput 描述可见性变更所需字段。
 type UpdateVisibilityInput struct {
-	VideoID uuid.UUID
-	Action  UpdateVisibilityAction
-	Reason  *string
+	VideoID         uuid.UUID
+	Action          UpdateVisibilityAction
+	Reason          *string
+	ExpectedVersion *int64
+	ActorType       string
+	ActorID         string
+	IdempotencyKey  string
 }
 
 // VisibilityService 负责发布/拒绝/归档视频。
 type VisibilityService struct {
-	commands *VideoCommandService
-	repo     *repositories.VideoRepository
+	writer *LifecycleWriter
+	repo   VideoLookupRepo
 }
 
 // NewVisibilityService 构造 VisibilityService。
-func NewVisibilityService(commands *VideoCommandService, repo *repositories.VideoRepository) *VisibilityService {
-	return &VisibilityService{commands: commands, repo: repo}
+func NewVisibilityService(writer *LifecycleWriter, repo VideoLookupRepo) *VisibilityService {
+	return &VisibilityService{writer: writer, repo: repo}
 }
 
 // UpdateVisibility 执行可见性变更。
-func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVisibilityInput) (*vo.VideoUpdated, error) {
+func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVisibilityInput) (*VideoRevision, error) {
 	if input.VideoID == uuid.Nil {
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "video_id is required")
 	}
@@ -77,14 +80,18 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 		return nil, errors.Conflict(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "status already applied")
 	}
 
-	statusValue := string(targetStatus)
+	statusValue := targetStatus
 	updateInput := UpdateVideoInput{
 		VideoID:      input.VideoID,
 		Status:       &statusValue,
 		ErrorMessage: input.Reason,
 	}
+	updateInput.ActorType = input.ActorType
+	updateInput.ActorID = input.ActorID
+	updateInput.IdempotencyKey = input.IdempotencyKey
+	updateInput.ExpectedVersion = input.ExpectedVersion
 
-	return s.commands.UpdateVideo(
+	return s.writer.UpdateVideo(
 		ctx,
 		updateInput,
 		WithPreviousVideo(current),
@@ -95,12 +102,20 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 			if previous.Status == updated.Status {
 				return nil, nil
 			}
+			var actorTypePtr *string
+			var actorIDPtr *string
+			if input.ActorType != "" {
+				actorTypePtr = &input.ActorType
+			}
+			if input.ActorID != "" {
+				actorIDPtr = &input.ActorID
+			}
 			event, err := outboxevents.NewVideoVisibilityChangedEvent(
 				updated,
 				previous.Status,
 				input.Reason,
-				nil,
-				nil,
+				actorTypePtr,
+				actorIDPtr,
 				uuid.New(),
 				visibilityOccurredAt(updated),
 			)

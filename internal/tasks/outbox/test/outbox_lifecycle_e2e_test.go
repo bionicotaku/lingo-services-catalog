@@ -119,6 +119,8 @@ func TestOutboxPublisher_MediaReadyIdempotent(t *testing.T) {
 		ThumbnailURL:      &result.Thumbnail,
 		HLSMasterPlaylist: &result.Playlist,
 		MediaStatus:       &mediaStatus,
+		JobID:             result.MediaJobID,
+		EmittedAt:         time.Now().UTC(),
 	})
 	require.NoError(t, err)
 
@@ -154,16 +156,16 @@ func newLifecycleTestEnv(t *testing.T) *lifecycleTestEnv {
 	txMgr, err := txmanager.NewManager(pool, txmanager.Config{}, txmanager.Dependencies{Logger: logger})
 	require.NoError(t, err)
 
-	commandSvc := services.NewVideoCommandService(videoRepo, outboxRepo, txMgr, logger)
+	writer := services.NewLifecycleWriter(videoRepo, outboxRepo, txMgr, logger)
 	env := &lifecycleTestEnv{
 		ctx:           ctx,
 		pool:          pool,
 		outboxRepo:    outboxRepo,
-		registerSvc:   services.NewRegisterUploadService(commandSvc),
-		processingSvc: services.NewProcessingStatusService(commandSvc, videoRepo),
-		mediaSvc:      services.NewMediaInfoService(commandSvc, videoRepo),
-		aiSvc:         services.NewAIAttributesService(commandSvc, videoRepo),
-		visibilitySvc: services.NewVisibilityService(commandSvc, videoRepo),
+		registerSvc:   services.NewRegisterUploadService(writer),
+		processingSvc: services.NewProcessingStatusService(writer, videoRepo),
+		mediaSvc:      services.NewMediaInfoService(writer, videoRepo),
+		aiSvc:         services.NewAIAttributesService(writer, videoRepo),
+		visibilitySvc: services.NewVisibilityService(writer, videoRepo),
 	}
 
 	server := pstest.NewServer()
@@ -252,6 +254,8 @@ func runLifecycleFlow(t *testing.T, env *lifecycleTestEnv) lifecycleFlowResult {
 		ThumbnailURL:      &result.Thumbnail,
 		HLSMasterPlaylist: &result.Playlist,
 		MediaStatus:       &mediaStatus,
+		JobID:             result.MediaJobID,
+		EmittedAt:         mediaReadyAt,
 	})
 	require.NoError(t, err)
 
@@ -265,8 +269,11 @@ func runLifecycleFlow(t *testing.T, env *lifecycleTestEnv) lifecycleFlowResult {
 		VideoID:        videoID,
 		Difficulty:     &result.Difficulty,
 		Summary:        &result.Summary,
+		Tags:           []string{"integration", "demo"},
 		RawSubtitleURL: &result.SubtitleURL,
 		AnalysisStatus: &analysisStatus,
+		JobID:          result.AnalysisJobID,
+		EmittedAt:      analysisReadyAt,
 	})
 	require.NoError(t, err)
 

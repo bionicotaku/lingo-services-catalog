@@ -51,9 +51,9 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		// grpcclient.ProviderSet, // 暂时不使用, 未来需要调用外部 gRPC 服务时再启用
 		// clients.ProviderSet,    // 暂时不使用, 未来需要调用外部服务时再启用
 		repositories.ProviderSet, // 数据访问层（sqlc）
-		wire.Bind(new(services.VideoCommandRepo), new(*repositories.VideoRepository)), // 写仓储绑定
-		wire.Bind(new(services.VideoQueryRepo), new(*repositories.VideoRepository)),   // 读仓储绑定
-		wire.Bind(new(services.VideoOutboxWriter), new(*repositories.OutboxRepository)),
+		wire.Bind(new(services.LifecycleRepo), new(*repositories.VideoRepository)),  // 写仓储绑定
+		wire.Bind(new(services.VideoQueryRepo), new(*repositories.VideoRepository)), // 读仓储绑定
+		wire.Bind(new(services.LifecycleOutboxWriter), new(*repositories.OutboxRepository)),
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		outboxtasks.ProvideRunner,
@@ -181,15 +181,24 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 //                                      *repositories.VideoRepository
 //       构造视频仓储层，使用 sqlc 生成的查询方法。
 //
-//   - services.NewVideoCommandService(services.VideoCommandRepo, services.VideoOutboxWriter, txmanager.Manager, log.Logger)
-//                               *services.VideoCommandService
+//   - services.NewLifecycleWriter(services.LifecycleRepo, services.LifecycleOutboxWriter, txmanager.Manager, log.Logger)
+//                               *services.LifecycleWriter
+//   - services.NewRegisterUploadService(*services.LifecycleWriter) *services.RegisterUploadService
+//   - services.NewOriginalMediaService(*services.LifecycleWriter, *repositories.VideoRepository)
+//   - services.NewProcessingStatusService(*services.LifecycleWriter, *repositories.VideoRepository)
+//   - services.NewMediaInfoService(*services.LifecycleWriter, *repositories.VideoRepository)
+//   - services.NewAIAttributesService(*services.LifecycleWriter, *repositories.VideoRepository)
+//   - services.NewVisibilityService(*services.LifecycleWriter, *repositories.VideoRepository)
+//   - services.NewLifecycleService(*services.RegisterUploadService, *services.OriginalMediaService,
+//       *services.ProcessingStatusService, *services.MediaInfoService, *services.AIAttributesService,
+//       *services.VisibilityService) *services.LifecycleService
 //   - services.NewVideoQueryService(services.VideoQueryRepo, txmanager.Manager, log.Logger)
 //                               *services.VideoQueryService
 //       组装视频业务用例，协调仓储访问及 Outbox 写入。
 //       注: VideoRepo / OutboxRepo 接口通过 wire.Bind 绑定到对应 Repository 实现。
 //
-//   - controllers.NewVideoCommandHandler(*services.VideoCommandService) *controllers.VideoCommandHandler
-//   - controllers.NewVideoQueryHandler(*services.VideoQueryService) *controllers.VideoQueryHandler
+//   - controllers.NewLifecycleHandler(*services.LifecycleService, *controllers.BaseHandler) *controllers.LifecycleHandler
+//   - controllers.NewVideoQueryHandler(*services.VideoQueryService, *controllers.BaseHandler) *controllers.VideoQueryHandler
 //       构造视频控制层，为 gRPC handler 提供入口。
 //
 // ┌─────────────────────────────────────────────────────────────────────────┐

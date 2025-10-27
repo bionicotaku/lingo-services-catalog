@@ -17,8 +17,8 @@
    - [x] 更新 `internal/models/po`、`vo` 与 `mappers`
 
 ## 2. gRPC 契约与配置
-- [ ] 拆分 proto：`CatalogQueryService`、`CatalogLifecycleService`、事件定义；补充请求/响应/错误消息
-- [ ] 调整 `buf.gen.yaml`/`buf.yaml` 并跑 `buf lint`、`buf breaking`
+- [x] 拆分 proto：`CatalogQueryService`、`CatalogLifecycleService`、事件定义；补充请求/响应/错误消息（2025-10-27：完成拆分并为 Lifecycle RPC 增加独立响应消息；handler/service 已切换至新 proto）
+- [x] 调整 `buf.gen.yaml`/`buf.yaml` 并跑 `buf lint`、`buf breaking`
 - [ ] 更新 `configs/conf.proto` 增加 `allowed_actor_types`、`metadata_keys` 注释
 - [ ] 调整 `configs/config.yaml` 默认值（服务名、metadata 列表、JWT audience）
 

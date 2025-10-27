@@ -258,17 +258,21 @@ SET
     media_emitted_at = COALESCE($7, media_emitted_at),
     analysis_job_id = COALESCE($8, analysis_job_id),
     analysis_emitted_at = COALESCE($9, analysis_emitted_at),
-    duration_micros = COALESCE($10, duration_micros),
-    encoded_resolution = COALESCE($11, encoded_resolution),
-    encoded_bitrate = COALESCE($12, encoded_bitrate),
-    thumbnail_url = COALESCE($13, thumbnail_url),
-    hls_master_playlist = COALESCE($14, hls_master_playlist),
-    difficulty = COALESCE($15, difficulty),
-    summary = COALESCE($16, summary),
-    raw_subtitle_url = COALESCE($17, raw_subtitle_url),
-    error_message = COALESCE($18, error_message),
+    raw_file_size = COALESCE($10, raw_file_size),
+    raw_resolution = COALESCE($11, raw_resolution),
+    raw_bitrate = COALESCE($12, raw_bitrate),
+    duration_micros = COALESCE($13, duration_micros),
+    encoded_resolution = COALESCE($14, encoded_resolution),
+    encoded_bitrate = COALESCE($15, encoded_bitrate),
+    thumbnail_url = COALESCE($16, thumbnail_url),
+    hls_master_playlist = COALESCE($17, hls_master_playlist),
+    difficulty = COALESCE($18, difficulty),
+    summary = COALESCE($19, summary),
+    tags = COALESCE($20, tags),
+    raw_subtitle_url = COALESCE($21, raw_subtitle_url),
+    error_message = COALESCE($22, error_message),
     version = version + 1
-WHERE video_id = $19
+WHERE video_id = $23
 RETURNING
     video_id,
     upload_user_id,
@@ -310,6 +314,9 @@ type UpdateVideoParams struct {
 	MediaEmittedAt    pgtype.Timestamptz     `json:"media_emitted_at"`
 	AnalysisJobID     pgtype.Text            `json:"analysis_job_id"`
 	AnalysisEmittedAt pgtype.Timestamptz     `json:"analysis_emitted_at"`
+	RawFileSize       pgtype.Int8            `json:"raw_file_size"`
+	RawResolution     pgtype.Text            `json:"raw_resolution"`
+	RawBitrate        pgtype.Int4            `json:"raw_bitrate"`
 	DurationMicros    pgtype.Int8            `json:"duration_micros"`
 	EncodedResolution pgtype.Text            `json:"encoded_resolution"`
 	EncodedBitrate    pgtype.Int4            `json:"encoded_bitrate"`
@@ -317,6 +324,7 @@ type UpdateVideoParams struct {
 	HlsMasterPlaylist pgtype.Text            `json:"hls_master_playlist"`
 	Difficulty        pgtype.Text            `json:"difficulty"`
 	Summary           pgtype.Text            `json:"summary"`
+	Tags              []string               `json:"tags"`
 	RawSubtitleUrl    pgtype.Text            `json:"raw_subtitle_url"`
 	ErrorMessage      pgtype.Text            `json:"error_message"`
 	VideoID           uuid.UUID              `json:"video_id"`
@@ -333,6 +341,9 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		arg.MediaEmittedAt,
 		arg.AnalysisJobID,
 		arg.AnalysisEmittedAt,
+		arg.RawFileSize,
+		arg.RawResolution,
+		arg.RawBitrate,
 		arg.DurationMicros,
 		arg.EncodedResolution,
 		arg.EncodedBitrate,
@@ -340,6 +351,7 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		arg.HlsMasterPlaylist,
 		arg.Difficulty,
 		arg.Summary,
+		arg.Tags,
 		arg.RawSubtitleUrl,
 		arg.ErrorMessage,
 		arg.VideoID,

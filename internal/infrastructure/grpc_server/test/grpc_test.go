@@ -41,6 +41,10 @@ func (videoRepoStub) Delete(context.Context, txmanager.Session, uuid.UUID) (*po.
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (videoRepoStub) GetByID(context.Context, txmanager.Session, uuid.UUID) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
 func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }
@@ -69,27 +73,35 @@ func (noopTxManager) WithinReadOnlyTx(ctx context.Context, _ txmanager.TxOptions
 	return fn(ctx, nil)
 }
 
-func newVideoHandlers(t *testing.T) (*controllers.VideoCommandHandler, *controllers.VideoQueryHandler) {
+func newVideoHandlers(t *testing.T) (*controllers.LifecycleHandler, *controllers.VideoQueryHandler) {
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
-	repo := videoRepoStub{}
+	repo := &videoRepoStub{}
 	outbox := outboxRepoStub{}
-	cmdSvc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
+	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
 	querySvc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
+	lifecycleSvc := services.NewLifecycleService(
+		services.NewRegisterUploadService(writer),
+		services.NewOriginalMediaService(writer, repo),
+		services.NewProcessingStatusService(writer, repo),
+		services.NewMediaInfoService(writer, repo),
+		services.NewAIAttributesService(writer, repo),
+		services.NewVisibilityService(writer, repo),
+	)
 	base := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
-	return controllers.NewVideoCommandHandler(cmdSvc, base), controllers.NewVideoQueryHandler(querySvc, base)
+	return controllers.NewLifecycleHandler(lifecycleSvc, base), controllers.NewVideoQueryHandler(querySvc, base)
 }
 
 func startServer(t *testing.T) (string, func()) {
 	t.Helper()
-	commandHandler, queryHandler := newVideoHandlers(t)
+	lifecycleHandler, queryHandler := newVideoHandlers(t)
 	cfg := configloader.ServerConfig{
 		Address:      "127.0.0.1:0",
 		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
 	}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()
@@ -138,7 +150,7 @@ func TestNewGRPCServerServesVideo(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := videov1.NewVideoQueryServiceClient(conn)
+	client := videov1.NewCatalogQueryServiceClient(conn)
 	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: uuid.New().String()})
 	// 期望返回 NotFound 错误（因为我们的 stub 总是返回 ErrVideoNotFound）
 	if err == nil {
@@ -179,7 +191,7 @@ func TestNewGRPCServerMetadataPropagationPrefix(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := videov1.NewVideoQueryServiceClient(conn)
+	client := videov1.NewCatalogQueryServiceClient(conn)
 	md := kratosmd.New(map[string][]string{"x-template-user": {"abc"}})
 	ctx := kratosmd.NewClientContext(context.Background(), md)
 	// 调用 Video 服务验证 metadata 传播（预期返回 NotFound 或 InvalidArgument）
@@ -200,7 +212,7 @@ func TestVideoServiceRejectsInvalidID(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := videov1.NewVideoQueryServiceClient(conn)
+	client := videov1.NewCatalogQueryServiceClient(conn)
 	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: ""})
 	if err == nil {
 		t.Fatalf("expected validation error")

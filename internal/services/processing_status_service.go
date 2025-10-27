@@ -8,7 +8,6 @@ import (
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
 	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
-	"github.com/bionicotaku/lingo-services-catalog/internal/models/vo"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 
 	"github.com/go-kratos/kratos/v2/errors"
@@ -27,28 +26,32 @@ const (
 
 // UpdateProcessingStatusInput 输入参数。
 type UpdateProcessingStatusInput struct {
-	VideoID        uuid.UUID
-	Stage          ProcessingStage
-	ExpectedStatus *po.StageStatus
-	NewStatus      po.StageStatus
-	JobID          string
-	EmittedAt      time.Time
-	ErrorMessage   *string
+	VideoID         uuid.UUID
+	Stage           ProcessingStage
+	ExpectedStatus  *po.StageStatus
+	NewStatus       po.StageStatus
+	JobID           string
+	EmittedAt       time.Time
+	ErrorMessage    *string
+	ExpectedVersion *int64
+	ActorType       string
+	ActorID         string
+	IdempotencyKey  string
 }
 
 // ProcessingStatusService 推进媒体/AI 阶段状态。
 type ProcessingStatusService struct {
-	commands *VideoCommandService
-	repo     *repositories.VideoRepository
+	writer *LifecycleWriter
+	repo   VideoLookupRepo
 }
 
 // NewProcessingStatusService 构造 ProcessingStatusService。
-func NewProcessingStatusService(commands *VideoCommandService, repo *repositories.VideoRepository) *ProcessingStatusService {
-	return &ProcessingStatusService{commands: commands, repo: repo}
+func NewProcessingStatusService(writer *LifecycleWriter, repo VideoLookupRepo) *ProcessingStatusService {
+	return &ProcessingStatusService{writer: writer, repo: repo}
 }
 
 // UpdateProcessingStatus 推进阶段状态，校验 job / emitted_at / expected_status。
-func (s *ProcessingStatusService) UpdateProcessingStatus(ctx context.Context, input UpdateProcessingStatusInput) (*vo.VideoUpdated, error) {
+func (s *ProcessingStatusService) UpdateProcessingStatus(ctx context.Context, input UpdateProcessingStatusInput) (*VideoRevision, error) {
 	if input.VideoID == uuid.Nil {
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "video_id is required")
 	}
@@ -71,7 +74,12 @@ func (s *ProcessingStatusService) UpdateProcessingStatus(ctx context.Context, in
 	}
 
 	updateInput := buildStageUpdateInput(input, current)
-	return s.commands.UpdateVideo(
+	updateInput.ActorType = input.ActorType
+	updateInput.ActorID = input.ActorID
+	updateInput.IdempotencyKey = input.IdempotencyKey
+	updateInput.ExpectedVersion = input.ExpectedVersion
+
+	return s.writer.UpdateVideo(
 		ctx,
 		updateInput,
 		WithPreviousVideo(current),
@@ -186,34 +194,35 @@ func buildStageUpdateInput(input UpdateProcessingStatusInput, current *po.Video)
 		VideoID: input.VideoID,
 	}
 
-	stageStatusValue := string(input.NewStatus)
-	occured := input.EmittedAt.UTC()
+	occurred := input.EmittedAt.UTC()
 
 	mediaStatus := current.MediaStatus
 	analysisStatus := current.AnalysisStatus
 
 	switch input.Stage {
 	case ProcessingStageMedia:
-		update.MediaStatus = &stageStatusValue
+		newStatus := input.NewStatus
+		update.MediaStatus = &newStatus
 		if input.JobID != "" {
 			job := input.JobID
 			update.MediaJobID = &job
 		}
-		update.MediaEmittedAt = &occured
+		update.MediaEmittedAt = &occurred
 		mediaStatus = input.NewStatus
 	case ProcessingStageAnalysis:
-		update.AnalysisStatus = &stageStatusValue
+		newStatus := input.NewStatus
+		update.AnalysisStatus = &newStatus
 		if input.JobID != "" {
 			job := input.JobID
 			update.AnalysisJobID = &job
 		}
-		update.AnalysisEmittedAt = &occured
+		update.AnalysisEmittedAt = &occurred
 		analysisStatus = input.NewStatus
 	}
 
 	computed := computeOverallStatus(current.Status, mediaStatus, analysisStatus, input.NewStatus)
 	if computed != current.Status {
-		statusValue := string(computed)
+		statusValue := computed
 		update.Status = &statusValue
 	}
 

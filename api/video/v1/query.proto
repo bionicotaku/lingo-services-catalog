@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package video.v1;
+
+option go_package = "github.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1";
+
+import "buf/validate/validate.proto";
+
+// CatalogQueryService 提供视频只读查询能力。
+service CatalogQueryService {
+  rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
+  rpc ListUserPublicVideos(ListUserPublicVideosRequest) returns (ListUserPublicVideosResponse);
+  rpc ListMyUploads(ListMyUploadsRequest) returns (ListMyUploadsResponse);
+}
+
+message GetVideoDetailRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetVideoDetailResponse {
+  VideoDetail detail = 1;
+}
+
+message VideoDetail {
+  string video_id = 1;
+  string title = 2;
+  string status = 3;
+  string media_status = 4;
+  string analysis_status = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  bool has_liked = 8;
+  bool has_bookmarked = 9;
+  bool has_watched = 10;
+}
+
+message ListUserPublicVideosRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListUserPublicVideosResponse {
+  repeated VideoListItem videos = 1;
+  string next_page_token = 2;
+}
+
+message ListMyUploadsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  repeated string status_filter = 3;
+}
+
+message ListMyUploadsResponse {
+  repeated MyUploadListItem videos = 1;
+  string next_page_token = 2;
+}
+
+message VideoListItem {
+  string video_id = 1;
+  string title = 2;
+  string status = 3;
+  string media_status = 4;
+  string analysis_status = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message MyUploadListItem {
+  string video_id = 1;
+  string title = 2;
+  string status = 3;
+  string media_status = 4;
+  string analysis_status = 5;
+  int64 version = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}

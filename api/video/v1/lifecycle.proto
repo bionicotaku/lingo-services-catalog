@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package video.v1;
+
+option go_package = "github.com/bionicotaku/lingo-services-catalog/api/video/v1;videov1";
+
+import "buf/validate/validate.proto";
+
+// CatalogLifecycleService 暴露视频生命周期相关的写接口。
+service CatalogLifecycleService {
+  rpc RegisterUpload(RegisterUploadRequest) returns (RegisterUploadResponse);
+  rpc UpdateOriginalMedia(UpdateOriginalMediaRequest) returns (UpdateOriginalMediaResponse);
+  rpc UpdateProcessingStatus(UpdateProcessingStatusRequest) returns (UpdateProcessingStatusResponse);
+  rpc UpdateMediaInfo(UpdateMediaInfoRequest) returns (UpdateMediaInfoResponse);
+  rpc UpdateAIAttributes(UpdateAIAttributesRequest) returns (UpdateAIAttributesResponse);
+  rpc ArchiveVideo(ArchiveVideoRequest) returns (ArchiveVideoResponse);
+}
+
+enum ProcessingStage {
+  PROCESSING_STAGE_UNSPECIFIED = 0;
+  PROCESSING_STAGE_MEDIA = 1;
+  PROCESSING_STAGE_ANALYSIS = 2;
+}
+
+message RegisterUploadRequest {
+  string upload_user_id = 1 [(buf.validate.field).string.uuid = true];
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+  optional string description = 3;
+  string raw_file_reference = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+message RegisterUploadResponse {
+  string video_id = 1;
+  string status = 2;
+  string media_status = 3;
+  string analysis_status = 4;
+  string created_at = 5;
+  string event_id = 6;
+  int64 version = 7;
+  string occurred_at = 8;
+}
+
+message UpdateOriginalMediaRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+  optional int64 raw_file_size = 2 [(buf.validate.field).int64.gt = 0];
+  optional string raw_resolution = 3;
+  optional int32 raw_bitrate = 4 [(buf.validate.field).int32.gt = 0];
+  optional int64 expected_version = 5 [(buf.validate.field).int64.gt = 0];
+}
+
+message UpdateProcessingStatusRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+  ProcessingStage stage = 2 [(buf.validate.field).enum.defined_only = true];
+  optional string expected_status = 3;
+  string new_status = 4 [(buf.validate.field).string.min_len = 1];
+  string job_id = 5 [(buf.validate.field).string.min_len = 1];
+  string emitted_at = 6 [(buf.validate.field).string.min_len = 1];
+  optional string error_message = 7;
+  optional int64 expected_version = 8 [(buf.validate.field).int64.gt = 0];
+}
+
+message UpdateMediaInfoRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+  optional int64 duration_micros = 2 [(buf.validate.field).int64.gte = 0];
+  optional string encoded_resolution = 3;
+  optional int32 encoded_bitrate = 4 [(buf.validate.field).int32.gte = 0];
+  optional string thumbnail_url = 5;
+  optional string hls_master_playlist = 6;
+  optional string media_status = 7;
+  string job_id = 8 [(buf.validate.field).string.min_len = 1];
+  string emitted_at = 9 [(buf.validate.field).string.min_len = 1];
+  optional int64 expected_version = 10 [(buf.validate.field).int64.gt = 0];
+}
+
+message UpdateAIAttributesRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string difficulty = 2;
+  optional string summary = 3;
+  repeated string tags = 4;
+  optional string raw_subtitle_url = 5;
+  optional string error_message = 6;
+  optional string analysis_status = 7;
+  string job_id = 8 [(buf.validate.field).string.min_len = 1];
+  string emitted_at = 9 [(buf.validate.field).string.min_len = 1];
+  optional int64 expected_version = 10 [(buf.validate.field).int64.gt = 0];
+}
+
+message ArchiveVideoRequest {
+  string video_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string reason = 2;
+  optional int64 expected_version = 3 [(buf.validate.field).int64.gt = 0];
+}
+
+message VideoRevision {
+  string video_id = 1;
+  string status = 2;
+  string media_status = 3;
+  string analysis_status = 4;
+  int64 version = 5;
+  string updated_at = 6;
+  string event_id = 7;
+  string occurred_at = 8;
+}
+
+message UpdateOriginalMediaResponse {
+  VideoRevision revision = 1;
+}
+
+message UpdateProcessingStatusResponse {
+  VideoRevision revision = 1;
+}
+
+message UpdateMediaInfoResponse {
+  VideoRevision revision = 1;
+}
+
+message UpdateAIAttributesResponse {
+  VideoRevision revision = 1;
+}
+
+message ArchiveVideoResponse {
+  VideoRevision revision = 1;
+}

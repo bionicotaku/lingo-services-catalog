@@ -58,7 +58,7 @@ func TestJWTServer_SkipValidate_OptionalToken(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := videov1.NewVideoQueryServiceClient(conn)
+	client := videov1.NewCatalogQueryServiceClient(conn)
 	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: uuid.New().String()})
 	if status.Code(err) != codes.NotFound {
 		t.Fatalf("expected NotFound, got %v", status.Code(err))

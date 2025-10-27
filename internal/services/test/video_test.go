@@ -27,9 +27,9 @@ func TestCreateVideoEnqueuesOutbox(t *testing.T) {
 	}}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
+	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
 
-	created, err := uc.CreateVideo(context.Background(), services.CreateVideoInput{
+	created, err := writer.CreateVideo(context.Background(), services.CreateVideoInput{
 		UploadUserID:     uuid.New(),
 		Title:            "demo",
 		RawFileReference: "gs://bucket/object",
@@ -53,8 +53,8 @@ func TestCreateVideoRepoError(t *testing.T) {
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
 
-	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
-	_, err := uc.CreateVideo(context.Background(), services.CreateVideoInput{
+	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
+	_, err := writer.CreateVideo(context.Background(), services.CreateVideoInput{
 		UploadUserID:     uuid.New(),
 		Title:            "demo",
 		RawFileReference: "gs://bucket/object",
@@ -79,8 +79,8 @@ func TestCreateVideoOutboxError(t *testing.T) {
 	outbox := &outboxRepoStub{err: errors.New("outbox down")}
 	logger := log.NewStdLogger(io.Discard)
 
-	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
-	_, err := uc.CreateVideo(context.Background(), services.CreateVideoInput{
+	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
+	_, err := writer.CreateVideo(context.Background(), services.CreateVideoInput{
 		UploadUserID:     uuid.New(),
 		Title:            "demo",
 		RawFileReference: "gs://bucket/object",
@@ -102,11 +102,11 @@ func TestUpdateVideoEnqueuesOutbox(t *testing.T) {
 	repo := &videoRepoStub{updateVideo: updateVideo}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
+	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
 
 	newTitle := "Updated title"
-	status := string(po.VideoStatusPublished)
-	resp, err := uc.UpdateVideo(context.Background(), services.UpdateVideoInput{
+	status := po.VideoStatusPublished
+	resp, err := writer.UpdateVideo(context.Background(), services.UpdateVideoInput{
 		VideoID: updateVideo.VideoID,
 		Title:   &newTitle,
 		Status:  &status,
@@ -126,9 +126,9 @@ func TestUpdateVideoNoFields(t *testing.T) {
 	repo := &videoRepoStub{}
 	outbox := &outboxRepoStub{}
 	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
+	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
 
-	_, err := uc.UpdateVideo(context.Background(), services.UpdateVideoInput{
+	_, err := writer.UpdateVideo(context.Background(), services.UpdateVideoInput{
 		VideoID: uuid.New(),
 	})
 	if err == nil {
@@ -136,29 +136,6 @@ func TestUpdateVideoNoFields(t *testing.T) {
 	}
 	if len(outbox.messages) != 0 {
 		t.Fatal("outbox should not be called on invalid update")
-	}
-}
-
-func TestDeleteVideoEnqueuesOutbox(t *testing.T) {
-	deleted := &po.Video{
-		VideoID: uuid.New(),
-	}
-	repo := &videoRepoStub{deleteVideo: deleted}
-	outbox := &outboxRepoStub{}
-	logger := log.NewStdLogger(io.Discard)
-	uc := services.NewVideoCommandService(repo, outbox, noopTxManager{}, logger)
-
-	resp, err := uc.DeleteVideo(context.Background(), services.DeleteVideoInput{
-		VideoID: deleted.VideoID,
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp == nil {
-		t.Fatalf("expected response")
-	}
-	if len(outbox.messages) != 1 {
-		t.Fatalf("expected 1 outbox message, got %d", len(outbox.messages))
 	}
 }
 

@@ -39,6 +39,10 @@ func (videoRepoStub) Delete(context.Context, txmanager.Session, uuid.UUID) (*po.
 	return nil, repositories.ErrVideoNotFound
 }
 
+func (videoRepoStub) GetByID(context.Context, txmanager.Session, uuid.UUID) (*po.Video, error) {
+	return nil, repositories.ErrVideoNotFound
+}
+
 func (videoRepoStub) FindByID(context.Context, txmanager.Session, uuid.UUID) (*po.VideoReadyView, error) {
 	return nil, repositories.ErrVideoNotFound
 }
@@ -72,17 +76,26 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 
 	t.Helper()
 	logger := log.NewStdLogger(io.Discard)
-	cmdSvc := services.NewVideoCommandService(videoRepoStub{}, outboxRepoStub{}, noopTxManager{}, logger)
-	querySvc := services.NewVideoQueryService(videoRepoStub{}, nil, noopTxManager{}, logger)
+	repo := &videoRepoStub{}
+	writer := services.NewLifecycleWriter(repo, outboxRepoStub{}, noopTxManager{}, logger)
+	querySvc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
 	base := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
-	commandHandler := controllers.NewVideoCommandHandler(cmdSvc, base)
+	lifecycleSvc := services.NewLifecycleService(
+		services.NewRegisterUploadService(writer),
+		services.NewOriginalMediaService(writer, repo),
+		services.NewProcessingStatusService(writer, repo),
+		services.NewMediaInfoService(writer, repo),
+		services.NewAIAttributesService(writer, repo),
+		services.NewVisibilityService(writer, repo),
+	)
+	lifecycleHandler := controllers.NewLifecycleHandler(lifecycleSvc, base)
 	queryHandler := controllers.NewVideoQueryHandler(querySvc, base)
 
 	cfg := configloader.ServerConfig{
 		Address:      "127.0.0.1:0",
 		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
 	}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {
@@ -156,7 +169,7 @@ func TestNewGRPCClient_CallVideo(t *testing.T) {
 	}
 	defer cleanup()
 
-	client := videov1.NewVideoQueryServiceClient(conn)
+	client := videov1.NewCatalogQueryServiceClient(conn)
 	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: uuid.NewString()})
 	// 期望返回 NotFound（因为 stub 总是返回 ErrVideoNotFound）
 	if status.Code(err) != codes.NotFound {
@@ -181,7 +194,7 @@ func TestNewGRPCClient_VideoInvalidID(t *testing.T) {
 	}
 	defer cleanup()
 
-	client := videov1.NewVideoQueryServiceClient(conn)
+	client := videov1.NewCatalogQueryServiceClient(conn)
 	_, err = client.GetVideoDetail(context.Background(), &videov1.GetVideoDetailRequest{VideoId: ""})
 	// 期望返回 InvalidArgument（空 video_id）
 	if status.Code(err) != codes.InvalidArgument {
