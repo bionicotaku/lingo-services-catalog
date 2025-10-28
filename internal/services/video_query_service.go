@@ -77,6 +77,9 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 	)
 	var userID *uuid.UUID
 	if meta, ok := metadata.FromContext(ctx); ok {
+		if meta.InvalidUserInfo {
+			return nil, nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "invalid user info metadata")
+		}
 		if parsed, ok := meta.UserUUID(); ok {
 			userID = &parsed
 		} else if strings.TrimSpace(meta.UserID) != "" {
@@ -181,6 +184,9 @@ func (s *VideoQueryService) ListUserPublicVideos(ctx context.Context, pageSize i
 // ListMyUploads 返回用户上传列表。
 func (s *VideoQueryService) ListMyUploads(ctx context.Context, pageSize int32, pageToken string, statusFilter []po.VideoStatus, stageFilter []po.StageStatus) ([]vo.MyUploadListItem, string, error) {
 	meta, _ := metadata.FromContext(ctx)
+	if meta.InvalidUserInfo {
+		return nil, "", errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "invalid user info metadata")
+	}
 	rawUserID := strings.TrimSpace(meta.UserID)
 	if rawUserID == "" {
 		return nil, "", errors.Unauthorized(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "user_id required")

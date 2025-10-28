@@ -397,7 +397,7 @@ service CatalogLifecycleService {
 }
 ```
 
-- 安全：要求 mTLS + OIDC（audience=`catalog-lifecycle`），`actor_type` 校验留待 Post-MVP（当前生命周期 RPC 仅使用 `x-md-global-user-id`）。
+- 安全：要求 mTLS + OIDC（audience=`catalog-lifecycle`），`actor_type` 校验留待 Post-MVP（当前生命周期 RPC 依赖 `X-Apigateway-Api-Userinfo` 解析终端用户）。
 - 幂等：所有写请求必须包含 `idempotency_key`，重复请求返回首个结果。
 - 并发控制：需传入 `expected_status` 或 `expected_version`，冲突返回 `codes.FailedPrecondition`（Problem type `status-conflict`）。
 - 版本策略：Service 在事务内 `SELECT ... FOR UPDATE` 锁定记录，校验 `expected_version`，成功后执行 `version = version + 1` 并返回最新版本；所有事件使用该版本号，读模型以此做幂等。

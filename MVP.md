@@ -178,7 +178,7 @@ services/catalog/
 
 ### 6.1 CatalogQueryService（只读）
 
-- **用户身份来源**：BaseHandler 会从 gRPC metadata 解析 `x-md-global-user-id` 并注入到 Context。服务实现需从 Context 读取 `HandlerMetadata` 获取 `user_id`，而非依赖 RPC message 字段。匿名调用时 `user_id` 为空，接口需按匿名逻辑降级。
+- **用户身份来源**：BaseHandler 会从 gRPC metadata 解析 `X-Apigateway-Api-Userinfo`（API Gateway 注入的 JWT payload）并注入到 Context。服务实现需从 Context 读取 `HandlerMetadata` 获取 `user_id`（取 `sub`/`user_id`），匿名调用时 `user_id` 为空，接口需按匿名逻辑降级。
 - `GetVideoDetail(GetVideoDetailRequest) → GetVideoDetailResponse`
   - 请求：`video_id` (UUID)、可选 `If-None-Match` ETag。
   - 响应：`detail` + `etag` + `partial` 标记；当 Engagement 降级或无用户信息时 `partial=true`。
@@ -191,10 +191,10 @@ services/catalog/
 
 ### 6.2 CatalogLifecycleService（写端）
 
-- 通用请求头：`x-md-global-user-id`、`x-md-if-match`/`x-md-if-none-match`，均由内嵌 BaseHandler 注入。
+- 通用请求头：`X-Apigateway-Api-Userinfo`、`x-md-if-match`/`x-md-if-none-match`，均由内嵌 BaseHandler 注入。
 - 所有写请求包含：
   - `expected_version`（或 `expected_status`）。
-  - （Post-MVP）`actor` 信息（`actor_type`, `actor_id`）；MVP 阶段暂不下传，使用统一的 `x-md-global-user-id`。
+  - （Post-MVP）`actor` 信息（`actor_type`, `actor_id`）；MVP 阶段暂不下传，不额外透传。
 - 关键 RPC：
   1. `RegisterUpload`：创建视频，返回 `video_id`, `version`, `occurred_at`, `event_id`。
   2. `UpdateOriginalMedia`：补写 `raw_file_*` 属性。

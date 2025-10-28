@@ -295,7 +295,8 @@ func fillDefaults(cfg *RuntimeConfig) {
 		cfg.GRPCClient.JWT.HeaderKey = "authorization"
 	}
 	defaultKeys := []string{
-		"x-md-global-user-id",
+		"x-apigateway-api-userinfo",
+		"x-md-",
 		"x-md-idempotency-key",
 		"x-md-if-match",
 		"x-md-if-none-match",

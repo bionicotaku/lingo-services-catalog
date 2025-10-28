@@ -101,7 +101,7 @@ func startServer(t *testing.T) (string, func()) {
 	lifecycleHandler, queryHandler := newVideoHandlers(t)
 	cfg := configloader.ServerConfig{
 		Address:      "127.0.0.1:0",
-		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
+		MetadataKeys: []string{"x-apigateway-api-userinfo", "x-md-", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
 	}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}

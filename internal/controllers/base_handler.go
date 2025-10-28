@@ -31,7 +31,7 @@ type HandlerTimeouts struct {
 const (
 	fallbackDefaultTimeout = 5 * time.Second
 	fallbackQueryTimeout   = 3 * time.Second
-	headerUserID           = "x-md-global-user-id"
+	headerUserInfo         = "x-apigateway-api-userinfo"
 	headerIdempotencyKey   = "x-md-idempotency-key"
 	headerIfMatch          = "x-md-if-match"
 	headerIfNoneMatch      = "x-md-if-none-match"
@@ -92,12 +92,25 @@ func (h *BaseHandler) ExtractMetadata(ctx context.Context) metadata.HandlerMetad
 	if !ok {
 		return metadata.HandlerMetadata{}
 	}
-	return metadata.HandlerMetadata{
+	meta := metadata.HandlerMetadata{
 		IdempotencyKey: firstMetadata(md, headerIdempotencyKey),
 		IfMatch:        firstMetadata(md, headerIfMatch),
 		IfNoneMatch:    firstMetadata(md, headerIfNoneMatch),
-		UserID:         firstMetadata(md, headerUserID),
 	}
+	rawUserInfo := firstMetadata(md, headerUserInfo)
+	meta.RawUserInfo = rawUserInfo
+	if rawUserInfo != "" {
+		if userID, err := metadata.ExtractUserIDFromUserInfo(rawUserInfo); err == nil {
+			if strings.TrimSpace(userID) != "" {
+				meta.UserID = userID
+			} else {
+				meta.InvalidUserInfo = true
+			}
+		} else {
+			meta.InvalidUserInfo = true
+		}
+	}
+	return meta
 }
 
 // InjectHandlerMetadata 将解析结果注入到 Context，供后续层访问。

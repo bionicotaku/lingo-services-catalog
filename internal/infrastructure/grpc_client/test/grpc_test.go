@@ -97,7 +97,7 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 
 	cfg := configloader.ServerConfig{
 		Address:      "127.0.0.1:0",
-		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
+		MetadataKeys: []string{"x-apigateway-api-userinfo", "x-md-", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
 	}
 	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, logger)
 
@@ -161,7 +161,7 @@ func TestNewGRPCClient_CallVideo(t *testing.T) {
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 	cfg := configloader.GRPCClientConfig{
 		Target:       "dns:///" + addr,
-		MetadataKeys: []string{"x-md-global-user-id", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
+		MetadataKeys: []string{"x-apigateway-api-userinfo", "x-md-", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
 	}
 
 	conn, cleanup, err := clientinfra.NewGRPCClient(cfg, metricsCfg, nil, logger)

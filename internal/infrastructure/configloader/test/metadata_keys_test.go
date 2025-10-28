@@ -22,7 +22,8 @@ func TestLoadMetadataKeys(t *testing.T) {
     command_timeout: 5s
     query_timeout: 5s
   metadata_keys:
-    - x-md-global-user-id
+    - x-apigateway-api-userinfo
+    - x-md-
     - x-md-idempotency-key
     - x-md-if-match
     - x-md-if-none-match
@@ -34,7 +35,8 @@ data:
     min_open_conns: 0
   grpc_client:
     metadata_keys:
-      - x-md-global-user-id
+      - x-apigateway-api-userinfo
+      - x-md-
 `
 
 	if err := os.WriteFile(cfgPath, []byte(configYAML), 0o600); err != nil {
@@ -47,7 +49,8 @@ data:
 	}
 
 	serverExpected := []string{
-		"x-md-global-user-id",
+		"x-apigateway-api-userinfo",
+		"x-md-",
 		"x-md-idempotency-key",
 		"x-md-if-match",
 		"x-md-if-none-match",
@@ -55,7 +58,7 @@ data:
 	if got := runtimeCfg.Server.MetadataKeys; !equalStrings(got, serverExpected) {
 		t.Fatalf("server metadata keys mismatch: got %v want %v", got, serverExpected)
 	}
-	clientExpected := []string{"x-md-global-user-id"}
+	clientExpected := []string{"x-apigateway-api-userinfo", "x-md-"}
 	if got := runtimeCfg.GRPCClient.MetadataKeys; !equalStrings(got, clientExpected) {
 		t.Fatalf("client metadata keys mismatch: got %v want %v", got, clientExpected)
 	}

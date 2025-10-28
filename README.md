@@ -92,17 +92,17 @@ make build
 
 ### 5. 请求元数据头（Headers）
 
-Catalog 服务统一使用 `x-md-*` 前缀的 gRPC metadata 传递身份与操作上下文，核心字段包括：
+Catalog 服务统一从 GCP API Gateway 注入的 metadata 中获取身份信息，同时保留 `x-md-*` 前缀的上下文字段。核心字段包括：
 
-| Header 名称           | 说明 | 示例 |
-| ---------------------- | ---- | ---- |
-| `x-md-global-user-id`  | 终端用户标识（UUID）。匿名请求可缺省。 | `7b61d0ed-…`
-| `x-md-actor-type`      | （Post-MVP 预留）操作者类型，当前服务忽略，可缺省。 | — |
-| `x-md-actor-id`        | （Post-MVP 预留）操作者标识，当前服务忽略，可缺省。 | — |
-| `x-md-idempotency-key` | 幂等写请求标识，仅写接口使用。 | `req-20251026-001`
-| `x-md-if-match` / `x-md-if-none-match` | 条件请求/缓存控制，读写接口按需携带。 | `"W/\"etag\""`
+| Header 名称                     | 说明 | 示例 |
+| -------------------------------- | ---- | ---- |
+| `X-Apigateway-Api-Userinfo`      | API Gateway 验证后的 JWT payload（Base64Url 编码）。服务端会从 `sub`/`user_id` 字段提取终端用户 UUID。匿名请求可缺省。 | `eyJzdWIiOiI3YjYxZ...` |
+| `x-md-actor-type`                | （Post-MVP 预留）操作者类型，当前服务忽略，可缺省。 | — |
+| `x-md-actor-id`                  | （Post-MVP 预留）操作者标识，当前服务忽略，可缺省。 | — |
+| `x-md-idempotency-key`           | 幂等写请求标识，仅写接口使用。 | `req-20251026-001` |
+| `x-md-if-match` / `x-md-if-none-match` | 条件请求/缓存控制，读写接口按需携带。 | `"W/\"etag\""` |
 
-`configs/config.yaml` 与 `data.grpc_client.metadata_keys` 只需保留正在使用的字段（MVP 阶段仅需要 `x-md-global-user-id`、幂等与条件请求相关 Header）。`internal/metadata` 包统一解析这些值；`x-md-actor-*` 作为未来审计扩展保留但当前不会被消费。
+`configs/config.yaml` 与 `data.grpc_client.metadata_keys` 只需保留正在使用的字段（MVP 阶段仅需 `X-Apigateway-Api-Userinfo` 与幂等/条件请求相关 Header）。`internal/metadata` 包统一解析这些值；`x-md-actor-*` 作为未来审计扩展保留但当前不会被消费。
 
 ### 6. 独立运行 Outbox 发布器
 

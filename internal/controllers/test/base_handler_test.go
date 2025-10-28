@@ -2,6 +2,8 @@ package controllers_test
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -10,8 +12,17 @@ import (
 )
 
 func TestBaseHandlerExtractMetadata(t *testing.T) {
+	claims := map[string]any{
+		"sub":   "7b61d0ed-5ba1-4f21-a636-7f9f1a9f9a01",
+		"email": "user@example.com",
+	}
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		t.Fatalf("marshal claims: %v", err)
+	}
+	headerValue := base64.RawURLEncoding.EncodeToString(payload)
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
-		"x-md-global-user-id", "user-123",
+		"x-apigateway-api-userinfo", headerValue,
 		"x-md-idempotency-key", "req-456",
 		"x-md-if-match", "etag-1",
 		"x-md-if-none-match", "etag-0",
@@ -20,8 +31,14 @@ func TestBaseHandlerExtractMetadata(t *testing.T) {
 	handler := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
 	meta := handler.ExtractMetadata(ctx)
 
-	if meta.UserID != "user-123" {
-		t.Fatalf("expected user id to be user-123, got %q", meta.UserID)
+	if meta.UserID != claims["sub"] {
+		t.Fatalf("expected user id to be %q, got %q", claims["sub"], meta.UserID)
+	}
+	if meta.RawUserInfo != headerValue {
+		t.Fatalf("expected raw userinfo to match header")
+	}
+	if meta.InvalidUserInfo {
+		t.Fatalf("expected user info to be valid")
 	}
 	if meta.IdempotencyKey != "req-456" {
 		t.Fatalf("expected idempotency key req-456, got %q", meta.IdempotencyKey)
@@ -55,5 +72,19 @@ func TestBaseHandlerWithTimeout(t *testing.T) {
 	remaining := time.Until(deadline)
 	if remaining < 150*time.Millisecond || remaining > 250*time.Millisecond {
 		t.Fatalf("expected timeout near 200ms, got %v", remaining)
+	}
+}
+
+func TestBaseHandlerInvalidUserInfo(t *testing.T) {
+	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		"x-apigateway-api-userinfo", "!!!invalid!!!",
+	))
+	handler := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
+	meta := handler.ExtractMetadata(ctx)
+	if !meta.InvalidUserInfo {
+		t.Fatalf("expected invalid user info flag")
+	}
+	if meta.UserID != "" {
+		t.Fatalf("expected empty user id, got %q", meta.UserID)
 	}
 }

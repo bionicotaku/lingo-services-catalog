@@ -46,6 +46,22 @@ func TestVideoQueryService_ListMyUploadsInvalidUserID(t *testing.T) {
 	}
 }
 
+func TestVideoQueryService_ListMyUploadsInvalidUserInfo(t *testing.T) {
+	logger := log.NewStdLogger(io.Discard)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+
+	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{RawUserInfo: "broken", InvalidUserInfo: true})
+
+	_, _, err := svc.ListMyUploads(ctx, 10, "", nil, nil)
+	if err == nil {
+		t.Fatalf("expected error for invalid user info")
+	}
+	e := errors.FromError(err)
+	if e.Code != 400 {
+		t.Fatalf("expected http 400, got %d (%s)", e.Code, e.Message)
+	}
+}
+
 func TestVideoQueryService_GetVideoDetailInvalidUserID(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
@@ -55,6 +71,22 @@ func TestVideoQueryService_GetVideoDetailInvalidUserID(t *testing.T) {
 	_, _, err := svc.GetVideoDetail(ctx, uuid.New())
 	if err == nil {
 		t.Fatalf("expected error for invalid user id metadata")
+	}
+	e := errors.FromError(err)
+	if e.Code != 400 {
+		t.Fatalf("expected http 400, got %d (%s)", e.Code, e.Message)
+	}
+}
+
+func TestVideoQueryService_GetVideoDetailInvalidUserInfo(t *testing.T) {
+	logger := log.NewStdLogger(io.Discard)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+
+	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{RawUserInfo: "broken", InvalidUserInfo: true})
+
+	_, _, err := svc.GetVideoDetail(ctx, uuid.New())
+	if err == nil {
+		t.Fatalf("expected error for invalid user info metadata")
 	}
 	e := errors.FromError(err)
 	if e.Code != 400 {

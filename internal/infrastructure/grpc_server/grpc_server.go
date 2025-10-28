@@ -52,7 +52,7 @@ func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.Metr
 	mws := []middleware.Middleware{
 		obsTrace.Server(),
 		recovery.Recovery(),
-		metadata.Server(),
+		metadata.Server(metadata.WithPropagatedPrefix(cfg.MetadataKeys...)),
 	}
 	// 根据配置决定是否挂载 JWT 校验，默认置于限流之前。
 	if jwt != nil {
@@ -82,9 +82,9 @@ func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.Metr
 		opts = append(opts, grpc.Timeout(cfg.Timeout))
 	}
 	srv := grpc.NewServer(opts...)
-    if query != nil {
-        videov1.RegisterCatalogQueryServiceServer(srv, query)
-    }
+	if query != nil {
+		videov1.RegisterCatalogQueryServiceServer(srv, query)
+	}
 	if lifecycle != nil {
 		videov1.RegisterCatalogLifecycleServiceServer(srv, lifecycle)
 	}
