@@ -122,7 +122,6 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 	if state != nil {
 		detail.HasLiked = state.HasLiked
 		detail.HasBookmarked = state.HasBookmarked
-		detail.HasWatched = state.HasWatched
 	}
 	return detail, vo.NewVideoMetadataFromPO(metadataRow), nil
 }

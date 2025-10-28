@@ -366,7 +366,7 @@ service CatalogQueryService {
 ```
 
 - `GetVideoMetadata`：返回与用户无关的客观元数据（媒体、AI 字段等），可供 Gateway 或内部服务组合使用。
-- `GetVideoDetail`：返回 `GetVideoMetadataResponse` 全字段，并追加用户态布尔字段 `has_liked`、`has_bookmarked`、`has_watched`；这些字段来自 `catalog.video_user_states` 投影。接口支持 `If-None-Match`，并在内部并行调用 Progress/Profile；若超时或失败返回 `partial=true` 并省略用户态字段，保证详情页可降级展示。
+- `GetVideoDetail`：返回 `GetVideoMetadataResponse` 全字段，并追加用户态布尔字段 `has_liked`、`has_bookmarked`；这些字段来自 `catalog.video_user_engagements_projection` 投影。接口支持 `If-None-Match`，并在内部并行调用 Progress/Profile；若超时或失败返回 `partial=true` 并省略用户态字段，保证详情页可降级展示。
 - `ListUserPublicVideos`：过滤 `status=published`，未来扩展 `visibility_status=public` 时保持契约不变；提供游标与 `Link` 风格信息。
 - `ListMyUploads`：校验 `user_id`，返回所有状态及处理进度，默认按 `created_at desc` 排序，可携带 `stage_filter` 参数筛选。
 
@@ -468,9 +468,9 @@ service CatalogAdminService {
 
 ### 6.2 读模型策略
 
-- 当前版本取消 Catalog 内部的 `catalog-read` 投影进程，所有读流量直接访问主表 `catalog.videos` 并结合 `catalog.video_user_states` 投影聚合用户态字段。
+- 当前版本取消 Catalog 内部的 `catalog-read` 投影进程，所有读流量直接访问主表 `catalog.videos` 并结合 `catalog.video_user_engagements_projection` 投影聚合用户态字段。
 - Outbox 事件仍持续发布，Search / Feed / Progress 等下游服务可根据自身诉求消费事件构建各自读模型。
-- 若后续需要恢复集中式投影，可在新进程中复用现有 Outbox 事件与 `video_user_states` 表设计，独立部署并提供只读接口。
+- 若后续需要恢复集中式投影，可在新进程中复用现有 Outbox 事件与 `video_user_engagements_projection` 表设计，独立部署并提供只读接口。
 
 ---
 

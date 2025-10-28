@@ -38,7 +38,7 @@ Catalog 服务维护**视频权威元数据**，协调上传 → 转码 →AI→
 | 乐观锁             | 支持 `expected_version`，并在冲突时返回 `FailedPrecondition`         | Lifecycle 全部写接口                                     |
 | 读接口             | 提供视频详情、我的上传、公开列表，直接查询 `catalog.videos` 并按需关联用户态状态 | `CatalogQueryService`                                    |
 | 事件发布           | 写事务内写入 `catalog.outbox_events`，后台发布到 `video.events`      | Outbox Runner                                            |
-| Engagement 用户态投影 | 订阅 Engagement 事件构建 `catalog.video_user_states`（liked/bookmarked/watched 三布尔） | Engagement Projection Runner                             |
+| Engagement 用户态投影 | 订阅 Engagement 事件构建 `catalog.video_user_engagements_projection`（liked/bookmarked 两布尔） | Engagement Projection Runner                             |
 
 超出 MVP 的能力（多租户、可见性精细化、搜索索引、多语言等）在设计中预留接口，但不在验收范围。
 
@@ -70,7 +70,7 @@ graph TD
     ENG[Pub/Sub Topic: engagement.events]
   end
   subgraph Engagement State Store
-    UV[(catalog.video_user_states)]
+    UV[(catalog.video_user_engagements_projection)]
   end
   A --> S --> R --> DB
   S -->|Domain Events| OQ
@@ -119,17 +119,17 @@ graph TD
 | --------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `catalog.videos`            | 视频主表             | 各层字段、`version`、阶段 `job_id`/`emitted_at`                                                                   | 触发器维护 `updated_at`；枚举 `catalog.video_status` / `catalog.stage_status` |
 | `catalog.outbox_events`     | 事件 Outbox          | `event_id`, `aggregate_type`, `aggregate_id`, `payload`, `headers`, `occurred_at`, `version`, `lock_token`        | `available_at`/`published_at` 索引；见《只读投影方案》                        |
-| `catalog.video_user_states` | 用户态投影           | `(user_id, video_id)` 主键，`has_liked`, `has_bookmarked`, `has_watched`, `occurred_at`                            | 由 Engagement 投影消费者写入，缺失记录视为 false                             |
+| `catalog.video_user_engagements_projection` | 用户态投影           | `(user_id, video_id)` 主键，`has_liked`, `has_bookmarked`, `occurred_at`                                         | 由 Engagement 投影消费者写入，缺失记录视为 false                             |
 | `catalog.inbox_events`      | 外部事件幂等（预留） | `event_id`, `source_service`, `payload`, `processed_at`                                                           | 供未来跨服务回放使用，MVP 默认为空                                          |
 
 > 迁移脚本：`migrations/001_*`~`004_*` 已包含核心表。MVP 若需新增表，仅针对 Engagement 状态存储补充 `005_*` 及后续脚本。幂等与审计存储保留为 Post-MVP 能力。
 
-该用户态投影由 Engagement 投影消费者写入。Catalog Query 在需要返回用户态字段时左连接 `catalog.video_user_states`；缺失记录视为 `false`。
+该用户态投影由 Engagement 投影消费者写入。Catalog Query 在需要返回用户态字段时左连接 `catalog.video_user_engagements_projection`；缺失记录视为 `false`。
 
 ### 4.2 指标/清理任务
 
 - Outbox 表通过 `delivery_attempts` 与 `last_error` 监控异常。
-- `catalog.video_user_states` 可按需维护偏移量（例如追加 `catalog.video_user_states_offsets`）以支持回放，MVP 可暂以内存偏移实现。
+- `catalog.video_user_engagements_projection` 可按需维护偏移量（例如追加 `catalog.video_user_engagements_projection_offsets`）以支持回放，MVP 可暂以内存偏移实现。
 
 ---
 
@@ -161,7 +161,7 @@ services/catalog/
 | Controllers  | gRPC 请求、Problem Details      | 调用 Services、封装响应、处理 Metadata/ETag                 |
 | Services     | DTO、Repository 接口、TxManager | 业务结果、领域事件、Outbox 消息                               |
 | Repositories | pgxpool、sqlc 生成代码          | CRUD、用户态投影写入                                           |
-| Tasks        | Repositories、Pub/Sub 客户端    | 发布事件、消费 Engagement 事件并更新 `video_user_states`     |
+| Tasks        | Repositories、Pub/Sub 客户端    | 发布事件、消费 Engagement 事件并更新 `video_user_engagements_projection`     |
 
 ### 5.3 生命周期用例拆分
 
@@ -170,7 +170,7 @@ services/catalog/
 - `MediaInfoService`：写入转码产物，重算 overall status。
 - `AIAttributesService`：写入语义字段，重算 overall status。
 - `VisibilityService`：审核发布/拒绝，更新 `status` 并输出 `video.visibility_changed`。
-- `VideoQueryService`：直接查询 `catalog.videos`，并左连接 `catalog.video_user_states` 组装用户态字段（并列调用 Engagement 客户端时遵守 500ms 超时）。
+- `VideoQueryService`：直接查询 `catalog.videos`，并左连接 `catalog.video_user_engagements_projection` 组装用户态字段（并列调用 Engagement 客户端时遵守 500ms 超时）。
 
 ---
 
@@ -243,19 +243,19 @@ services/catalog/
 
 ### 8.1 事件来源与格式
 
-- Engagement 服务通过 `engagement.events`（Pub/Sub）发布用户行为事件，包含 `user_id`, `video_id`, `liked`, `bookmarked`, `watched`, `occurred_at` 等字段。
+- Engagement 服务通过 `engagement.events`（Pub/Sub）发布用户行为事件，包含 `user_id`, `video_id`, `liked`, `bookmarked`, `occurred_at` 等字段。
 - Runner 需要根据 `occurred_at` 只保留最新事件，避免乱序覆盖旧值。
 
 ### 8.2 消费流程
 
 1. StreamingPull 从 `engagement.events` 拉取消息。
-2. 解析 payload，构造 `catalog.video_user_states` 记录，缺失字段使用默认值 `false`。
+2. 解析 payload，构造 `catalog.video_user_engagements_projection` 记录，缺失字段使用默认值 `false`。
 3. 使用 `INSERT ... ON CONFLICT (user_id, video_id) DO UPDATE` 写入布尔字段与 `occurred_at`（若新事件时间更新）。
 4. 更新指标后 Ack 消息；写入失败需记录 `last_error` 并按指数退避重试。
 
 ### 8.3 回放与偏移
 
-- Runner 在内存中维护 offset；如需持久化，可在 Post-MVP 阶段扩展 `catalog.video_user_states_offsets`。
+- Runner 在内存中维护 offset；如需持久化，可在 Post-MVP 阶段扩展 `catalog.video_user_engagements_projection_offsets`。
 - 当重新消费或回放历史事件时，先清空目标视频用户记录再执行顺序回放，保证与 `occurred_at` 一致。
 
 ### 8.4 观测指标
@@ -306,7 +306,7 @@ services/catalog/
 | Schema 就绪 | `migrations` 执行后存在所有主/辅表、索引、触发器                        | `psql` 验证 + `sqlc generate` 通过 |
 | gRPC 契约   | Proto 定义涵盖 Query + Lifecycle；`buf lint`、`buf breaking` 通过       | CI / `make lint`                   |
 | Outbox 发布 | 手动触发事件后 Pub/Sub 收到消息，`catalog_outbox_lag_seconds < 5s`      | 本地模拟 Runner                    |
-| Engagement 投影 | 消费 Engagement 事件后 `catalog.video_user_states` 在 1s 内更新        | `go test` + e2e 脚本               |
+| Engagement 投影 | 消费 Engagement 事件后 `catalog.video_user_engagements_projection` 在 1s 内更新        | `go test` + e2e 脚本               |
 | Query 接口  | `GetVideoDetail` 支持 ETag，`List*` 支持分页                            | gRPCurl 用例                       |
 | 超时 & 重试 | 对 Engagement 模拟超时，服务返回 `partial=true` 且日志/指标记录         | 测试脚本                           |
 | 覆盖率      | 服务层单测覆盖率 ≥ 80%，关键分支（状态机、可见性）需有用例              | `go test -cover`                   |
@@ -319,7 +319,7 @@ services/catalog/
 1. **阶段一：契约与数据基础**（2 日）
 
    - 完成 proto 拆分、`buf lint`。
-   - 编写/执行迁移（`catalog.video_user_states`）。
+   - 编写/执行迁移（`catalog.video_user_engagements_projection`）。
    - 更新 `sqlc.yaml`、生成 DAO。
 
 2. **阶段二：业务用例与控制器**（3 日）

@@ -18,7 +18,7 @@ import (
 )
 
 // VideoUserStatesRepository 维护用户与视频互动状态的持久化操作。
-// 表结构参见 catalog.video_user_states，由 Engagement 投影消费者写入。
+// 表结构参见 catalog.video_user_engagements_projection，由 Engagement 投影消费者写入。
 type VideoUserStatesRepository struct {
 	db      *pgxpool.Pool
 	queries *catalogsql.Queries
@@ -40,7 +40,6 @@ type UpsertVideoUserStateInput struct {
 	VideoID       uuid.UUID
 	HasLiked      bool
 	HasBookmarked bool
-	HasWatched    bool
 	OccurredAt    time.Time
 }
 
@@ -60,7 +59,6 @@ func (r *VideoUserStatesRepository) Upsert(ctx context.Context, sess txmanager.S
 		input.VideoID,
 		input.HasLiked,
 		input.HasBookmarked,
-		input.HasWatched,
 		input.OccurredAt,
 	)
 
@@ -129,7 +127,6 @@ func (r *VideoUserStatesRepository) Get(ctx context.Context, sess txmanager.Sess
 		VideoID:       record.VideoID,
 		HasLiked:      record.HasLiked,
 		HasBookmarked: record.HasBookmarked,
-		HasWatched:    record.HasWatched,
 		OccurredAt:    occurredAt,
 		UpdatedAt:     updatedAt,
 	}, nil

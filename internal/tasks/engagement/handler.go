@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// EventHandler 处理 Engagement Event，负责写入 catalog.video_user_states。
+// EventHandler 处理 Engagement Event，负责写入 catalog.video_user_engagements_projection。
 type EventHandler struct {
 	repo    videoUserStatesStore
 	tx      txmanager.Manager
@@ -57,14 +57,12 @@ func (h *EventHandler) Handle(ctx context.Context, evt *Event) error {
 		}
 		hasLiked := valueOrDefault(evt.HasLiked, state != nil && state.HasLiked)
 		hasBookmarked := valueOrDefault(evt.HasBookmarked, state != nil && state.HasBookmarked)
-		hasWatched := valueOrDefault(evt.HasWatched, state != nil && state.HasWatched)
 
 		upsert := repositories.UpsertVideoUserStateInput{
 			UserID:        userID,
 			VideoID:       videoID,
 			HasLiked:      hasLiked,
 			HasBookmarked: hasBookmarked,
-			HasWatched:    hasWatched,
 			OccurredAt:    evt.OccurredAt,
 		}
 		return h.repo.Upsert(txCtx, sess, upsert)

@@ -104,7 +104,6 @@ func TestRunnerProcessesProtoAndJSONPayloads(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, state.HasLiked)
 	require.True(t, state.HasBookmarked)
-	require.False(t, state.HasWatched)
 	require.Equal(t, baseTime.Add(2*time.Minute), state.OccurredAt)
 	require.Equal(t, 3, subscriber.Delivered())
 	require.Equal(t, 3, tx.calls())
@@ -153,20 +152,20 @@ func TestRunnerSkipsInvalidPayloadAndContinues(t *testing.T) {
 
 	userID := uuid.New()
 	videoID := uuid.New()
-	watched := true
+	bookmarked := true
 	validPayload, err := json.Marshal(engagement.Event{
-		UserID:     userID.String(),
-		VideoID:    videoID.String(),
-		HasWatched: &watched,
-		OccurredAt: time.Now().UTC(),
-		Version:    engagement.EventVersion,
+		UserID:        userID.String(),
+		VideoID:       videoID.String(),
+		HasBookmarked: &bookmarked,
+		OccurredAt:    time.Now().UTC(),
+		Version:       engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	subscriber.Publish(&gcpubsub.Message{Data: validPayload})
 
 	require.Eventually(t, func() bool {
 		state, ok := repo.state(userID, videoID)
-		return ok && state.HasWatched
+		return ok && state.HasBookmarked
 	}, time.Second, 20*time.Millisecond)
 
 	require.Equal(t, 1, repo.upsertCount())
@@ -270,7 +269,6 @@ func (f *fakeVideoUserStatesRepository) Upsert(_ context.Context, _ txmanager.Se
 		VideoID:       input.VideoID,
 		HasLiked:      input.HasLiked,
 		HasBookmarked: input.HasBookmarked,
-		HasWatched:    input.HasWatched,
 		OccurredAt:    input.OccurredAt,
 		UpdatedAt:     time.Now().UTC(),
 	}

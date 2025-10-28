@@ -9,10 +9,10 @@
 
 ## 1. 数据层建设
 1. **Schema 迁移** *(进行中)*
-  - [x] 新增 `migrations/004_create_catalog_video_user_states.sql`
+  - [x] 新增 `migrations/004_create_catalog_video_user_engagements_projection.sql`
    - [ ] 运行全部迁移，使用 `psql` 验证表/索引/触发器存在
 2. **sqlc 与模型**
-   - [x] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_states`）
+   - [x] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_engagements_projection`）
    - [x] 生成 `internal/repositories/sqlc` 代码并通过 `go test ./internal/repositories/...`
    - [x] 更新 `internal/models/po`、`vo` 与 `mappers`
 
@@ -51,7 +51,7 @@
   - [x] 2025-10-27：定义 Runner 结构（Pub/Sub Subscriber + ack/retry），支持 graceful shutdown
 - [ ] 编写 `repositories.VideoUserStatesRepository`，提供 UPSERT/删除能力
   - [x] 已具备 Upsert/Get/Delete；Runner 需复用并补齐事务/metrics 包装
-- [x] 定义事件解码结构，将 liked/bookmarked/watched 写入 `catalog.video_user_states`
+  - [x] 定义事件解码结构，将 liked/bookmarked 数据写入 `catalog.video_user_engagements_projection`
   - [x] 2025-10-27：创建 `engagement.Event` 解码器（兼容 JSON/Proto，含版本校验）
 - [x] 暴露指标 `catalog_engagement_apply_*`, `catalog_engagement_event_lag_ms`
   - [x] 2025-10-27：实现成功/失败计数器、滞后直方图；整合 OTEL Meter

@@ -72,7 +72,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 psql "$DATABASE_URL" -f migrations/001_init_catalog_schema.sql
 psql "$DATABASE_URL" -f migrations/002_create_catalog_event_tables.sql
 psql "$DATABASE_URL" -f migrations/003_create_catalog_videos_table.sql
-psql "$DATABASE_URL" -f migrations/004_create_catalog_video_user_states.sql
+psql "$DATABASE_URL" -f migrations/004_create_catalog_video_user_engagements_projection.sql
 ```
 
 ### 4. 启动服务
@@ -120,7 +120,7 @@ go run ./cmd/tasks/outbox -conf configs/config.yaml
 go run ./cmd/tasks/engagement -conf configs/config.yaml
 ```
 
-该任务订阅 `messaging.engagement.subscription_id` 中的用户互动事件，持续更新 `catalog.video_user_states` 投影，可单独部署于后台。
+该任务订阅 `messaging.engagement.subscription_id` 中的用户互动事件，持续更新 `catalog.video_user_engagements_projection` 投影，可单独部署于后台。
 
 ---
 

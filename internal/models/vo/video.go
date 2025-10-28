@@ -52,7 +52,6 @@ type VideoDetail struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 	HasLiked       bool      `json:"has_liked"`
 	HasBookmarked  bool      `json:"has_bookmarked"`
-	HasWatched     bool      `json:"has_watched"`
 }
 
 // NewVideoDetail 从只读视图实体构造 VO。

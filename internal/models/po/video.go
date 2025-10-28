@@ -103,13 +103,12 @@ type VideoReadyView struct {
 }
 
 // VideoUserState 表示用户与视频的互动状态投影。
-// 数据来源：catalog.video_user_states 表，由 Engagement 投影消费者维护。
+// 数据来源：catalog.video_user_engagements_projection 表，由 Engagement 投影消费者维护。
 type VideoUserState struct {
 	UserID        uuid.UUID // 用户主键
 	VideoID       uuid.UUID // 视频主键
 	HasLiked      bool      // 是否点赞
 	HasBookmarked bool      // 是否收藏
-	HasWatched    bool      // 是否观看
 	OccurredAt    time.Time // Engagement 事件发生时间
 	UpdatedAt     time.Time // 最后一次更新的时间
 }

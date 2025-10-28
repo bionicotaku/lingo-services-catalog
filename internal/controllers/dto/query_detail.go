@@ -49,7 +49,6 @@ func NewVideoDetail(detail *vo.VideoDetail) *videov1.VideoDetail {
 		UpdatedAt:      FormatTime(detail.UpdatedAt),
 		HasLiked:       detail.HasLiked,
 		HasBookmarked:  detail.HasBookmarked,
-		HasWatched:     detail.HasWatched,
 	}
 }
 

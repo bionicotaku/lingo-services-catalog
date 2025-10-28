@@ -244,7 +244,6 @@ func BuildUpsertVideoUserStateParams(
 	videoID uuid.UUID,
 	hasLiked bool,
 	hasBookmarked bool,
-	hasWatched bool,
 	occurredAt time.Time,
 ) catalogsql.UpsertVideoUserStateParams {
 	return catalogsql.UpsertVideoUserStateParams{
@@ -252,7 +251,6 @@ func BuildUpsertVideoUserStateParams(
 		VideoID:       videoID,
 		HasLiked:      hasLiked,
 		HasBookmarked: hasBookmarked,
-		HasWatched:    hasWatched,
 		OccurredAt:    ToPgTimestamptz(&occurredAt),
 	}
 }

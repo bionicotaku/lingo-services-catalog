@@ -13,7 +13,7 @@ import (
 )
 
 const deleteVideoUserState = `-- name: DeleteVideoUserState :exec
-DELETE FROM catalog.video_user_states
+DELETE FROM catalog.video_user_engagements_projection
 WHERE user_id = $1
   AND video_id = $2
 `
@@ -34,10 +34,9 @@ SELECT
     video_id,
     has_liked,
     has_bookmarked,
-    has_watched,
     occurred_at,
     updated_at
-FROM catalog.video_user_states
+FROM catalog.video_user_engagements_projection
 WHERE user_id = $1
   AND video_id = $2
 `
@@ -47,15 +46,14 @@ type GetVideoUserStateParams struct {
 	VideoID uuid.UUID `json:"video_id"`
 }
 
-func (q *Queries) GetVideoUserState(ctx context.Context, arg GetVideoUserStateParams) (CatalogVideoUserState, error) {
+func (q *Queries) GetVideoUserState(ctx context.Context, arg GetVideoUserStateParams) (CatalogVideoUserEngagementsProjection, error) {
 	row := q.db.QueryRow(ctx, getVideoUserState, arg.UserID, arg.VideoID)
-	var i CatalogVideoUserState
+	var i CatalogVideoUserEngagementsProjection
 	err := row.Scan(
 		&i.UserID,
 		&i.VideoID,
 		&i.HasLiked,
 		&i.HasBookmarked,
-		&i.HasWatched,
 		&i.OccurredAt,
 		&i.UpdatedAt,
 	)
@@ -64,12 +62,11 @@ func (q *Queries) GetVideoUserState(ctx context.Context, arg GetVideoUserStatePa
 
 const upsertVideoUserState = `-- name: UpsertVideoUserState :exec
 
-INSERT INTO catalog.video_user_states (
+INSERT INTO catalog.video_user_engagements_projection (
     user_id,
     video_id,
     has_liked,
     has_bookmarked,
-    has_watched,
     occurred_at,
     updated_at
 ) VALUES (
@@ -78,14 +75,12 @@ INSERT INTO catalog.video_user_states (
     $3,
     $4,
     $5,
-    $6,
     now()
 )
 ON CONFLICT (user_id, video_id) DO UPDATE
 SET has_liked = EXCLUDED.has_liked,
     has_bookmarked = EXCLUDED.has_bookmarked,
-    has_watched = EXCLUDED.has_watched,
-    occurred_at = GREATEST(catalog.video_user_states.occurred_at, EXCLUDED.occurred_at),
+    occurred_at = GREATEST(catalog.video_user_engagements_projection.occurred_at, EXCLUDED.occurred_at),
     updated_at = now()
 `
 
@@ -94,7 +89,6 @@ type UpsertVideoUserStateParams struct {
 	VideoID       uuid.UUID          `json:"video_id"`
 	HasLiked      bool               `json:"has_liked"`
 	HasBookmarked bool               `json:"has_bookmarked"`
-	HasWatched    bool               `json:"has_watched"`
 	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
 }
 
@@ -105,7 +99,6 @@ func (q *Queries) UpsertVideoUserState(ctx context.Context, arg UpsertVideoUserS
 		arg.VideoID,
 		arg.HasLiked,
 		arg.HasBookmarked,
-		arg.HasWatched,
 		arg.OccurredAt,
 	)
 	return err
