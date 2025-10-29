@@ -50,11 +50,24 @@ func NewVideoQueryService(repo VideoQueryRepo, userState *repositories.VideoUser
 
 // GetVideoMetadata 查询视频的媒体/AI 元数据。
 func (s *VideoQueryService) GetVideoMetadata(ctx context.Context, videoID uuid.UUID) (*vo.VideoMetadata, error) {
-	var record *po.VideoMetadata
+	var (
+		record   *po.VideoMetadata
+		statsRow *po.VideoEngagementStatsProjection
+	)
 	err := s.txManager.WithinReadOnlyTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
 		var repoErr error
 		record, repoErr = s.repo.GetMetadata(txCtx, sess, videoID)
-		return repoErr
+		if repoErr != nil {
+			return repoErr
+		}
+		if s.stats != nil {
+			var err error
+			statsRow, err = s.stats.Get(txCtx, sess, videoID)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		if errors.Is(err, repositories.ErrVideoNotFound) {
@@ -67,7 +80,16 @@ func (s *VideoQueryService) GetVideoMetadata(ctx context.Context, videoID uuid.U
 		s.log.WithContext(ctx).Errorf("get video metadata failed: video_id=%s err=%v", videoID, err)
 		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to query video metadata").WithCause(fmt.Errorf("get video metadata: %w", err))
 	}
-	return vo.NewVideoMetadataFromPO(record), nil
+	metadata := vo.NewVideoMetadataFromPO(record)
+	if metadata == nil {
+		return nil, ErrVideoNotFound
+	}
+	if statsRow != nil {
+		metadata.LikeCount = statsRow.LikeCount
+		metadata.BookmarkCount = statsRow.BookmarkCount
+		metadata.WatchCount = statsRow.WatchCount
+	}
+	return metadata, nil
 }
 
 // GetVideoDetail 查询视频详情（优先使用投影表）。
@@ -142,7 +164,13 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 		detail.WatchCount = statsRow.WatchCount
 		detail.UniqueWatchers = statsRow.UniqueWatchers
 	}
-	return detail, vo.NewVideoMetadataFromPO(metadataRow), nil
+	meta := vo.NewVideoMetadataFromPO(metadataRow)
+	if meta != nil && statsRow != nil {
+		meta.LikeCount = statsRow.LikeCount
+		meta.BookmarkCount = statsRow.BookmarkCount
+		meta.WatchCount = statsRow.WatchCount
+	}
+	return detail, meta, nil
 }
 
 // ListUserPublicVideos 返回公开视频列表。

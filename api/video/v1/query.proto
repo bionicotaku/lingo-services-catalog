@@ -63,6 +63,9 @@ message VideoMetadata {
   string raw_subtitle_url = 12;
   string updated_at = 13;
   int64 version = 14;
+  int64 like_count = 15;
+  int64 bookmark_count = 16;
+  int64 watch_count = 17;
 }
 
 message ListUserPublicVideosRequest {

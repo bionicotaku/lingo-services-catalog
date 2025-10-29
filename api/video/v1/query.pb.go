@@ -7,13 +7,12 @@
 package videov1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -371,6 +370,9 @@ type VideoMetadata struct {
 	RawSubtitleUrl    string                 `protobuf:"bytes,12,opt,name=raw_subtitle_url,json=rawSubtitleUrl,proto3" json:"raw_subtitle_url,omitempty"`
 	UpdatedAt         string                 `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	Version           int64                  `protobuf:"varint,14,opt,name=version,proto3" json:"version,omitempty"`
+	LikeCount         int64                  `protobuf:"varint,15,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"`
+	BookmarkCount     int64                  `protobuf:"varint,16,opt,name=bookmark_count,json=bookmarkCount,proto3" json:"bookmark_count,omitempty"`
+	WatchCount        int64                  `protobuf:"varint,17,opt,name=watch_count,json=watchCount,proto3" json:"watch_count,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -499,6 +501,27 @@ func (x *VideoMetadata) GetUpdatedAt() string {
 func (x *VideoMetadata) GetVersion() int64 {
 	if x != nil {
 		return x.Version
+	}
+	return 0
+}
+
+func (x *VideoMetadata) GetLikeCount() int64 {
+	if x != nil {
+		return x.LikeCount
+	}
+	return 0
+}
+
+func (x *VideoMetadata) GetBookmarkCount() int64 {
+	if x != nil {
+		return x.BookmarkCount
+	}
+	return 0
+}
+
+func (x *VideoMetadata) GetWatchCount() int64 {
+	if x != nil {
+		return x.WatchCount
 	}
 	return 0
 }
@@ -953,7 +976,7 @@ const file_api_video_v1_query_proto_rawDesc = "" +
 	"\x0ebookmark_count\x18\f \x01(\x03R\rbookmarkCount\x12\x1f\n" +
 	"\vwatch_count\x18\r \x01(\x03R\n" +
 	"watchCount\x12'\n" +
-	"\x0funique_watchers\x18\x0e \x01(\x03R\x0euniqueWatchers\"\xfa\x03\n" +
+	"\x0funique_watchers\x18\x0e \x01(\x03R\x0euniqueWatchers\"\xe1\x04\n" +
 	"\rVideoMetadata\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12!\n" +
 	"\fmedia_status\x18\x02 \x01(\tR\vmediaStatus\x12'\n" +
@@ -972,7 +995,12 @@ const file_api_video_v1_query_proto_rawDesc = "" +
 	"\x10raw_subtitle_url\x18\f \x01(\tR\x0erawSubtitleUrl\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\r \x01(\tR\tupdatedAt\x12\x18\n" +
-	"\aversion\x18\x0e \x01(\x03R\aversion\"Y\n" +
+	"\aversion\x18\x0e \x01(\x03R\aversion\x12\x1d\n" +
+	"\n" +
+	"like_count\x18\x0f \x01(\x03R\tlikeCount\x12%\n" +
+	"\x0ebookmark_count\x18\x10 \x01(\x03R\rbookmarkCount\x12\x1f\n" +
+	"\vwatch_count\x18\x11 \x01(\x03R\n" +
+	"watchCount\"Y\n" +
 	"\x1bListUserPublicVideosRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +

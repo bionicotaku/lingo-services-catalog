@@ -91,6 +91,9 @@ type VideoMetadata struct {
 	RawSubtitleURL    string    `json:"raw_subtitle_url"`
 	UpdatedAt         time.Time `json:"updated_at"`
 	Version           int64     `json:"version"`
+	LikeCount         int64     `json:"like_count"`
+	BookmarkCount     int64     `json:"bookmark_count"`
+	WatchCount        int64     `json:"watch_count"`
 }
 
 // NewVideoMetadataFromPO 将持久层元数据转换为 VO。

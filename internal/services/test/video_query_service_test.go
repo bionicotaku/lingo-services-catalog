@@ -126,6 +126,9 @@ func TestVideoQueryService_GetVideoMetadataSuccess(t *testing.T) {
 	if meta.Version != 3 || meta.EncodedResolution != "1920x1080" {
 		t.Fatalf("metadata not propagated: %+v", meta)
 	}
+	if meta.LikeCount != 0 || meta.BookmarkCount != 0 || meta.WatchCount != 0 {
+		t.Fatalf("expected zero stats when repo missing: %+v", meta)
+	}
 }
 
 func TestVideoQueryService_GetVideoDetailSuccess(t *testing.T) {
@@ -163,6 +166,12 @@ func TestVideoQueryService_GetVideoDetailSuccess(t *testing.T) {
 	}
 	if meta == nil || meta.Version != 5 {
 		t.Fatalf("metadata missing: %+v", meta)
+	}
+	if detail.LikeCount != 0 || detail.BookmarkCount != 0 || detail.WatchCount != 0 {
+		t.Fatalf("expected zero stats on detail: %+v", detail)
+	}
+	if meta.LikeCount != 0 || meta.BookmarkCount != 0 || meta.WatchCount != 0 {
+		t.Fatalf("expected zero stats on metadata: %+v", meta)
 	}
 	if repo.detailCalls != 1 || repo.metadataCalls != 1 {
 		t.Fatalf("expected repo invocation counts (detail=%d metadata=%d)", repo.detailCalls, repo.metadataCalls)

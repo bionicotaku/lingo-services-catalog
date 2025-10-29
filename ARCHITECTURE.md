@@ -373,6 +373,7 @@ service CatalogQueryService {
 
 - `GetVideoMetadata`：返回与用户无关的客观元数据（媒体、AI 字段等），可供 Gateway 或内部服务组合使用。
 - `GetVideoDetail`：返回 `GetVideoMetadataResponse` 全字段，并追加用户态布尔字段 `has_liked`、`has_bookmarked` 以及聚合统计字段 `like_count`、`bookmark_count`、`watch_count`、`unique_watchers`；布尔态来自 `catalog.video_user_engagements_projection`，统计数据来自新建的 `catalog.video_engagement_stats_projection`。接口支持 `If-None-Match`，并在内部并行调用 Progress/Profile；若超时或失败返回 `partial=true` 并省略用户态字段，保证详情页可降级展示。
+- `GetVideoMetadata`：在原有媒体/AI 字段基础上同步返回 `like_count`、`bookmark_count`、`watch_count` 三项聚合指标；若投影为空默认返回 0，保持统计字段稳定。
 - `catalog.video_engagement_stats_projection`：由 Inbox Runner (`internal/tasks/engagement`) 订阅 `profile.engagement.added/removed` 与 `profile.watch.progressed` 事件维护，记录每个视频的点赞、收藏、有效观看次数及唯一观看用户数，同时保留首次/最近观看时间供新客运营与推荐使用。
 - `ListUserPublicVideos`：过滤 `status=published`，未来扩展 `visibility_status=public` 时保持契约不变；提供游标与 `Link` 风格信息。
 - `ListMyUploads`：校验 `user_id`，返回所有状态及处理进度，默认按 `created_at desc` 排序，可携带 `stage_filter` 参数筛选。

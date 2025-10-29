@@ -89,7 +89,7 @@ func TestVideoQueryService_GetVideoDetail_WithStats(t *testing.T) {
 	require.NoError(t, err)
 
 	ctxWithMeta := metadata.Inject(ctx, metadata.HandlerMetadata{UserID: userID.String()})
-	detail, _, err := service.GetVideoDetail(ctxWithMeta, videoID)
+	detail, detailMeta, err := service.GetVideoDetail(ctxWithMeta, videoID)
 	require.NoError(t, err)
 	require.Equal(t, videoID, detail.VideoID)
 	require.True(t, detail.HasLiked)
@@ -98,6 +98,16 @@ func TestVideoQueryService_GetVideoDetail_WithStats(t *testing.T) {
 	require.EqualValues(t, 2, detail.BookmarkCount)
 	require.EqualValues(t, 7, detail.WatchCount)
 	require.EqualValues(t, 3, detail.UniqueWatchers)
+	require.NotNil(t, detailMeta)
+	require.EqualValues(t, 5, detailMeta.LikeCount)
+	require.EqualValues(t, 2, detailMeta.BookmarkCount)
+	require.EqualValues(t, 7, detailMeta.WatchCount)
+
+	metaOnly, err := service.GetVideoMetadata(ctx, videoID)
+	require.NoError(t, err)
+	require.EqualValues(t, 5, metaOnly.LikeCount)
+	require.EqualValues(t, 2, metaOnly.BookmarkCount)
+	require.EqualValues(t, 7, metaOnly.WatchCount)
 }
 
 func startPostgres(ctx context.Context, t *testing.T) (string, func()) {

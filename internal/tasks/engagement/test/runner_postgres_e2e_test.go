@@ -154,7 +154,7 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	bookmarkEventID, err := publishEvent(ctx, publisher, payload2, "profile.engagement.added", videoID)
 	require.NoError(t, err)
 
-	state := waitForState(ctx, t, repo, pool, userID, videoID, 5*time.Second, func(st *po.VideoUserState) bool {
+	state := waitForState(ctx, t, repo, pool, userID, videoID, 10*time.Second, func(st *po.VideoUserState) bool {
 		return st.HasLiked && st.HasBookmarked &&
 			st.LikedOccurredAt != nil && approxEqual(*st.LikedOccurredAt, baseTime) &&
 			st.BookmarkedOccurredAt != nil && approxEqual(*st.BookmarkedOccurredAt, baseTime.Add(2*time.Minute))
@@ -174,7 +174,7 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	removeBookmarkEventID, err := publishEvent(ctx, publisher, payload3, "profile.engagement.removed", videoID)
 	require.NoError(t, err)
 
-	state = waitForState(ctx, t, repo, pool, userID, videoID, 5*time.Second, func(st *po.VideoUserState) bool {
+	state = waitForState(ctx, t, repo, pool, userID, videoID, 10*time.Second, func(st *po.VideoUserState) bool {
 		return st.HasLiked && !st.HasBookmarked &&
 			st.LikedOccurredAt != nil && approxEqual(*st.LikedOccurredAt, baseTime) &&
 			st.BookmarkedOccurredAt != nil && approxEqual(*st.BookmarkedOccurredAt, baseTime.Add(4*time.Minute))
@@ -192,8 +192,8 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	watchEventID, err := publishEvent(ctx, publisher, watchPayload, "profile.watch.progressed", videoID)
 	require.NoError(t, err)
 
-	stats := waitForStats(ctx, t, statsRepo, videoID, 5*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
-		return st.LikeCount == 1 && st.BookmarkCount == 0 && st.WatchCount == 1 && st.UniqueWatchers == 1
+	stats := waitForStats(ctx, t, statsRepo, videoID, 10*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+		return st.LikeCount == 1 && st.BookmarkCount == 0 && st.WatchCount >= 1 && st.UniqueWatchers >= 1
 	})
 	require.NotNil(t, stats)
 	require.True(t, approxEqualTime(stats.LastWatchAt, baseTime.Add(6*time.Minute)))

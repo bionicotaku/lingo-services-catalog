@@ -77,5 +77,8 @@ func NewVideoMetadata(meta *vo.VideoMetadata) *videov1.VideoMetadata {
 		RawSubtitleUrl:    meta.RawSubtitleURL,
 		UpdatedAt:         FormatTime(meta.UpdatedAt),
 		Version:           meta.Version,
+		LikeCount:         meta.LikeCount,
+		BookmarkCount:     meta.BookmarkCount,
+		WatchCount:        meta.WatchCount,
 	}
 }
