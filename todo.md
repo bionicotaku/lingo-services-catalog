@@ -47,7 +47,7 @@
   - [x] 2025-10-27：完成，使用服务层用例驱动 Outbox Runner+pstest 验证 11 个领域事件按序发布
 
 ## 5. Engagement 投影 Runner
-- [x] 新增 `internal/tasks/engagement`（或同目录）消费 Engagement 事件
+- [x] 新增 `internal/tasks/engagement`（或同目录）消费 Profile `profile.engagement.*` 事件
   - [x] 2025-10-27：定义 Runner 结构（Pub/Sub Subscriber + ack/retry），支持 graceful shutdown
 - [ ] 编写 `repositories.VideoUserStatesRepository`，提供 UPSERT/删除能力
   - [x] 已具备 Upsert/Get/Delete；Runner 需复用并补齐事务/metrics 包装
@@ -60,6 +60,7 @@
 - [x] 新增 CLI `cmd/tasks/engagement` 并在 README 记录启动方式
 - [x] 集成测试：`internal/tasks/engagement/test/runner_integration_test.go`（模拟 Pub/Sub + PG，覆盖重复/异常场景）
   - [x] 2025-10-27：完成，使用自定义 Subscriber/TxManager 仿真重复、无效载荷与事务失败路径，覆盖 proto/json 消费
+- [x] 2025-10-29：连调测试（Profile 事件→投影→查询服务链路）完成，runner_postgres_e2e 覆盖
 
 ## 6. 非功能性完善
 - [ ] 日志：统一字段，新增事件日志

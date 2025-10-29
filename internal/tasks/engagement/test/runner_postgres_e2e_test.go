@@ -13,7 +13,9 @@ import (
 
 	"cloud.google.com/go/pubsub/pstest"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"github.com/bionicotaku/lingo-services-catalog/internal/metadata"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
+	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
 	"github.com/bionicotaku/lingo-utils/txmanager"
@@ -51,8 +53,8 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	t.Cleanup(func() { _ = server.Close() })
 
 	projectID := "test-project"
-	topicID := "engagement.events"
-	subscriptionID := "catalog.engagement"
+	topicID := "profile.engagement.events"
+	subscriptionID := "catalog.profile-engagement"
 
 	topicName := fmt.Sprintf("projects/%s/topics/%s", projectID, topicID)
 	_, err = server.GServer.CreateTopic(ctx, &pubsubpb.Topic{Name: topicName})
@@ -95,26 +97,46 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	userID := uuid.New()
 	videoID := uuid.New()
 
+	_, err = pool.Exec(ctx, `insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing`, userID, "catalog-engagement@test.local")
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `
+		insert into catalog.videos (
+			video_id,
+			upload_user_id,
+			title,
+			raw_file_reference,
+			status,
+			media_status,
+			analysis_status
+		) values (
+			$1, $2, 'Integration Video', 'gs://test/video.mp4', 'ready', 'ready', 'ready'
+		)
+		on conflict (video_id) do nothing
+	`, videoID, userID)
+	require.NoError(t, err)
+
 	baseTime := time.Now().UTC().Add(-5 * time.Minute)
-	like := true
 	payload1, err := json.Marshal(engagement.Event{
-		UserID:     userID.String(),
-		VideoID:    videoID.String(),
-		HasLiked:   &like,
-		OccurredAt: baseTime,
-		Version:    engagement.EventVersion,
+		EventName:      "profile.engagement.added",
+		State:          "added",
+		EngagementType: "like",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     baseTime,
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: payload1})
 	require.NoError(t, err)
 
-	bookmarked := true
 	payload2, err := json.Marshal(engagement.Event{
-		UserID:        userID.String(),
-		VideoID:       videoID.String(),
-		HasBookmarked: &bookmarked,
-		OccurredAt:    baseTime.Add(2 * time.Minute),
-		Version:       engagement.EventVersion,
+		EventName:      "profile.engagement.added",
+		State:          "added",
+		EngagementType: "bookmark",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     baseTime.Add(2 * time.Minute),
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: payload2})
@@ -125,8 +147,41 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 		if getErr != nil || state == nil {
 			return false
 		}
-	return state.HasLiked && state.HasBookmarked && state.OccurredAt.Equal(baseTime.Add(2*time.Minute))
-}, 5*time.Second, 50*time.Millisecond, "video_user_engagements_projection not updated")
+		return state.HasLiked && state.HasBookmarked &&
+			state.LikedOccurredAt != nil && state.LikedOccurredAt.UTC().Equal(baseTime) &&
+			state.BookmarkedOccurredAt != nil && state.BookmarkedOccurredAt.UTC().Equal(baseTime.Add(2*time.Minute))
+	}, 5*time.Second, 50*time.Millisecond, "video_user_engagements_projection not updated")
+
+	payload3, err := json.Marshal(engagement.Event{
+		EventName:      "profile.engagement.removed",
+		State:          "removed",
+		EngagementType: "bookmark",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     baseTime.Add(4 * time.Minute),
+		Version:        engagement.EventVersion,
+	})
+	require.NoError(t, err)
+	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: payload3})
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		state, getErr := repo.Get(ctx, nil, userID, videoID)
+		if getErr != nil || state == nil {
+			return false
+		}
+		return state.HasLiked && !state.HasBookmarked &&
+			state.LikedOccurredAt != nil && state.LikedOccurredAt.UTC().Equal(baseTime) &&
+			state.BookmarkedOccurredAt != nil && state.BookmarkedOccurredAt.UTC().Equal(baseTime.Add(4*time.Minute))
+	}, 5*time.Second, 50*time.Millisecond, "video_user_engagements_projection not updated after removal")
+
+	videoRepo := repositories.NewVideoRepository(pool, logger)
+	querySvc := services.NewVideoQueryService(videoRepo, repo, txMgr, logger)
+	queryCtx := metadata.Inject(context.Background(), metadata.HandlerMetadata{UserID: userID.String()})
+	detail, _, err := querySvc.GetVideoDetail(queryCtx, videoID)
+	require.NoError(t, err)
+	require.True(t, detail.HasLiked)
+	require.False(t, detail.HasBookmarked)
 
 	cancel()
 	select {

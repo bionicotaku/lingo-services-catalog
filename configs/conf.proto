@@ -120,6 +120,7 @@ message Messaging {
   PubSub pubsub = 1;
   OutboxPublisher outbox = 2;
   InboxConsumer inbox = 3;
+  // Profile engagement Outbox 订阅配置（profile.engagement.* 事件）
   PubSub engagement = 4;
 }
 

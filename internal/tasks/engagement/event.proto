@@ -7,11 +7,12 @@ option go_package = "github.com/bionicotaku/lingo-services-catalog/internal/task
 import "google/protobuf/timestamp.proto";
 
 message EventProto {
-  string user_id = 1;
-  string video_id = 2;
-  optional bool has_liked = 3;
-  optional bool has_bookmarked = 4;
-  optional bool has_watched = 5;
+  string event_name = 1;
+  string user_id = 2;
+  string video_id = 3;
+  string engagement_type = 4;
+  string state = 5;
   google.protobuf.Timestamp occurred_at = 6;
   string version = 7;
+  string source = 8;
 }

@@ -7,12 +7,13 @@
 package engagement
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -23,16 +24,17 @@ const (
 )
 
 type EventProto struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	VideoId       string                 `protobuf:"bytes,2,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
-	HasLiked      *bool                  `protobuf:"varint,3,opt,name=has_liked,json=hasLiked,proto3,oneof" json:"has_liked,omitempty"`
-	HasBookmarked *bool                  `protobuf:"varint,4,opt,name=has_bookmarked,json=hasBookmarked,proto3,oneof" json:"has_bookmarked,omitempty"`
-	HasWatched    *bool                  `protobuf:"varint,5,opt,name=has_watched,json=hasWatched,proto3,oneof" json:"has_watched,omitempty"`
-	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	Version       string                 `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	EventName      string                 `protobuf:"bytes,1,opt,name=event_name,json=eventName,proto3" json:"event_name,omitempty"`
+	UserId         string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	VideoId        string                 `protobuf:"bytes,3,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	EngagementType string                 `protobuf:"bytes,4,opt,name=engagement_type,json=engagementType,proto3" json:"engagement_type,omitempty"`
+	State          string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	OccurredAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Version        string                 `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	Source         string                 `protobuf:"bytes,8,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EventProto) Reset() {
@@ -65,6 +67,13 @@ func (*EventProto) Descriptor() ([]byte, []int) {
 	return file_internal_tasks_engagement_event_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *EventProto) GetEventName() string {
+	if x != nil {
+		return x.EventName
+	}
+	return ""
+}
+
 func (x *EventProto) GetUserId() string {
 	if x != nil {
 		return x.UserId
@@ -79,25 +88,18 @@ func (x *EventProto) GetVideoId() string {
 	return ""
 }
 
-func (x *EventProto) GetHasLiked() bool {
-	if x != nil && x.HasLiked != nil {
-		return *x.HasLiked
+func (x *EventProto) GetEngagementType() string {
+	if x != nil {
+		return x.EngagementType
 	}
-	return false
+	return ""
 }
 
-func (x *EventProto) GetHasBookmarked() bool {
-	if x != nil && x.HasBookmarked != nil {
-		return *x.HasBookmarked
+func (x *EventProto) GetState() string {
+	if x != nil {
+		return x.State
 	}
-	return false
-}
-
-func (x *EventProto) GetHasWatched() bool {
-	if x != nil && x.HasWatched != nil {
-		return *x.HasWatched
-	}
-	return false
+	return ""
 }
 
 func (x *EventProto) GetOccurredAt() *timestamppb.Timestamp {
@@ -114,26 +116,30 @@ func (x *EventProto) GetVersion() string {
 	return ""
 }
 
+func (x *EventProto) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
 var File_internal_tasks_engagement_event_proto protoreflect.FileDescriptor
 
 const file_internal_tasks_engagement_event_proto_rawDesc = "" +
 	"\n" +
-	"%internal/tasks/engagement/event.proto\x12\rengagement.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbc\x02\n" +
+	"%internal/tasks/engagement/event.proto\x12\rengagement.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\x02\n" +
 	"\n" +
-	"EventProto\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
-	"\bvideo_id\x18\x02 \x01(\tR\avideoId\x12 \n" +
-	"\thas_liked\x18\x03 \x01(\bH\x00R\bhasLiked\x88\x01\x01\x12*\n" +
-	"\x0ehas_bookmarked\x18\x04 \x01(\bH\x01R\rhasBookmarked\x88\x01\x01\x12$\n" +
-	"\vhas_watched\x18\x05 \x01(\bH\x02R\n" +
-	"hasWatched\x88\x01\x01\x12;\n" +
+	"EventProto\x12\x1d\n" +
+	"\n" +
+	"event_name\x18\x01 \x01(\tR\teventName\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x19\n" +
+	"\bvideo_id\x18\x03 \x01(\tR\avideoId\x12'\n" +
+	"\x0fengagement_type\x18\x04 \x01(\tR\x0eengagementType\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\x12;\n" +
 	"\voccurred_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"occurredAt\x12\x18\n" +
-	"\aversion\x18\a \x01(\tR\aversionB\f\n" +
-	"\n" +
-	"_has_likedB\x11\n" +
-	"\x0f_has_bookmarkedB\x0e\n" +
-	"\f_has_watchedBTZRgithub.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement;engagementb\x06proto3"
+	"\aversion\x18\a \x01(\tR\aversion\x12\x16\n" +
+	"\x06source\x18\b \x01(\tR\x06sourceBTZRgithub.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement;engagementb\x06proto3"
 
 var (
 	file_internal_tasks_engagement_event_proto_rawDescOnce sync.Once
@@ -166,7 +172,6 @@ func file_internal_tasks_engagement_event_proto_init() {
 	if File_internal_tasks_engagement_event_proto != nil {
 		return
 	}
-	file_internal_tasks_engagement_event_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -34,7 +34,8 @@ SELECT
     video_id,
     has_liked,
     has_bookmarked,
-    occurred_at,
+    liked_occurred_at,
+    bookmarked_occurred_at,
     updated_at
 FROM catalog.video_user_engagements_projection
 WHERE user_id = $1
@@ -54,7 +55,8 @@ func (q *Queries) GetVideoUserState(ctx context.Context, arg GetVideoUserStatePa
 		&i.VideoID,
 		&i.HasLiked,
 		&i.HasBookmarked,
-		&i.OccurredAt,
+		&i.LikedOccurredAt,
+		&i.BookmarkedOccurredAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -67,7 +69,8 @@ INSERT INTO catalog.video_user_engagements_projection (
     video_id,
     has_liked,
     has_bookmarked,
-    occurred_at,
+    liked_occurred_at,
+    bookmarked_occurred_at,
     updated_at
 ) VALUES (
     $1,
@@ -75,21 +78,24 @@ INSERT INTO catalog.video_user_engagements_projection (
     $3,
     $4,
     $5,
+    $6,
     now()
 )
 ON CONFLICT (user_id, video_id) DO UPDATE
 SET has_liked = EXCLUDED.has_liked,
     has_bookmarked = EXCLUDED.has_bookmarked,
-    occurred_at = GREATEST(catalog.video_user_engagements_projection.occurred_at, EXCLUDED.occurred_at),
+    liked_occurred_at = EXCLUDED.liked_occurred_at,
+    bookmarked_occurred_at = EXCLUDED.bookmarked_occurred_at,
     updated_at = now()
 `
 
 type UpsertVideoUserStateParams struct {
-	UserID        uuid.UUID          `json:"user_id"`
-	VideoID       uuid.UUID          `json:"video_id"`
-	HasLiked      bool               `json:"has_liked"`
-	HasBookmarked bool               `json:"has_bookmarked"`
-	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
+	UserID               uuid.UUID          `json:"user_id"`
+	VideoID              uuid.UUID          `json:"video_id"`
+	HasLiked             bool               `json:"has_liked"`
+	HasBookmarked        bool               `json:"has_bookmarked"`
+	LikedOccurredAt      pgtype.Timestamptz `json:"liked_occurred_at"`
+	BookmarkedOccurredAt pgtype.Timestamptz `json:"bookmarked_occurred_at"`
 }
 
 // Video 用户态投影相关 SQL
@@ -99,7 +105,8 @@ func (q *Queries) UpsertVideoUserState(ctx context.Context, arg UpsertVideoUserS
 		arg.VideoID,
 		arg.HasLiked,
 		arg.HasBookmarked,
-		arg.OccurredAt,
+		arg.LikedOccurredAt,
+		arg.BookmarkedOccurredAt,
 	)
 	return err
 }

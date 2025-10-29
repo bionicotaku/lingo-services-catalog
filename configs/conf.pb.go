@@ -7,13 +7,14 @@
 package configpb
 
 import (
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
+
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
 )
 
 const (
@@ -96,7 +97,7 @@ type Server struct {
 	Grpc          *Server_GRPC           `protobuf:"bytes,1,opt,name=grpc,proto3" json:"grpc,omitempty"`
 	Jwt           *Server_JWT            `protobuf:"bytes,2,opt,name=jwt,proto3" json:"jwt,omitempty"`
 	Handlers      *Server_Handlers       `protobuf:"bytes,3,opt,name=handlers,proto3" json:"handlers,omitempty"`
-    MetadataKeys  []string               `protobuf:"bytes,4,rep,name=metadata_keys,json=metadataKeys,proto3" json:"metadata_keys,omitempty"` // 透传 header 列表，如 X-Apigateway-Api-Userinfo（actor 字段 Post-MVP 可追加）
+	MetadataKeys  []string               `protobuf:"bytes,4,rep,name=metadata_keys,json=metadataKeys,proto3" json:"metadata_keys,omitempty"` // 透传 header 列表，如 X-Apigateway-Api-Userinfo（actor 字段 Post-MVP 可追加）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,11 +273,12 @@ func (x *Observability) GetMetrics() *Observability_Metrics {
 }
 
 type Messaging struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pubsub        *PubSub                `protobuf:"bytes,1,opt,name=pubsub,proto3" json:"pubsub,omitempty"`
-	Outbox        *OutboxPublisher       `protobuf:"bytes,2,opt,name=outbox,proto3" json:"outbox,omitempty"`
-	Inbox         *InboxConsumer         `protobuf:"bytes,3,opt,name=inbox,proto3" json:"inbox,omitempty"`
-	Engagement    *PubSub                `protobuf:"bytes,4,opt,name=engagement,proto3" json:"engagement,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Pubsub *PubSub                `protobuf:"bytes,1,opt,name=pubsub,proto3" json:"pubsub,omitempty"`
+	Outbox *OutboxPublisher       `protobuf:"bytes,2,opt,name=outbox,proto3" json:"outbox,omitempty"`
+	Inbox  *InboxConsumer         `protobuf:"bytes,3,opt,name=inbox,proto3" json:"inbox,omitempty"`
+	// Profile engagement Outbox 订阅配置（profile.engagement.* 事件）
+	Engagement    *PubSub `protobuf:"bytes,4,opt,name=engagement,proto3" json:"engagement,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1036,7 +1038,7 @@ type Data_Client struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"` // 目标地址，留空则不创建 client
 	Jwt           *Data_Client_JWT       `protobuf:"bytes,2,opt,name=jwt,proto3" json:"jwt,omitempty"`
-    MetadataKeys  []string               `protobuf:"bytes,3,rep,name=metadata_keys,json=metadataKeys,proto3" json:"metadata_keys,omitempty"` // 转发到下游的 header 列表（默认同 server.metadata_keys）
+	MetadataKeys  []string               `protobuf:"bytes,3,rep,name=metadata_keys,json=metadataKeys,proto3" json:"metadata_keys,omitempty"` // 转发到下游的 header 列表（默认同 server.metadata_keys）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

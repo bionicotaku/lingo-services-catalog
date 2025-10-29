@@ -3,7 +3,8 @@ CREATE TABLE catalog.video_user_engagements_projection (
     video_id       uuid    NOT NULL,
     has_liked      boolean NOT NULL DEFAULT false,
     has_bookmarked boolean NOT NULL DEFAULT false,
-    occurred_at    timestamptz NOT NULL DEFAULT now(),
+    liked_occurred_at      timestamptz,
+    bookmarked_occurred_at timestamptz,
     updated_at     timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (user_id, video_id)
 );

@@ -13,15 +13,16 @@ import (
 // EventVersion 表示 Engagement 事件协议的版本常量。
 const EventVersion = "v1"
 
-// Event 描述 Engagement 服务发布的用户互动事件。
+// Event 描述 Profile Outbox 发布的用户互动事件。
 type Event struct {
-	UserID        string    `json:"user_id"`
-	VideoID       string    `json:"video_id"`
-	HasLiked      *bool     `json:"has_liked,omitempty"`
-	HasBookmarked *bool     `json:"has_bookmarked,omitempty"`
-	HasWatched    *bool     `json:"has_watched,omitempty"`
-	OccurredAt    time.Time `json:"occurred_at"`
-	Version       string    `json:"version"`
+	EventName      string    `json:"event_name"`
+	State          string    `json:"state"`
+	EngagementType string    `json:"engagement_type"`
+	UserID         string    `json:"user_id"`
+	VideoID        string    `json:"video_id"`
+	Source         string    `json:"source"`
+	OccurredAt     time.Time `json:"occurred_at"`
+	Version        string    `json:"version"`
 }
 
 // eventDecoder 支持 Proto 与 JSON 的双模解码。
@@ -52,8 +53,12 @@ func decodeProto(data []byte) (*Event, error) {
 		return nil, err
 	}
 	evt := &Event{
-		UserID:  strings.TrimSpace(pb.GetUserId()),
-		VideoID: strings.TrimSpace(pb.GetVideoId()),
+		EventName:      pb.GetEventName(),
+		UserID:         strings.TrimSpace(pb.GetUserId()),
+		VideoID:        strings.TrimSpace(pb.GetVideoId()),
+		EngagementType: pb.GetEngagementType(),
+		State:          pb.GetState(),
+		Source:         pb.GetSource(),
 		OccurredAt: func() time.Time {
 			if ts := pb.GetOccurredAt(); ts != nil {
 				return ts.AsTime().UTC()
@@ -62,26 +67,22 @@ func decodeProto(data []byte) (*Event, error) {
 		}(),
 		Version: pb.GetVersion(),
 	}
-	if pb.HasLiked != nil {
-		value := pb.GetHasLiked()
-		evt.HasLiked = &value
-	}
-	if pb.HasBookmarked != nil {
-		value := pb.GetHasBookmarked()
-		evt.HasBookmarked = &value
-	}
-	if pb.HasWatched != nil {
-		value := pb.GetHasWatched()
-		evt.HasWatched = &value
-	}
 	normalizeEvent(evt)
 	return evt, nil
 }
 
 // normalizeEvent 补足缺省值并确保 OccurredAt/Version 合法。
 func normalizeEvent(evt *Event) {
+	evt.EventName = strings.TrimSpace(evt.EventName)
+	evt.State = strings.ToLower(strings.TrimSpace(evt.State))
+	evt.EngagementType = strings.ToLower(strings.TrimSpace(evt.EngagementType))
 	evt.UserID = strings.TrimSpace(evt.UserID)
 	evt.VideoID = strings.TrimSpace(evt.VideoID)
+	evt.Source = strings.TrimSpace(evt.Source)
+
+	if evt.EventName == "" && evt.State != "" {
+		evt.EventName = "profile.engagement." + evt.State
+	}
 	if evt.OccurredAt.IsZero() {
 		evt.OccurredAt = time.Now().UTC()
 	} else {
@@ -89,5 +90,66 @@ func normalizeEvent(evt *Event) {
 	}
 	if strings.TrimSpace(evt.Version) == "" {
 		evt.Version = EventVersion
+	}
+}
+
+// actionType 表示订阅事件的操作类型。
+type actionType string
+
+const (
+	actionUnknown actionType = ""
+	actionAdded   actionType = "added"
+	actionRemoved actionType = "removed"
+)
+
+// resolveAction 解析事件动作（新增/移除）。
+func (e *Event) resolveAction() (actionType, error) {
+	if action := parseAction(e.State); action != actionUnknown {
+		return action, nil
+	}
+	if action := parseAction(deriveSuffix(e.EventName)); action != actionUnknown {
+		return action, nil
+	}
+	return actionUnknown, fmt.Errorf("engagement: unsupported action from event_name=%q state=%q", e.EventName, e.State)
+}
+
+func parseAction(v string) actionType {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "added", "add":
+		return actionAdded
+	case "removed", "remove", "deleted", "delete":
+		return actionRemoved
+	default:
+		return actionUnknown
+	}
+}
+
+func deriveSuffix(eventName string) string {
+	eventName = strings.ToLower(strings.TrimSpace(eventName))
+	if eventName == "" {
+		return ""
+	}
+	parts := strings.Split(eventName, ".")
+	return parts[len(parts)-1]
+}
+
+// engagementKind 表示互动类型。
+type engagementKind string
+
+const (
+	kindUnknown  engagementKind = ""
+	kindLike     engagementKind = "like"
+	kindBookmark engagementKind = "bookmark"
+)
+
+// resolveKind 返回事件的互动类型。
+func (e *Event) resolveKind() (engagementKind, error) {
+	switch strings.ToLower(strings.TrimSpace(e.EngagementType)) {
+	case "like":
+		return kindLike, nil
+	case "bookmark", "favorite", "favourite":
+		return kindBookmark, nil
+	default:
+		return kindUnknown, fmt.Errorf("engagement: unsupported engagement_type=%q", e.EngagementType)
 	}
 }

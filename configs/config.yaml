@@ -151,8 +151,8 @@ messaging:
     exactly_once_delivery: true
   engagement:
     project_id: smiling-landing-472320-q0
-    topic_id: engagement.events
-    subscription_id: catalog.engagement.consumer
+    topic_id: profile.engagement.events
+    subscription_id: catalog.profile-engagement.consumer
     logging_enabled: true
     metrics_enabled: true
     receive:

@@ -120,7 +120,7 @@ go run ./cmd/tasks/outbox -conf configs/config.yaml
 go run ./cmd/tasks/engagement -conf configs/config.yaml
 ```
 
-该任务订阅 `messaging.engagement.subscription_id` 中的用户互动事件，持续更新 `catalog.video_user_engagements_projection` 投影，可单独部署于后台。
+该任务订阅 Profile 服务发布的 `profile.engagement.*` 事件（配置于 `messaging.engagement`），持续更新 `catalog.video_user_engagements_projection` 投影，可单独部署于后台。
 
 ---
 

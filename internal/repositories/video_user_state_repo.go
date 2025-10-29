@@ -36,11 +36,12 @@ func NewVideoUserStatesRepository(db *pgxpool.Pool, logger log.Logger) *VideoUse
 
 // UpsertVideoUserStateInput 描述一次用户互动状态写入。
 type UpsertVideoUserStateInput struct {
-	UserID        uuid.UUID
-	VideoID       uuid.UUID
-	HasLiked      bool
-	HasBookmarked bool
-	OccurredAt    time.Time
+	UserID               uuid.UUID
+	VideoID              uuid.UUID
+	HasLiked             bool
+	HasBookmarked        bool
+	LikedOccurredAt      *time.Time
+	BookmarkedOccurredAt *time.Time
 }
 
 // Upsert 插入或更新用户互动状态，幂等覆盖最新状态。
@@ -59,7 +60,8 @@ func (r *VideoUserStatesRepository) Upsert(ctx context.Context, sess txmanager.S
 		input.VideoID,
 		input.HasLiked,
 		input.HasBookmarked,
-		input.OccurredAt,
+		input.LikedOccurredAt,
+		input.BookmarkedOccurredAt,
 	)
 
 	if err := queries.UpsertVideoUserState(ctx, params); err != nil {
@@ -113,21 +115,29 @@ func (r *VideoUserStatesRepository) Get(ctx context.Context, sess txmanager.Sess
 		return nil, fmt.Errorf("get video_user_state: %w", err)
 	}
 
-	occurredAt := record.OccurredAt.Time
-	if !record.OccurredAt.Valid {
-		occurredAt = time.Time{}
-	}
 	updatedAt := record.UpdatedAt.Time
 	if !record.UpdatedAt.Valid {
 		updatedAt = time.Time{}
 	}
 
+	var likedAtPtr *time.Time
+	if record.LikedOccurredAt.Valid {
+		value := record.LikedOccurredAt.Time
+		likedAtPtr = &value
+	}
+	var bookmarkedAtPtr *time.Time
+	if record.BookmarkedOccurredAt.Valid {
+		value := record.BookmarkedOccurredAt.Time
+		bookmarkedAtPtr = &value
+	}
+
 	return &po.VideoUserState{
-		UserID:        record.UserID,
-		VideoID:       record.VideoID,
-		HasLiked:      record.HasLiked,
-		HasBookmarked: record.HasBookmarked,
-		OccurredAt:    occurredAt,
-		UpdatedAt:     updatedAt,
+		UserID:               record.UserID,
+		VideoID:              record.VideoID,
+		HasLiked:             record.HasLiked,
+		HasBookmarked:        record.HasBookmarked,
+		LikedOccurredAt:      likedAtPtr,
+		BookmarkedOccurredAt: bookmarkedAtPtr,
+		UpdatedAt:            updatedAt,
 	}, nil
 }

@@ -67,7 +67,7 @@ graph TD
   end
   subgraph Messaging
     PUB[Pub/Sub Topic: video.events]
-    ENG[Pub/Sub Topic: engagement.events]
+    ENG[Pub/Sub Topic: profile.engagement.events]
   end
   subgraph Engagement State Store
     UV[(catalog.video_user_engagements_projection)]
@@ -83,8 +83,8 @@ graph TD
 
 - **Catalog gRPC Server**：处理写/读请求，执行业务用例，并在事务内写入 Outbox/InBox；读接口直接查询主表。
 - **Outbox Runner**：扫描 `catalog.outbox_events`，发布 Protobuf 事件到 `video.events`，保证同一视频按 `ordering_key=video_id` 顺序。
-- **Engagement Projection Consumer**：订阅 Engagement 服务事件，将用户态三元状态写入 `catalog_engagement.user_video_states`，供 Query 组合。
-- **仓储边界**：Catalog 主服务访问 `catalog` schema；Engagement 投影仅访问 `catalog_engagement` schema；禁止跨服务越权。
+- **Engagement Projection Consumer**：订阅 Profile 服务发布的 `profile.engagement.*` 事件，将用户态三元状态写入 `catalog.video_user_engagements_projection`，供 Query 组合。
+- **仓储边界**：Catalog 主服务访问 `catalog` schema；Engagement 投影仅访问同 schema 下的 `video_user_engagements_projection` 表；禁止跨服务越权。
 
 ---
 
@@ -243,12 +243,12 @@ services/catalog/
 
 ### 8.1 事件来源与格式
 
-- Engagement 服务通过 `engagement.events`（Pub/Sub）发布用户行为事件，包含 `user_id`, `video_id`, `liked`, `bookmarked`, `occurred_at` 等字段。
+- Profile 服务通过 `profile.engagement.events`（Pub/Sub）发布用户互动事件，包含 `event_name`, `state`, `engagement_type`, `user_id`, `video_id`, `occurred_at` 等字段。
 - Runner 需要根据 `occurred_at` 只保留最新事件，避免乱序覆盖旧值。
 
 ### 8.2 消费流程
 
-1. StreamingPull 从 `engagement.events` 拉取消息。
+1. StreamingPull 从 `profile.engagement.events` 拉取消息。
 2. 解析 payload，构造 `catalog.video_user_engagements_projection` 记录，缺失字段使用默认值 `false`。
 3. 使用 `INSERT ... ON CONFLICT (user_id, video_id) DO UPDATE` 写入布尔字段与 `occurred_at`（若新事件时间更新）。
 4. 更新指标后 Ack 消息；写入失败需记录 `last_error` 并按指数退避重试。

@@ -53,29 +53,31 @@ func TestRunnerProcessesProtoAndJSONPayloads(t *testing.T) {
 	videoID := uuid.New()
 	baseTime := time.Now().Add(-10 * time.Minute).UTC()
 
-	liked := true
 	protoPayload, err := proto.Marshal(&engagement.EventProto{
-		UserId:     userID.String(),
-		VideoId:    videoID.String(),
-		HasLiked:   &liked,
-		OccurredAt: timestamppb.New(baseTime),
-		Version:    engagement.EventVersion,
+		EventName:      "profile.engagement.added",
+		State:          "added",
+		EngagementType: "like",
+		UserId:         userID.String(),
+		VideoId:        videoID.String(),
+		OccurredAt:     timestamppb.New(baseTime),
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	subscriber.Publish(&gcpubsub.Message{Data: protoPayload})
 
 	require.Eventually(t, func() bool {
 		state, ok := repo.state(userID, videoID)
-		return ok && state.HasLiked && state.OccurredAt.Equal(baseTime)
+		return ok && state.HasLiked && state.LikedOccurredAt != nil && state.LikedOccurredAt.UTC().Equal(baseTime)
 	}, time.Second, 20*time.Millisecond)
 
-	bookmark := true
 	jsonPayload, err := json.Marshal(engagement.Event{
-		UserID:        userID.String(),
-		VideoID:       videoID.String(),
-		HasBookmarked: &bookmark,
-		OccurredAt:    baseTime.Add(2 * time.Minute),
-		Version:       engagement.EventVersion,
+		EventName:      "profile.engagement.added",
+		State:          "added",
+		EngagementType: "bookmark",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     baseTime.Add(2 * time.Minute),
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	subscriber.Publish(&gcpubsub.Message{Data: jsonPayload})
@@ -85,28 +87,50 @@ func TestRunnerProcessesProtoAndJSONPayloads(t *testing.T) {
 		if !ok {
 			return false
 		}
-		return state.HasLiked && state.HasBookmarked && state.OccurredAt.Equal(baseTime.Add(2*time.Minute))
+		return state.HasLiked && state.HasBookmarked &&
+			state.LikedOccurredAt != nil && state.LikedOccurredAt.UTC().Equal(baseTime) &&
+			state.BookmarkedOccurredAt != nil && state.BookmarkedOccurredAt.UTC().Equal(baseTime.Add(2*time.Minute))
 	}, time.Second, 20*time.Millisecond)
 
-	staleLike := false
 	stalePayload, err := json.Marshal(engagement.Event{
-		UserID:     userID.String(),
-		VideoID:    videoID.String(),
-		HasLiked:   &staleLike,
-		OccurredAt: baseTime.Add(-5 * time.Minute),
-		Version:    engagement.EventVersion,
+		EventName:      "profile.engagement.removed",
+		State:          "removed",
+		EngagementType: "like",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     baseTime.Add(-5 * time.Minute),
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	subscriber.Publish(&gcpubsub.Message{Data: stalePayload})
+
+	removeBookmark, err := json.Marshal(engagement.Event{
+		EventName:      "profile.engagement.removed",
+		State:          "removed",
+		EngagementType: "bookmark",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     baseTime.Add(4 * time.Minute),
+		Version:        engagement.EventVersion,
+	})
+	require.NoError(t, err)
+	subscriber.Publish(&gcpubsub.Message{Data: removeBookmark})
 
 	time.Sleep(50 * time.Millisecond)
 	state, ok := repo.state(userID, videoID)
 	require.True(t, ok)
 	require.True(t, state.HasLiked)
-	require.True(t, state.HasBookmarked)
-	require.Equal(t, baseTime.Add(2*time.Minute), state.OccurredAt)
-	require.Equal(t, 3, subscriber.Delivered())
-	require.Equal(t, 3, tx.calls())
+	require.False(t, state.HasBookmarked)
+	if state.LikedOccurredAt == nil {
+		t.Fatalf("liked timestamp missing")
+	}
+	if state.BookmarkedOccurredAt == nil {
+		t.Fatalf("bookmark timestamp missing")
+	}
+	require.Equal(t, baseTime, state.LikedOccurredAt.UTC())
+	require.Equal(t, baseTime.Add(4*time.Minute), state.BookmarkedOccurredAt.UTC())
+	require.Equal(t, 4, subscriber.Delivered())
+	require.Equal(t, 4, tx.calls())
 
 	subscriber.Close()
 	cancel()
@@ -152,20 +176,21 @@ func TestRunnerSkipsInvalidPayloadAndContinues(t *testing.T) {
 
 	userID := uuid.New()
 	videoID := uuid.New()
-	bookmarked := true
 	validPayload, err := json.Marshal(engagement.Event{
-		UserID:        userID.String(),
-		VideoID:       videoID.String(),
-		HasBookmarked: &bookmarked,
-		OccurredAt:    time.Now().UTC(),
-		Version:       engagement.EventVersion,
+		EventName:      "profile.engagement.added",
+		State:          "added",
+		EngagementType: "bookmark",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     time.Now().UTC(),
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	subscriber.Publish(&gcpubsub.Message{Data: validPayload})
 
 	require.Eventually(t, func() bool {
 		state, ok := repo.state(userID, videoID)
-		return ok && state.HasBookmarked
+		return ok && state.HasBookmarked && state.BookmarkedOccurredAt != nil
 	}, time.Second, 20*time.Millisecond)
 
 	require.Equal(t, 1, repo.upsertCount())
@@ -212,11 +237,13 @@ func TestRunnerPropagatesHandlerError(t *testing.T) {
 	userID := uuid.New()
 	videoID := uuid.New()
 	jsonPayload, err := json.Marshal(engagement.Event{
-		UserID:     userID.String(),
-		VideoID:    videoID.String(),
-		HasLiked:   ptrBool(true),
-		OccurredAt: time.Now().UTC(),
-		Version:    engagement.EventVersion,
+		EventName:      "profile.engagement.added",
+		State:          "added",
+		EngagementType: "like",
+		UserID:         userID.String(),
+		VideoID:        videoID.String(),
+		OccurredAt:     time.Now().UTC(),
+		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
 	subscriber.Publish(&gcpubsub.Message{Data: jsonPayload})
@@ -256,8 +283,7 @@ func (f *fakeVideoUserStatesRepository) Get(_ context.Context, _ txmanager.Sessi
 	if !ok {
 		return nil, nil
 	}
-	cloned := state
-	return &cloned, nil
+	return cloneState(state), nil
 }
 
 func (f *fakeVideoUserStatesRepository) Upsert(_ context.Context, _ txmanager.Session, input repositories.UpsertVideoUserStateInput) error {
@@ -265,12 +291,13 @@ func (f *fakeVideoUserStatesRepository) Upsert(_ context.Context, _ txmanager.Se
 	defer f.mu.Unlock()
 	f.count++
 	f.states[stateKey(input.UserID, input.VideoID)] = po.VideoUserState{
-		UserID:        input.UserID,
-		VideoID:       input.VideoID,
-		HasLiked:      input.HasLiked,
-		HasBookmarked: input.HasBookmarked,
-		OccurredAt:    input.OccurredAt,
-		UpdatedAt:     time.Now().UTC(),
+		UserID:               input.UserID,
+		VideoID:              input.VideoID,
+		HasLiked:             input.HasLiked,
+		HasBookmarked:        input.HasBookmarked,
+		LikedOccurredAt:      cloneTimePtr(input.LikedOccurredAt),
+		BookmarkedOccurredAt: cloneTimePtr(input.BookmarkedOccurredAt),
+		UpdatedAt:            time.Now().UTC(),
 	}
 	return nil
 }
@@ -279,7 +306,10 @@ func (f *fakeVideoUserStatesRepository) state(userID, videoID uuid.UUID) (po.Vid
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	state, ok := f.states[stateKey(userID, videoID)]
-	return state, ok
+	if !ok {
+		return po.VideoUserState{}, false
+	}
+	return *cloneState(state), true
 }
 
 func (f *fakeVideoUserStatesRepository) upsertCount() int {
@@ -290,6 +320,26 @@ func (f *fakeVideoUserStatesRepository) upsertCount() int {
 
 func stateKey(userID, videoID uuid.UUID) string {
 	return userID.String() + "|" + videoID.String()
+}
+
+func cloneState(src po.VideoUserState) *po.VideoUserState {
+	return &po.VideoUserState{
+		UserID:               src.UserID,
+		VideoID:              src.VideoID,
+		HasLiked:             src.HasLiked,
+		HasBookmarked:        src.HasBookmarked,
+		LikedOccurredAt:      cloneTimePtr(src.LikedOccurredAt),
+		BookmarkedOccurredAt: cloneTimePtr(src.BookmarkedOccurredAt),
+		UpdatedAt:            src.UpdatedAt,
+	}
+}
+
+func cloneTimePtr(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	value := t.UTC()
+	return &value
 }
 
 type fakeTxManager struct {
@@ -384,8 +434,4 @@ func (s *controllableSubscriber) Delivered() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.delivered
-}
-
-func ptrBool(b bool) *bool {
-	return &b
 }

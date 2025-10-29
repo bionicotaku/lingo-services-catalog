@@ -37,6 +37,15 @@ func (h *EventHandler) Handle(ctx context.Context, evt *Event) error {
 		return fmt.Errorf("engagement: nil event")
 	}
 
+	action, err := evt.resolveAction()
+	if err != nil {
+		return errors.BadRequest("invalid-action", err.Error())
+	}
+	kind, err := evt.resolveKind()
+	if err != nil {
+		return errors.BadRequest("invalid-kind", err.Error())
+	}
+
 	userID, err := uuid.Parse(evt.UserID)
 	if err != nil {
 		return errors.BadRequest("invalid-user-id", "invalid user_id")
@@ -46,24 +55,50 @@ func (h *EventHandler) Handle(ctx context.Context, evt *Event) error {
 		return errors.BadRequest("invalid-video-id", "invalid video_id")
 	}
 
+	occurredAt := evt.OccurredAt.UTC()
+
 	err = h.tx.WithinTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
 		state, repoErr := h.repo.Get(txCtx, sess, userID, videoID)
 		if repoErr != nil {
 			return repoErr
 		}
-		if state != nil && !evt.OccurredAt.After(state.OccurredAt) {
-			h.log.WithContext(txCtx).Debugf("skip stale engagement event: user=%s video=%s", userID, videoID)
+
+		hasLiked := state != nil && state.HasLiked
+		hasBookmarked := state != nil && state.HasBookmarked
+		var likedAt *time.Time
+		var bookmarkedAt *time.Time
+		if state != nil {
+			likedAt = cloneTime(state.LikedOccurredAt)
+			bookmarkedAt = cloneTime(state.BookmarkedOccurredAt)
+		}
+
+		switch kind {
+		case kindLike:
+			if state != nil && state.LikedOccurredAt != nil && !occurredAt.After(state.LikedOccurredAt.UTC()) {
+				h.log.WithContext(txCtx).Debugf("skip stale like event: user=%s video=%s", userID, videoID)
+				return nil
+			}
+			hasLiked = action == actionAdded
+			likedAt = &occurredAt
+		case kindBookmark:
+			if state != nil && state.BookmarkedOccurredAt != nil && !occurredAt.After(state.BookmarkedOccurredAt.UTC()) {
+				h.log.WithContext(txCtx).Debugf("skip stale bookmark event: user=%s video=%s", userID, videoID)
+				return nil
+			}
+			hasBookmarked = action == actionAdded
+			bookmarkedAt = &occurredAt
+		default:
+			h.log.WithContext(txCtx).Warnf("skip unknown engagement type: type=%s user=%s video=%s", evt.EngagementType, userID, videoID)
 			return nil
 		}
-		hasLiked := valueOrDefault(evt.HasLiked, state != nil && state.HasLiked)
-		hasBookmarked := valueOrDefault(evt.HasBookmarked, state != nil && state.HasBookmarked)
 
 		upsert := repositories.UpsertVideoUserStateInput{
-			UserID:        userID,
-			VideoID:       videoID,
-			HasLiked:      hasLiked,
-			HasBookmarked: hasBookmarked,
-			OccurredAt:    evt.OccurredAt,
+			UserID:               userID,
+			VideoID:              videoID,
+			HasLiked:             hasLiked,
+			HasBookmarked:        hasBookmarked,
+			LikedOccurredAt:      likedAt,
+			BookmarkedOccurredAt: bookmarkedAt,
 		}
 		return h.repo.Upsert(txCtx, sess, upsert)
 	})
@@ -75,16 +110,17 @@ func (h *EventHandler) Handle(ctx context.Context, evt *Event) error {
 	}
 
 	if h.metrics != nil {
-		h.metrics.recordSuccess(ctx, evt.OccurredAt, time.Now())
+		h.metrics.recordSuccess(ctx, occurredAt, time.Now())
 	}
 	return nil
 }
 
-func valueOrDefault(ptr *bool, def bool) bool {
-	if ptr == nil {
-		return def
+func cloneTime(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
 	}
-	return *ptr
+	copied := t.UTC()
+	return &copied
 }
 
 // videoUserStatesStore 定义 Engagement Handler 所需的仓储接口。

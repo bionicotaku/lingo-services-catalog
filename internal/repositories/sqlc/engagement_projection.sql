@@ -6,7 +6,8 @@ INSERT INTO catalog.video_user_engagements_projection (
     video_id,
     has_liked,
     has_bookmarked,
-    occurred_at,
+    liked_occurred_at,
+    bookmarked_occurred_at,
     updated_at
 ) VALUES (
     $1,
@@ -14,12 +15,14 @@ INSERT INTO catalog.video_user_engagements_projection (
     $3,
     $4,
     $5,
+    $6,
     now()
 )
 ON CONFLICT (user_id, video_id) DO UPDATE
 SET has_liked = EXCLUDED.has_liked,
     has_bookmarked = EXCLUDED.has_bookmarked,
-    occurred_at = GREATEST(catalog.video_user_engagements_projection.occurred_at, EXCLUDED.occurred_at),
+    liked_occurred_at = EXCLUDED.liked_occurred_at,
+    bookmarked_occurred_at = EXCLUDED.bookmarked_occurred_at,
     updated_at = now();
 
 -- name: DeleteVideoUserState :exec
@@ -33,7 +36,8 @@ SELECT
     video_id,
     has_liked,
     has_bookmarked,
-    occurred_at,
+    liked_occurred_at,
+    bookmarked_occurred_at,
     updated_at
 FROM catalog.video_user_engagements_projection
 WHERE user_id = $1
