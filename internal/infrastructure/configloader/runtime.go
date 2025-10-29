@@ -123,11 +123,10 @@ type MetricsConfig struct {
 
 // MessagingConfig 汇总消息系统相关配置。
 type MessagingConfig struct {
-	Schema     string
-	PubSub     PubSubConfig
-	Engagement PubSubConfig
-	Outbox     OutboxPublisherConfig
-	Inbox      InboxConfig
+	Schema  string
+	Topics  map[string]PubSubConfig
+	Outbox  OutboxPublisherConfig
+	Inboxes map[string]InboxConfig
 }
 
 // PubSubConfig 提供与 GCP Pub/Sub 兼容的设置。

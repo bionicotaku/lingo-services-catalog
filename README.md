@@ -45,24 +45,12 @@ make init
 
 ### 2. 配置
 
-创建 `configs/.env` 文件：
+> **配置约定**：所有业务配置均来源于 `configs/config.yaml`（可按环境复制 `config.$ENV.yaml` 覆盖）。`.env` 仅用于注入 `DATABASE_URL` 等敏感信息或平台自动注入的 `PORT`，不再驱动业务开关。
+
+示例 `.env` 仅需声明数据库连接：
 
 ```env
-# 数据库连接（必需）
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable&search_path=catalog
-
-# 服务配置
-SERVICE_NAME=services-catalog
-SERVICE_VERSION=0.1.0
-APP_ENV=development
-PORT=9000
-
-# GCP Pub/Sub (可选，不配置则仅输出日志)
-PUBSUB_PROJECT_ID=your-project-id
-PUBSUB_VIDEO_TOPIC=video-events
-
-# 可观测性 (可选)
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
 
 ### 3. 数据库迁移

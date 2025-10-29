@@ -117,11 +117,10 @@ message Observability {
 }
 
 message Messaging {
-  PubSub pubsub = 1;
-  OutboxPublisher outbox = 2;
-  InboxConsumer inbox = 3;
-  // Profile engagement Outbox 订阅配置（profile.engagement.* 事件）
-  PubSub engagement = 4;
+  string schema = 1;
+  map<string, PubSub> topics = 2;
+  OutboxPublisher outbox = 3;
+  map<string, InboxConsumer> inboxes = 4;
 }
 
 message PubSub {

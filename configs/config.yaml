@@ -132,35 +132,37 @@ observability:
 
 # 消息系统配置：Pub/Sub 与 Outbox 发布器
 messaging:
-  pubsub:
-    project_id: smiling-landing-472320-q0
-    topic_id: catalog.video.events
-    subscription_id: catalog.video.events.catalog-reader
-    dead_letter_topic_id: catalog.video.events.dlq
-    ordering_key_enabled: true
-    logging_enabled: true
-    metrics_enabled: true
-    emulator_endpoint: "" # 本地使用 emulator 时设置 localhost:8085
-    publish_timeout: 5s
-    receive:
-      num_goroutines: 4
-      max_outstanding_messages: 500
-      max_outstanding_bytes: 67108864 # 64 MiB
-      max_extension: 60s
-      max_extension_period: 600s
-    exactly_once_delivery: true
-  engagement:
-    project_id: smiling-landing-472320-q0
-    topic_id: profile.engagement.events
-    subscription_id: catalog.profile-engagement.consumer
-    logging_enabled: true
-    metrics_enabled: true
-    receive:
-      num_goroutines: 4
-      max_outstanding_messages: 1000
-      max_outstanding_bytes: 67108864
-      max_extension: 60s
-      max_extension_period: 600s
+  schema: catalog
+  topics:
+    default:
+      project_id: smiling-landing-472320-q0
+      topic_id: catalog.video.events
+      subscription_id: catalog.video.events.catalog-reader
+      dead_letter_topic_id: catalog.video.events.dlq
+      ordering_key_enabled: true
+      logging_enabled: true
+      metrics_enabled: true
+      emulator_endpoint: ""
+      publish_timeout: 5s
+      receive:
+        num_goroutines: 4
+        max_outstanding_messages: 500
+        max_outstanding_bytes: 67108864 # 64 MiB
+        max_extension: 60s
+        max_extension_period: 600s
+      exactly_once_delivery: true
+    engagement:
+      project_id: smiling-landing-472320-q0
+      topic_id: profile.engagement.events
+      subscription_id: catalog.profile-engagement.consumer
+      logging_enabled: true
+      metrics_enabled: true
+      receive:
+        num_goroutines: 4
+        max_outstanding_messages: 1000
+        max_outstanding_bytes: 67108864
+        max_extension: 60s
+        max_extension_period: 600s
   outbox:
     batch_size: 100
     tick_interval: 1s
@@ -172,8 +174,14 @@ messaging:
     lock_ttl: 120s
     logging_enabled: true
     metrics_enabled: true
-  inbox:
-    source_service: catalog
-    max_concurrency: 4
-    logging_enabled: true
-    metrics_enabled: true
+  inboxes:
+    default:
+      source_service: catalog
+      max_concurrency: 4
+      logging_enabled: true
+      metrics_enabled: true
+    engagement:
+      source_service: catalog
+      max_concurrency: 4
+      logging_enabled: true
+      metrics_enabled: true

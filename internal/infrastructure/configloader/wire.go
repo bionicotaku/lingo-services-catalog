@@ -212,13 +212,17 @@ func ProvideMessagingConfig(cfg RuntimeConfig) MessagingConfig {
 
 // ProvidePubSubConfig 将 MessagingConfig 转换为 gcpubsub.Config。
 func ProvidePubSubConfig(msg MessagingConfig) gcpubsub.Config {
-	return toGCPubSubConfig(msg.PubSub)
+	cfg, _ := selectTopic(msg, "default")
+	return toGCPubSubConfig(cfg)
 }
 
 // ProvideEngagementConfig 返回 engagement Pub/Sub 配置包装。
 func ProvideEngagementConfig(msg MessagingConfig) EngagementPubSubConfig {
-	cfg := toGCPubSubConfig(msg.Engagement)
-	return EngagementPubSubConfig(cfg)
+	cfg, ok := selectTopic(msg, "engagement")
+	if !ok {
+		return EngagementPubSubConfig(gcpubsub.Config{})
+	}
+	return EngagementPubSubConfig(toGCPubSubConfig(cfg))
 }
 
 func toGCPubSubConfig(cfg PubSubConfig) gcpubsub.Config {
@@ -280,12 +284,14 @@ func ProvideOutboxConfig(msg MessagingConfig) outboxcfg.Config {
 			LoggingEnabled: msg.Outbox.LoggingEnabled,
 			MetricsEnabled: msg.Outbox.MetricsEnabled,
 		},
-		Inbox: outboxcfg.InboxConfig{
-			SourceService:  msg.Inbox.SourceService,
-			MaxConcurrency: msg.Inbox.MaxConcurrency,
-			LoggingEnabled: msg.Inbox.LoggingEnabled,
-			MetricsEnabled: msg.Inbox.MetricsEnabled,
-		},
+	}
+
+	inbox := selectInbox(msg, "default")
+	cfg.Inbox = outboxcfg.InboxConfig{
+		SourceService:  inbox.SourceService,
+		MaxConcurrency: inbox.MaxConcurrency,
+		LoggingEnabled: inbox.LoggingEnabled,
+		MetricsEnabled: inbox.MetricsEnabled,
 	}
 
 	cfg = cfg.Normalize()
@@ -297,4 +303,36 @@ func ProvideOutboxConfig(msg MessagingConfig) outboxcfg.Config {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+func selectTopic(msg MessagingConfig, name string) (PubSubConfig, bool) {
+	if len(msg.Topics) == 0 {
+		return PubSubConfig{}, false
+	}
+	if cfg, ok := msg.Topics[name]; ok {
+		return cfg, true
+	}
+	if cfg, ok := msg.Topics["default"]; ok && name != "default" {
+		return cfg, true
+	}
+	for _, cfg := range msg.Topics {
+		return cfg, true
+	}
+	return PubSubConfig{}, false
+}
+
+func selectInbox(msg MessagingConfig, name string) InboxConfig {
+	if len(msg.Inboxes) == 0 {
+		return InboxConfig{}
+	}
+	if cfg, ok := msg.Inboxes[name]; ok {
+		return cfg
+	}
+	if cfg, ok := msg.Inboxes["default"]; ok && name != "default" {
+		return cfg
+	}
+	for _, cfg := range msg.Inboxes {
+		return cfg
+	}
+	return InboxConfig{}
 }

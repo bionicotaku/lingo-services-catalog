@@ -174,17 +174,31 @@ func metricsFromProto(m *configpb.Observability_Metrics) MetricsConfig {
 }
 
 func messagingFromProto(msg *configpb.Messaging, data *configpb.Data) MessagingConfig {
-	if msg == nil {
-		return MessagingConfig{}
-	}
 	cfg := MessagingConfig{
-		PubSub:     pubsubFromProto(msg.GetPubsub()),
-		Engagement: pubsubFromProto(msg.GetEngagement()),
-		Outbox:     outboxFromProto(msg.GetOutbox()),
-		Inbox:      inboxFromProto(msg.GetInbox()),
+		Topics:  map[string]PubSubConfig{},
+		Outbox:  outboxFromProto(nil),
+		Inboxes: map[string]InboxConfig{},
 	}
 	if data != nil && data.GetPostgres() != nil {
 		cfg.Schema = data.GetPostgres().GetSchema()
+	}
+	if msg == nil {
+		return cfg
+	}
+	if msg.GetOutbox() != nil {
+		cfg.Outbox = outboxFromProto(msg.GetOutbox())
+	}
+	for key, topic := range msg.GetTopics() {
+		if cfg.Topics == nil {
+			cfg.Topics = make(map[string]PubSubConfig, len(msg.GetTopics()))
+		}
+		cfg.Topics[key] = pubsubFromProto(topic)
+	}
+	for key, inbox := range msg.GetInboxes() {
+		if cfg.Inboxes == nil {
+			cfg.Inboxes = make(map[string]InboxConfig, len(msg.GetInboxes()))
+		}
+		cfg.Inboxes[key] = inboxFromProto(inbox)
 	}
 	return cfg
 }

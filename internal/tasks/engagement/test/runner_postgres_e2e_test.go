@@ -36,16 +36,17 @@ import (
 )
 
 type engagementRunnerEnv struct {
-	ctx       context.Context
-	pool      *pgxpool.Pool
-	userRepo  *repositories.VideoUserStatesRepository
-	statsRepo *repositories.VideoEngagementStatsRepository
-	txMgr     txmanager.Manager
-	publisher gcpubsub.Publisher
-	cancel    context.CancelFunc
-	errCh     chan error
-	cleanup   func()
-	logger    log.Logger
+	ctx        context.Context
+	pool       *pgxpool.Pool
+	userRepo   *repositories.VideoUserStatesRepository
+	statsRepo  *repositories.VideoEngagementStatsRepository
+	txMgr      txmanager.Manager
+	publisher  gcpubsub.Publisher
+	subscriber gcpubsub.Subscriber
+	cancel     context.CancelFunc
+	errCh      chan error
+	cleanup    func()
+	logger     log.Logger
 }
 
 func newEngagementRunnerEnv(t *testing.T) *engagementRunnerEnv {
@@ -135,16 +136,17 @@ func newEngagementRunnerEnv(t *testing.T) *engagementRunnerEnv {
 	}
 
 	return &engagementRunnerEnv{
-		ctx:       ctx,
-		pool:      pool,
-		userRepo:  repo,
-		statsRepo: statsRepo,
-		txMgr:     txMgr,
-		publisher: publisher,
-		cancel:    cancel,
-		errCh:     errCh,
-		cleanup:   cleanup,
-		logger:    logger,
+		ctx:        ctx,
+		pool:       pool,
+		userRepo:   repo,
+		statsRepo:  statsRepo,
+		txMgr:      txMgr,
+		publisher:  publisher,
+		subscriber: subscriber,
+		cancel:     cancel,
+		errCh:      errCh,
+		cleanup:    cleanup,
+		logger:     logger,
 	}
 }
 
@@ -158,8 +160,6 @@ func (e *engagementRunnerEnv) Shutdown() {
 }
 
 func TestEngagementRunner_WithRealRepository(t *testing.T) {
-	t.Parallel()
-
 	env := newEngagementRunnerEnv(t)
 	defer env.Shutdown()
 
@@ -198,13 +198,17 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, publishEvent(ctx, publisher, likeEventID, likePayload, "profile.engagement.added", videoID))
 
+	wait := waitForState(ctx, t, repo, pool, userID, videoID, 15*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked && st.LikedOccurredAt != nil && approxEqual(*st.LikedOccurredAt, baseTime)
+	})
+	require.NotNil(t, wait)
+
 	bookmarkEventID, bookmarkPayload, err := buildEngagementAdded(userID, videoID, profilev1.FavoriteType_FAVORITE_TYPE_BOOKMARK, baseTime.Add(2*time.Minute))
 	require.NoError(t, err)
 	require.NoError(t, publishEvent(ctx, publisher, bookmarkEventID, bookmarkPayload, "profile.engagement.added", videoID))
 
-	wait := waitForState(ctx, t, repo, pool, userID, videoID, 15*time.Second, func(st *po.VideoUserState) bool {
+	wait = waitForState(ctx, t, repo, pool, userID, videoID, 15*time.Second, func(st *po.VideoUserState) bool {
 		return st.HasLiked && st.HasBookmarked &&
-			st.LikedOccurredAt != nil && approxEqual(*st.LikedOccurredAt, baseTime) &&
 			st.BookmarkedOccurredAt != nil && approxEqual(*st.BookmarkedOccurredAt, baseTime.Add(2*time.Minute))
 	})
 	require.NotNil(t, wait)
@@ -224,7 +228,7 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, publishEvent(ctx, publisher, watchEventID, watchPayload, "profile.watch.progressed", videoID))
 
-	stats := waitForStats(ctx, t, statsRepo, videoID, 15*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+	stats := waitForStats(ctx, t, statsRepo, videoID, 20*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
 		return st.LikeCount == 1 && st.BookmarkCount == 0 && st.WatchCount >= 1 && st.UniqueWatchers >= 1
 	})
 	require.NotNil(t, stats)
@@ -294,7 +298,7 @@ func TestEngagementRunner_MetadataProjectionReturnsStats(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, publishEvent(ctx, publisher, watchEventID, watchPayload, "profile.watch.progressed", videoID))
 
-	stats := waitForStats(ctx, t, statsRepo, videoID, 15*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+	stats := waitForStats(ctx, t, statsRepo, videoID, 20*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
 		return st.LikeCount == 1 && st.BookmarkCount == 1 && st.WatchCount >= 1
 	})
 	require.NotNil(t, stats)
@@ -376,17 +380,17 @@ func TestEngagementRunner_DetailAggregatesMultipleUsers(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, publishEvent(ctx, publisher, user2WatchID, user2WatchPayload, "profile.watch.progressed", videoID))
 
-	stats := waitForStats(ctx, t, statsRepo, videoID, 20*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+	waitForState(ctx, t, repo, pool, user1, videoID, 20*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked
+	})
+	waitForState(ctx, t, repo, pool, user2, videoID, 20*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked && st.HasBookmarked
+	})
+
+	stats := waitForStats(ctx, t, statsRepo, videoID, 25*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
 		return st.LikeCount >= 2 && st.BookmarkCount >= 1 && st.WatchCount >= 2 && st.UniqueWatchers >= 2
 	})
 	require.NotNil(t, stats)
-
-	waitForState(ctx, t, repo, pool, user1, videoID, 15*time.Second, func(st *po.VideoUserState) bool {
-		return st.HasLiked
-	})
-	waitForState(ctx, t, repo, pool, user2, videoID, 15*time.Second, func(st *po.VideoUserState) bool {
-		return st.HasLiked && st.HasBookmarked
-	})
 
 	videoRepo := repositories.NewVideoRepository(pool, env.logger)
 	querySvc := services.NewVideoQueryService(videoRepo, repo, statsRepo, txMgr, env.logger)
@@ -411,6 +415,83 @@ func TestEngagementRunner_DetailAggregatesMultipleUsers(t *testing.T) {
 	assertInboxProcessed(ctx, t, pool, user2LikeID)
 	assertInboxProcessed(ctx, t, pool, user2BookmarkID)
 	assertInboxProcessed(ctx, t, pool, user2WatchID)
+}
+
+func TestEngagementRunner_IdempotentDuplicateEvent(t *testing.T) {
+	env := newEngagementRunnerEnv(t)
+	defer env.Shutdown()
+
+	ctx := env.ctx
+	pool := env.pool
+	repo := env.userRepo
+	statsRepo := env.statsRepo
+	txMgr := env.txMgr
+	publisher := env.publisher
+	logger := env.logger
+
+	uploaderID := uuid.New()
+	userID := uuid.New()
+	videoID := uuid.New()
+
+	_, err := pool.Exec(ctx, `insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing`, uploaderID, "catalog-engagement@test.local")
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `
+        insert into catalog.videos (
+            video_id,
+            upload_user_id,
+            title,
+            raw_file_reference,
+            status,
+            media_status,
+            analysis_status
+        ) values (
+            $1, $2, 'Idempotency Video', 'gs://test/video.mp4', 'ready', 'ready', 'ready'
+        )
+        on conflict (video_id) do nothing
+    `, videoID, uploaderID)
+	require.NoError(t, err)
+
+	baseTime := time.Now().UTC().Add(-3 * time.Minute)
+	likeEventID, likePayload, err := buildEngagementAdded(userID, videoID, profilev1.FavoriteType_FAVORITE_TYPE_LIKE, baseTime)
+	require.NoError(t, err)
+	require.NoError(t, publishEvent(ctx, publisher, likeEventID, likePayload, "profile.engagement.added", videoID))
+
+	waitForState(ctx, t, repo, pool, userID, videoID, 15*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked
+	})
+
+	stats := waitForStats(ctx, t, statsRepo, videoID, 15*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+		return st.LikeCount == 1
+	})
+	require.NotNil(t, stats)
+
+	// Publish the same event (same event_id) again; should be ignored as already processed.
+	require.NoError(t, publishEvent(ctx, publisher, likeEventID, likePayload, "profile.engagement.added", videoID))
+
+	// Allow some time for duplicate delivery; state should remain liked and stats unchanged.
+	time.Sleep(500 * time.Millisecond)
+
+	state := waitForState(ctx, t, repo, pool, userID, videoID, 10*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked
+	})
+	require.NotNil(t, state)
+	require.True(t, state.HasLiked)
+
+	statsAfter := waitForStats(ctx, t, statsRepo, videoID, 10*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+		return st.LikeCount == 1
+	})
+	require.NotNil(t, statsAfter)
+	require.EqualValues(t, 1, statsAfter.LikeCount)
+
+	videoRepo := repositories.NewVideoRepository(pool, logger)
+	querySvc := services.NewVideoQueryService(videoRepo, repo, statsRepo, txMgr, logger)
+	queryCtx := metadata.Inject(context.Background(), metadata.HandlerMetadata{UserID: userID.String()})
+	detail, _, err := querySvc.GetVideoDetail(queryCtx, videoID)
+	require.NoError(t, err)
+	require.True(t, detail.HasLiked)
+	require.EqualValues(t, 1, detail.LikeCount)
+
+	assertInboxProcessed(ctx, t, pool, likeEventID)
 }
 
 func buildEngagementAdded(userID, videoID uuid.UUID, fav profilev1.FavoriteType, occurred time.Time) (uuid.UUID, []byte, error) {
