@@ -60,6 +60,7 @@
 - [x] 新增 CLI `cmd/tasks/engagement` 并在 README 记录启动方式
 - [x] 集成测试：`internal/tasks/engagement/test/runner_integration_test.go`（模拟 Pub/Sub + PG，覆盖重复/异常场景）
   - [x] 2025-10-27：完成，使用自定义 Subscriber/TxManager 仿真重复、无效载荷与事务失败路径，覆盖 proto/json 消费
+- [x] 2025-10-29：引入 Inbox Runner，消费 Profile 事件并拆分 liked/bookmarked 时间戳；E2E 验证通过
 - [x] 2025-10-29：连调测试（Profile 事件→投影→查询服务链路）完成，runner_postgres_e2e 覆盖
 
 ## 6. 非功能性完善

@@ -119,7 +119,7 @@ graph TD
 | --------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `catalog.videos`            | 视频主表             | 各层字段、`version`、阶段 `job_id`/`emitted_at`                                                                   | 触发器维护 `updated_at`；枚举 `catalog.video_status` / `catalog.stage_status` |
 | `catalog.outbox_events`     | 事件 Outbox          | `event_id`, `aggregate_type`, `aggregate_id`, `payload`, `headers`, `occurred_at`, `version`, `lock_token`        | `available_at`/`published_at` 索引；见《只读投影方案》                        |
-| `catalog.video_user_engagements_projection` | 用户态投影           | `(user_id, video_id)` 主键，`has_liked`, `has_bookmarked`, `occurred_at`                                         | 由 Engagement 投影消费者写入，缺失记录视为 false                             |
+| `catalog.video_user_engagements_projection` | 用户态投影           | `(user_id, video_id)` 主键，`has_liked`, `has_bookmarked`, `liked_occurred_at`, `bookmarked_occurred_at`, `updated_at` | 由 Engagement 投影消费者写入，缺失记录视为 false                             |
 | `catalog.inbox_events`      | 外部事件幂等（预留） | `event_id`, `source_service`, `payload`, `processed_at`                                                           | 供未来跨服务回放使用，MVP 默认为空                                          |
 
 > 迁移脚本：`migrations/001_*`~`004_*` 已包含核心表。MVP 若需新增表，仅针对 Engagement 状态存储补充 `005_*` 及后续脚本。幂等与审计存储保留为 Post-MVP 能力。
@@ -249,7 +249,7 @@ services/catalog/
 ### 8.2 消费流程
 
 1. StreamingPull 从 `profile.engagement.events` 拉取消息。
-2. 解析 payload，构造 `catalog.video_user_engagements_projection` 记录，缺失字段使用默认值 `false`。
+2. 解析 payload，构造 `catalog.video_user_engagements_projection` 记录，缺失字段使用默认值 `false`，并分别维护点赞/收藏的最新发生时间戳。
 3. 使用 `INSERT ... ON CONFLICT (user_id, video_id) DO UPDATE` 写入布尔字段与 `occurred_at`（若新事件时间更新）。
 4. 更新指标后 Ack 消息；写入失败需记录 `last_error` 并按指数退避重试。
 

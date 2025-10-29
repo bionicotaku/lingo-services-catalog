@@ -51,6 +51,8 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 	}
 	manager := txmanager.ProvideManager(txmanagerComponent)
 	messagingConfig := configloader.ProvideMessagingConfig(runtimeConfig)
+	outboxConfig := configloader.ProvideOutboxConfig(messagingConfig)
+	inboxRepository := repositories.NewInboxRepository(pool, logger, outboxConfig)
 	engagementPubSubConfig := configloader.ProvideEngagementConfig(messagingConfig)
 	dependencies := configloader.ProvidePubSubDependencies(logger)
 	engagementSubscriber, cleanup4, err := configloader.ProvideEngagementSubscriber(contextContext, engagementPubSubConfig, dependencies)
@@ -60,7 +62,7 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 		cleanup()
 		return nil, nil, err
 	}
-	runner := engagement.ProvideRunner(videoUserStatesRepository, manager, engagementSubscriber, logger)
+	runner := engagement.ProvideRunner(videoUserStatesRepository, inboxRepository, manager, engagementSubscriber, outboxConfig, logger)
 	mainEngagementApp, err := newEngagementApp(logger, runner)
 	if err != nil {
 		cleanup4()

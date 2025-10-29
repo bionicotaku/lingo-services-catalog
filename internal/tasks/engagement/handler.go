@@ -7,6 +7,7 @@ import (
 
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
+	"github.com/bionicotaku/lingo-utils/outbox/store"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
@@ -16,23 +17,21 @@ import (
 // EventHandler 处理 Engagement Event，负责写入 catalog.video_user_engagements_projection。
 type EventHandler struct {
 	repo    videoUserStatesStore
-	tx      txmanager.Manager
 	log     *log.Helper
 	metrics *metrics
 }
 
 // NewEventHandler 构造 Engagement Event 处理器。
-func NewEventHandler(repo videoUserStatesStore, tx txmanager.Manager, logger log.Logger, metrics *metrics) *EventHandler {
+func NewEventHandler(repo videoUserStatesStore, logger log.Logger, metrics *metrics) *EventHandler {
 	return &EventHandler{
 		repo:    repo,
-		tx:      tx,
 		log:     log.NewHelper(logger),
 		metrics: metrics,
 	}
 }
 
 // Handle 将事件投影至用户状态表。
-func (h *EventHandler) Handle(ctx context.Context, evt *Event) error {
+func (h *EventHandler) Handle(ctx context.Context, sess txmanager.Session, evt *Event, _ *store.InboxEvent) error {
 	if evt == nil {
 		return fmt.Errorf("engagement: nil event")
 	}
@@ -57,52 +56,52 @@ func (h *EventHandler) Handle(ctx context.Context, evt *Event) error {
 
 	occurredAt := evt.OccurredAt.UTC()
 
-	err = h.tx.WithinTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
-		state, repoErr := h.repo.Get(txCtx, sess, userID, videoID)
-		if repoErr != nil {
-			return repoErr
+	state, repoErr := h.repo.Get(ctx, sess, userID, videoID)
+	if repoErr != nil {
+		if h.metrics != nil {
+			h.metrics.recordFailure(ctx)
 		}
+		return repoErr
+	}
 
-		hasLiked := state != nil && state.HasLiked
-		hasBookmarked := state != nil && state.HasBookmarked
-		var likedAt *time.Time
-		var bookmarkedAt *time.Time
-		if state != nil {
-			likedAt = cloneTime(state.LikedOccurredAt)
-			bookmarkedAt = cloneTime(state.BookmarkedOccurredAt)
-		}
+	hasLiked := state != nil && state.HasLiked
+	hasBookmarked := state != nil && state.HasBookmarked
+	var likedAt *time.Time
+	var bookmarkedAt *time.Time
+	if state != nil {
+		likedAt = cloneTime(state.LikedOccurredAt)
+		bookmarkedAt = cloneTime(state.BookmarkedOccurredAt)
+	}
 
-		switch kind {
-		case kindLike:
-			if state != nil && state.LikedOccurredAt != nil && !occurredAt.After(state.LikedOccurredAt.UTC()) {
-				h.log.WithContext(txCtx).Debugf("skip stale like event: user=%s video=%s", userID, videoID)
-				return nil
-			}
-			hasLiked = action == actionAdded
-			likedAt = &occurredAt
-		case kindBookmark:
-			if state != nil && state.BookmarkedOccurredAt != nil && !occurredAt.After(state.BookmarkedOccurredAt.UTC()) {
-				h.log.WithContext(txCtx).Debugf("skip stale bookmark event: user=%s video=%s", userID, videoID)
-				return nil
-			}
-			hasBookmarked = action == actionAdded
-			bookmarkedAt = &occurredAt
-		default:
-			h.log.WithContext(txCtx).Warnf("skip unknown engagement type: type=%s user=%s video=%s", evt.EngagementType, userID, videoID)
+	switch kind {
+	case kindLike:
+		if state != nil && state.LikedOccurredAt != nil && !occurredAt.After(state.LikedOccurredAt.UTC()) {
+			h.log.WithContext(ctx).Debugf("skip stale like event: user=%s video=%s", userID, videoID)
 			return nil
 		}
-
-		upsert := repositories.UpsertVideoUserStateInput{
-			UserID:               userID,
-			VideoID:              videoID,
-			HasLiked:             hasLiked,
-			HasBookmarked:        hasBookmarked,
-			LikedOccurredAt:      likedAt,
-			BookmarkedOccurredAt: bookmarkedAt,
+		hasLiked = action == actionAdded
+		likedAt = &occurredAt
+	case kindBookmark:
+		if state != nil && state.BookmarkedOccurredAt != nil && !occurredAt.After(state.BookmarkedOccurredAt.UTC()) {
+			h.log.WithContext(ctx).Debugf("skip stale bookmark event: user=%s video=%s", userID, videoID)
+			return nil
 		}
-		return h.repo.Upsert(txCtx, sess, upsert)
-	})
-	if err != nil {
+		hasBookmarked = action == actionAdded
+		bookmarkedAt = &occurredAt
+	default:
+		h.log.WithContext(ctx).Warnf("skip unknown engagement type: type=%s user=%s video=%s", evt.EngagementType, userID, videoID)
+		return nil
+	}
+
+	upsert := repositories.UpsertVideoUserStateInput{
+		UserID:               userID,
+		VideoID:              videoID,
+		HasLiked:             hasLiked,
+		HasBookmarked:        hasBookmarked,
+		LikedOccurredAt:      likedAt,
+		BookmarkedOccurredAt: bookmarkedAt,
+	}
+	if err := h.repo.Upsert(ctx, sess, upsert); err != nil {
 		if h.metrics != nil {
 			h.metrics.recordFailure(ctx)
 		}

@@ -4,25 +4,28 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
+	"github.com/bionicotaku/lingo-utils/outbox/config"
+	"github.com/bionicotaku/lingo-utils/outbox/inbox"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
-// Runner 封装 Engagement 事件消费循环。
+// Runner 封装 Engagement 事件消费循环（基于 Inbox Runner）。
 type Runner struct {
-	subscriber gcpubsub.Subscriber
-	handler    *EventHandler
-	decoder    *eventDecoder
-	logger     *log.Helper
+	delegate *inbox.Runner[Event]
+	metrics  *metrics
 }
 
 // RunnerParams 注入 Runner 所需依赖。
 type RunnerParams struct {
 	Subscriber gcpubsub.Subscriber
-	Repository videoUserStatesStore
+	InboxRepo  *repositories.InboxRepository
+	UserRepo   videoUserStatesStore
 	TxManager  txmanager.Manager
 	Logger     log.Logger
+	Config     config.InboxConfig
 }
 
 // NewRunner 构造 Engagement Runner。
@@ -30,43 +33,43 @@ func NewRunner(params RunnerParams) (*Runner, error) {
 	if params.Subscriber == nil {
 		return nil, fmt.Errorf("engagement: subscriber is required")
 	}
-	if params.Repository == nil {
-		return nil, fmt.Errorf("engagement: repository is required")
+	if params.InboxRepo == nil {
+		return nil, fmt.Errorf("engagement: inbox repository is required")
+	}
+	if params.UserRepo == nil {
+		return nil, fmt.Errorf("engagement: user state repository is required")
 	}
 	if params.TxManager == nil {
 		return nil, fmt.Errorf("engagement: tx manager is required")
 	}
+
 	metrics := newMetrics()
-	handler := NewEventHandler(params.Repository, params.TxManager, params.Logger, metrics)
+	handler := NewEventHandler(params.UserRepo, params.Logger, metrics)
+	decoder := newEventDecoder()
+
+	delegate, err := inbox.NewRunner[Event](inbox.RunnerParams[Event]{
+		Store:      params.InboxRepo.Shared(),
+		Subscriber: params.Subscriber,
+		TxManager:  params.TxManager,
+		Decoder:    decoder,
+		Handler:    handler,
+		Config:     params.Config,
+		Logger:     params.Logger,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &Runner{
-		subscriber: params.Subscriber,
-		handler:    handler,
-		decoder:    newEventDecoder(),
-		logger:     log.NewHelper(params.Logger),
+		delegate: delegate,
+		metrics:  metrics,
 	}, nil
 }
 
-// Run 启动消费循环，直到 context 取消。
+// Run 启动消费循环。
 func (r *Runner) Run(ctx context.Context) error {
-	if r == nil || r.subscriber == nil {
+	if r == nil || r.delegate == nil {
 		return nil
 	}
-	return r.subscriber.Receive(ctx, r.processMessage)
-}
-
-func (r *Runner) processMessage(ctx context.Context, msg *gcpubsub.Message) error {
-	if msg == nil {
-		return nil
-	}
-	evt, err := r.decoder.Decode(msg.Data)
-	if err != nil {
-		if r.logger != nil {
-			r.logger.WithContext(ctx).Warnw("msg", "decode engagement event failed", "error", err)
-		}
-		return nil
-	}
-	if err := r.handler.Handle(ctx, evt); err != nil {
-		return err
-	}
-	return nil
+	return r.delegate.Run(ctx)
 }

@@ -88,6 +88,7 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	messagingConfig := configloader.ProvideMessagingConfig(runtimeConfig)
 	configConfig := configloader.ProvideOutboxConfig(messagingConfig)
 	outboxRepository := repositories.NewOutboxRepository(pool, logger, configConfig)
+	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	txmanagerConfig := configloader.ProvideTxConfig(runtimeConfig)
 	txmanagerComponent, cleanup5, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
@@ -137,7 +138,7 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 		cleanup()
 		return nil, nil, err
 	}
-	engagementRunner := engagement.ProvideRunner(videoUserStatesRepository, manager, engagementSubscriber, logger)
+	engagementRunner := engagement.ProvideRunner(videoUserStatesRepository, inboxRepository, manager, engagementSubscriber, configConfig, logger)
 	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, engagementRunner)
 	return app, func() {
 		cleanup7()

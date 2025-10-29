@@ -14,10 +14,12 @@ import (
 	"cloud.google.com/go/pubsub/pstest"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/bionicotaku/lingo-services-catalog/internal/metadata"
+	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
+	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-kratos/kratos/v2/log"
@@ -43,9 +45,12 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 
 	ensureAuthSchema(ctx, t, pool)
 	applyMigrations(ctx, t, pool)
+	_, err = pool.Exec(ctx, `set search_path to catalog, public`)
+	require.NoError(t, err)
 
 	logger := log.NewStdLogger(io.Discard)
 	repo := repositories.NewVideoUserStatesRepository(pool, logger)
+	inboxRepo := repositories.NewInboxRepository(pool, logger, outboxcfg.Config{Schema: "catalog"})
 	txMgr, err := txmanager.NewManager(pool, txmanager.Config{}, txmanager.Dependencies{Logger: logger})
 	require.NoError(t, err)
 
@@ -80,9 +85,14 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 
 	runner, err := engagement.NewRunner(engagement.RunnerParams{
 		Subscriber: subscriber,
-		Repository: repo,
+		InboxRepo:  inboxRepo,
+		UserRepo:   repo,
 		TxManager:  txMgr,
 		Logger:     logger,
+		Config: outboxcfg.InboxConfig{
+			SourceService:  "profile",
+			MaxConcurrency: 4,
+		},
 	})
 	require.NoError(t, err)
 
@@ -126,7 +136,7 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
-	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: payload1})
+	likeEventID, err := publishEvent(ctx, publisher, payload1, "profile.engagement.added", videoID)
 	require.NoError(t, err)
 
 	payload2, err := json.Marshal(engagement.Event{
@@ -139,18 +149,15 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
-	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: payload2})
+	bookmarkEventID, err := publishEvent(ctx, publisher, payload2, "profile.engagement.added", videoID)
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
-		state, getErr := repo.Get(ctx, nil, userID, videoID)
-		if getErr != nil || state == nil {
-			return false
-		}
-		return state.HasLiked && state.HasBookmarked &&
-			state.LikedOccurredAt != nil && state.LikedOccurredAt.UTC().Equal(baseTime) &&
-			state.BookmarkedOccurredAt != nil && state.BookmarkedOccurredAt.UTC().Equal(baseTime.Add(2*time.Minute))
-	}, 5*time.Second, 50*time.Millisecond, "video_user_engagements_projection not updated")
+	state := waitForState(ctx, t, repo, pool, userID, videoID, 5*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked && st.HasBookmarked &&
+			st.LikedOccurredAt != nil && approxEqual(*st.LikedOccurredAt, baseTime) &&
+			st.BookmarkedOccurredAt != nil && approxEqual(*st.BookmarkedOccurredAt, baseTime.Add(2*time.Minute))
+	})
+	require.NotNil(t, state)
 
 	payload3, err := json.Marshal(engagement.Event{
 		EventName:      "profile.engagement.removed",
@@ -162,18 +169,15 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 		Version:        engagement.EventVersion,
 	})
 	require.NoError(t, err)
-	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: payload3})
+	removeBookmarkEventID, err := publishEvent(ctx, publisher, payload3, "profile.engagement.removed", videoID)
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
-		state, getErr := repo.Get(ctx, nil, userID, videoID)
-		if getErr != nil || state == nil {
-			return false
-		}
-		return state.HasLiked && !state.HasBookmarked &&
-			state.LikedOccurredAt != nil && state.LikedOccurredAt.UTC().Equal(baseTime) &&
-			state.BookmarkedOccurredAt != nil && state.BookmarkedOccurredAt.UTC().Equal(baseTime.Add(4*time.Minute))
-	}, 5*time.Second, 50*time.Millisecond, "video_user_engagements_projection not updated after removal")
+	state = waitForState(ctx, t, repo, pool, userID, videoID, 5*time.Second, func(st *po.VideoUserState) bool {
+		return st.HasLiked && !st.HasBookmarked &&
+			st.LikedOccurredAt != nil && approxEqual(*st.LikedOccurredAt, baseTime) &&
+			st.BookmarkedOccurredAt != nil && approxEqual(*st.BookmarkedOccurredAt, baseTime.Add(4*time.Minute))
+	})
+	require.NotNil(t, state)
 
 	videoRepo := repositories.NewVideoRepository(pool, logger)
 	querySvc := services.NewVideoQueryService(videoRepo, repo, txMgr, logger)
@@ -182,6 +186,10 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, detail.HasLiked)
 	require.False(t, detail.HasBookmarked)
+
+	assertInboxProcessed(ctx, t, pool, likeEventID)
+	assertInboxProcessed(ctx, t, pool, bookmarkEventID)
+	assertInboxProcessed(ctx, t, pool, removeBookmarkEventID)
 
 	cancel()
 	select {
@@ -254,6 +262,84 @@ func applyMigrations(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 		_, execErr := pool.Exec(ctx, string(sqlBytes))
 		require.NoErrorf(t, execErr, "apply migration %s", filepath.Base(path))
 	}
+}
+
+func publishEvent(ctx context.Context, publisher gcpubsub.Publisher, payload []byte, eventType string, videoID uuid.UUID) (uuid.UUID, error) {
+	eventID := uuid.New()
+	attrs := map[string]string{
+		"event_id":       eventID.String(),
+		"event_type":     eventType,
+		"aggregate_type": "video",
+		"aggregate_id":   videoID.String(),
+	}
+	_, err := publisher.Publish(ctx, gcpubsub.Message{Data: payload, Attributes: attrs})
+	return eventID, err
+}
+
+func logInboxState(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+	rows, err := pool.Query(ctx, `select event_id, processed_at, last_error from catalog.inbox_events order by received_at desc`)
+	if err != nil {
+		t.Logf("query inbox_events failed: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var eventID uuid.UUID
+		var processedAt *time.Time
+		var lastError *string
+		if err := rows.Scan(&eventID, &processedAt, &lastError); err != nil {
+			t.Logf("scan inbox row failed: %v", err)
+			continue
+		}
+		var processed string
+		if processedAt != nil {
+			processed = processedAt.UTC().Format(time.RFC3339Nano)
+		}
+		var lastErr string
+		if lastError != nil {
+			lastErr = *lastError
+		}
+		t.Logf("inbox_event event_id=%s processed_at=%s last_error=%s", eventID, processed, lastErr)
+	}
+}
+
+func waitForState(ctx context.Context, t *testing.T, repo *repositories.VideoUserStatesRepository, pool *pgxpool.Pool, userID, videoID uuid.UUID, timeout time.Duration, predicate func(*po.VideoUserState) bool) *po.VideoUserState {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		state, err := repo.Get(ctx, nil, userID, videoID)
+		if err != nil {
+			t.Fatalf("get state failed: %v", err)
+		}
+		if state != nil && predicate(state) {
+			return state
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	logInboxState(ctx, t, pool)
+	return nil
+}
+
+func approxEqual(a time.Time, b time.Time) bool {
+	const tolerance = 50 * time.Millisecond
+	if a.IsZero() || b.IsZero() {
+		return false
+	}
+	return a.Sub(b).Abs() <= tolerance
+}
+
+func assertInboxProcessed(ctx context.Context, t *testing.T, pool *pgxpool.Pool, eventID uuid.UUID) {
+    row := pool.QueryRow(ctx, `select processed_at, last_error from catalog.inbox_events where event_id = $1`, eventID)
+    var processedAt *time.Time
+    var lastError *string
+    if err := row.Scan(&processedAt, &lastError); err != nil {
+        t.Fatalf("fetch inbox event %s failed: %v", eventID, err)
+    }
+    if processedAt == nil {
+        t.Fatalf("inbox event %s not processed", eventID)
+    }
+    if lastError != nil && *lastError != "" {
+        t.Fatalf("inbox event %s recorded error: %s", eventID, *lastError)
+    }
 }
 
 func boolPtr(v bool) *bool { return &v }
