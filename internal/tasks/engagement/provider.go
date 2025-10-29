@@ -12,6 +12,7 @@ import (
 // ProvideRunner 装配 Engagement Runner。
 func ProvideRunner(
 	userRepo *repositories.VideoUserStatesRepository,
+	statsRepo *repositories.VideoEngagementStatsRepository,
 	inboxRepo *repositories.InboxRepository,
 	tx txmanager.Manager,
 	sub configloader.EngagementSubscriber,
@@ -26,6 +27,7 @@ func ProvideRunner(
 		Subscriber: realSub,
 		InboxRepo:  inboxRepo,
 		UserRepo:   userRepo,
+		StatsRepo:  statsRepo,
 		TxManager:  tx,
 		Logger:     logger,
 		Config:     outboxCfg.Inbox,

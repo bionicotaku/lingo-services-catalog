@@ -111,7 +111,8 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	baseHandler := controllers.NewBaseHandler(handlerTimeouts)
 	lifecycleHandler := controllers.NewLifecycleHandler(lifecycleService, baseHandler)
 	videoUserStatesRepository := repositories.NewVideoUserStatesRepository(pool, logger)
-	videoQueryService := services.NewVideoQueryService(videoRepository, videoUserStatesRepository, manager, logger)
+	videoEngagementStatsRepository := repositories.NewVideoEngagementStatsRepository(pool, logger)
+	videoQueryService := services.NewVideoQueryService(videoRepository, videoUserStatesRepository, videoEngagementStatsRepository, manager, logger)
 	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService, baseHandler)
 	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, lifecycleHandler, videoQueryHandler, logger)
 	gcpubsubConfig := configloader.ProvidePubSubConfig(messagingConfig)
@@ -138,7 +139,7 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 		cleanup()
 		return nil, nil, err
 	}
-	engagementRunner := engagement.ProvideRunner(videoUserStatesRepository, inboxRepository, manager, engagementSubscriber, configConfig, logger)
+	engagementRunner := engagement.ProvideRunner(videoUserStatesRepository, videoEngagementStatsRepository, inboxRepository, manager, engagementSubscriber, configConfig, logger)
 	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, engagementRunner)
 	return app, func() {
 		cleanup7()

@@ -19,7 +19,7 @@ import (
 
 func TestEventHandlerProcessesTimeline(t *testing.T) {
 	repo := newFakeVideoUserStatesRepository()
-	handler := engagement.NewEventHandler(repo, log.NewStdLogger(io.Discard), nil)
+	handler := engagement.NewEventHandler(repo, fakeStatsRepo{}, log.NewStdLogger(io.Discard), nil)
 
 	ctx := context.Background()
 	sess := fakeSession{}
@@ -96,7 +96,7 @@ func TestEventHandlerProcessesTimeline(t *testing.T) {
 
 func TestEventHandlerUnknownTypeIsIgnored(t *testing.T) {
 	repo := newFakeVideoUserStatesRepository()
-	handler := engagement.NewEventHandler(repo, log.NewStdLogger(io.Discard), nil)
+	handler := engagement.NewEventHandler(repo, fakeStatsRepo{}, log.NewStdLogger(io.Discard), nil)
 
 	userID := uuid.New()
 	videoID := uuid.New()
@@ -192,3 +192,13 @@ type fakeSession struct{}
 func (fakeSession) Tx() pgx.Tx { return nil }
 
 func (fakeSession) Context() context.Context { return context.Background() }
+
+type fakeStatsRepo struct{}
+
+func (fakeStatsRepo) Increment(context.Context, txmanager.Session, uuid.UUID, repositories.StatsDelta) (*po.VideoEngagementStatsProjection, error) {
+	return nil, nil
+}
+
+func (fakeStatsRepo) MarkWatcher(context.Context, txmanager.Session, uuid.UUID, uuid.UUID, time.Time) (*po.VideoWatcherRecord, error) {
+	return &po.VideoWatcherRecord{Inserted: false}, nil
+}

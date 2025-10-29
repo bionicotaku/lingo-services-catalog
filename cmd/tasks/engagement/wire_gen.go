@@ -42,6 +42,7 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 	}
 	pool := pgxpoolx.ProvidePool(pgxpoolxComponent)
 	videoUserStatesRepository := repositories.NewVideoUserStatesRepository(pool, logger)
+	videoEngagementStatsRepository := repositories.NewVideoEngagementStatsRepository(pool, logger)
 	txmanagerConfig := configloader.ProvideTxConfig(runtimeConfig)
 	txmanagerComponent, cleanup3, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
@@ -62,7 +63,7 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 		cleanup()
 		return nil, nil, err
 	}
-	runner := engagement.ProvideRunner(videoUserStatesRepository, inboxRepository, manager, engagementSubscriber, outboxConfig, logger)
+	runner := engagement.ProvideRunner(videoUserStatesRepository, videoEngagementStatsRepository, inboxRepository, manager, engagementSubscriber, outboxConfig, logger)
 	mainEngagementApp, err := newEngagementApp(logger, runner)
 	if err != nil {
 		cleanup4()

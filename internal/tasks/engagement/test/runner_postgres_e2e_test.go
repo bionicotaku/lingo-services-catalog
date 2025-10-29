@@ -50,6 +50,7 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 
 	logger := log.NewStdLogger(io.Discard)
 	repo := repositories.NewVideoUserStatesRepository(pool, logger)
+	statsRepo := repositories.NewVideoEngagementStatsRepository(pool, logger)
 	inboxRepo := repositories.NewInboxRepository(pool, logger, outboxcfg.Config{Schema: "catalog"})
 	txMgr, err := txmanager.NewManager(pool, txmanager.Config{}, txmanager.Dependencies{Logger: logger})
 	require.NoError(t, err)
@@ -87,6 +88,7 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 		Subscriber: subscriber,
 		InboxRepo:  inboxRepo,
 		UserRepo:   repo,
+		StatsRepo:  statsRepo,
 		TxManager:  txMgr,
 		Logger:     logger,
 		Config: outboxcfg.InboxConfig{
@@ -179,17 +181,39 @@ func TestEngagementRunner_WithRealRepository(t *testing.T) {
 	})
 	require.NotNil(t, state)
 
+	watchPayload, err := json.Marshal(engagement.Event{
+		EventName:  "profile.watch.progressed",
+		UserID:     userID.String(),
+		VideoID:    videoID.String(),
+		OccurredAt: baseTime.Add(6 * time.Minute),
+		Version:    engagement.EventVersion,
+	})
+	require.NoError(t, err)
+	watchEventID, err := publishEvent(ctx, publisher, watchPayload, "profile.watch.progressed", videoID)
+	require.NoError(t, err)
+
+	stats := waitForStats(ctx, t, statsRepo, videoID, 5*time.Second, func(st *po.VideoEngagementStatsProjection) bool {
+		return st.LikeCount == 1 && st.BookmarkCount == 0 && st.WatchCount == 1 && st.UniqueWatchers == 1
+	})
+	require.NotNil(t, stats)
+	require.True(t, approxEqualTime(stats.LastWatchAt, baseTime.Add(6*time.Minute)))
+
 	videoRepo := repositories.NewVideoRepository(pool, logger)
-	querySvc := services.NewVideoQueryService(videoRepo, repo, txMgr, logger)
+	querySvc := services.NewVideoQueryService(videoRepo, repo, statsRepo, txMgr, logger)
 	queryCtx := metadata.Inject(context.Background(), metadata.HandlerMetadata{UserID: userID.String()})
 	detail, _, err := querySvc.GetVideoDetail(queryCtx, videoID)
 	require.NoError(t, err)
 	require.True(t, detail.HasLiked)
 	require.False(t, detail.HasBookmarked)
+	require.EqualValues(t, 1, detail.LikeCount)
+	require.EqualValues(t, 0, detail.BookmarkCount)
+	require.EqualValues(t, 1, detail.WatchCount)
+	require.EqualValues(t, 1, detail.UniqueWatchers)
 
 	assertInboxProcessed(ctx, t, pool, likeEventID)
 	assertInboxProcessed(ctx, t, pool, bookmarkEventID)
 	assertInboxProcessed(ctx, t, pool, removeBookmarkEventID)
+	assertInboxProcessed(ctx, t, pool, watchEventID)
 
 	cancel()
 	select {
@@ -319,12 +343,34 @@ func waitForState(ctx context.Context, t *testing.T, repo *repositories.VideoUse
 	return nil
 }
 
+func waitForStats(ctx context.Context, t *testing.T, repo *repositories.VideoEngagementStatsRepository, videoID uuid.UUID, timeout time.Duration, predicate func(*po.VideoEngagementStatsProjection) bool) *po.VideoEngagementStatsProjection {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		record, err := repo.Get(ctx, nil, videoID)
+		if err != nil {
+			t.Fatalf("get stats failed: %v", err)
+		}
+		if record != nil && predicate(record) {
+			return record
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil
+}
+
 func approxEqual(a time.Time, b time.Time) bool {
 	const tolerance = 50 * time.Millisecond
 	if a.IsZero() || b.IsZero() {
 		return false
 	}
 	return a.Sub(b).Abs() <= tolerance
+}
+
+func approxEqualTime(actual *time.Time, expected time.Time) bool {
+	if actual == nil {
+		return false
+	}
+	return approxEqual(actual.UTC(), expected)
 }
 
 func assertInboxProcessed(ctx context.Context, t *testing.T, pool *pgxpool.Pool, eventID uuid.UUID) {

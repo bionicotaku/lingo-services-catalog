@@ -82,7 +82,7 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 	logger := log.NewStdLogger(io.Discard)
 	repo := &videoRepoStub{}
 	writer := services.NewLifecycleWriter(repo, outboxRepoStub{}, noopTxManager{}, logger)
-	querySvc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
+	querySvc := services.NewVideoQueryService(repo, nil, nil, noopTxManager{}, logger)
 	base := controllers.NewBaseHandler(controllers.HandlerTimeouts{})
 	lifecycleSvc := services.NewLifecycleService(
 		services.NewRegisterUploadService(writer),

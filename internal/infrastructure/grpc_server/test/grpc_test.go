@@ -83,7 +83,7 @@ func newVideoHandlers(t *testing.T) (*controllers.LifecycleHandler, *controllers
 	repo := &videoRepoStub{}
 	outbox := outboxRepoStub{}
 	writer := services.NewLifecycleWriter(repo, outbox, noopTxManager{}, logger)
-	querySvc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
+	querySvc := services.NewVideoQueryService(repo, nil, nil, noopTxManager{}, logger)
 	lifecycleSvc := services.NewLifecycleService(
 		services.NewRegisterUploadService(writer),
 		services.NewOriginalMediaService(writer, repo),

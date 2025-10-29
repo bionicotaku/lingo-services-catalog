@@ -10,9 +10,10 @@
 ## 1. 数据层建设
 1. **Schema 迁移** *(进行中)*
   - [x] 新增 `migrations/004_create_catalog_video_user_engagements_projection.sql`
+  - [x] 新增 `migrations/005_create_catalog_video_engagement_stats_projection.sql`
    - [ ] 运行全部迁移，使用 `psql` 验证表/索引/触发器存在
 2. **sqlc 与模型**
-   - [x] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_engagements_projection`）
+   - [x] 更新 `sqlc.yaml` 新增查询文件（视频主表、`video_user_engagements_projection`、`video_engagement_stats_projection`）
    - [x] 生成 `internal/repositories/sqlc` 代码并通过 `go test ./internal/repositories/...`
    - [x] 更新 `internal/models/po`、`vo` 与 `mappers`
 
@@ -42,6 +43,7 @@
   - [x] 2025-10-26：配置 `metadata_keys` 补充 `x-md-actor-type`/`x-md-actor-id` 并在文档中解释来源与用途（已更新 config.yaml、conf.proto、加载器测试）
   - [x] 2025-10-27：根据最新决策暂时移除 `x-md-actor-*` 消费逻辑，文档中标注为 Post-MVP 扩展
   - [x] 2025-10-27：补齐仓储集成测试覆盖分页与过滤（`ListPublicVideos`、`ListUserUploads`、`GetMetadata`），并通过 `make lint` + `go test ./...`
+  - [x] 2025-10-29：接入 `video_engagement_stats_projection`，在详情接口追加点赞/收藏/观看计数并扩展 DTO/Proto
 
 ## 4. 事件构建与 Outbox Runner
 - [x] 扩展 `internal/models/outbox_events` 构造器，覆盖 `video.media_ready` 等事件 payload（2025-10-26 完成）

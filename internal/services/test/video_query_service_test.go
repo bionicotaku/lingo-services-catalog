@@ -18,7 +18,7 @@ import (
 
 func TestVideoQueryService_ListMyUploadsRequiresUserID(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, nil, noopTxManager{}, logger)
 
 	_, _, err := svc.ListMyUploads(context.Background(), 10, "", nil, nil)
 	if err == nil {
@@ -32,7 +32,7 @@ func TestVideoQueryService_ListMyUploadsRequiresUserID(t *testing.T) {
 
 func TestVideoQueryService_ListMyUploadsInvalidUserID(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, nil, noopTxManager{}, logger)
 
 	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{UserID: "not-a-uuid"})
 
@@ -48,7 +48,7 @@ func TestVideoQueryService_ListMyUploadsInvalidUserID(t *testing.T) {
 
 func TestVideoQueryService_ListMyUploadsInvalidUserInfo(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, nil, noopTxManager{}, logger)
 
 	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{RawUserInfo: "broken", InvalidUserInfo: true})
 
@@ -64,7 +64,7 @@ func TestVideoQueryService_ListMyUploadsInvalidUserInfo(t *testing.T) {
 
 func TestVideoQueryService_GetVideoDetailInvalidUserID(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, nil, noopTxManager{}, logger)
 
 	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{UserID: "invalid"})
 
@@ -80,7 +80,7 @@ func TestVideoQueryService_GetVideoDetailInvalidUserID(t *testing.T) {
 
 func TestVideoQueryService_GetVideoDetailInvalidUserInfo(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
-	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(&videoRepoStub{}, nil, nil, noopTxManager{}, logger)
 
 	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{RawUserInfo: "broken", InvalidUserInfo: true})
 
@@ -117,7 +117,7 @@ func TestVideoQueryService_GetVideoMetadataSuccess(t *testing.T) {
 			Version:           3,
 		},
 	}
-	svc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(repo, nil, nil, noopTxManager{}, logger)
 
 	meta, err := svc.GetVideoMetadata(context.Background(), videoID)
 	if err != nil {
@@ -151,7 +151,7 @@ func TestVideoQueryService_GetVideoDetailSuccess(t *testing.T) {
 			Version:        5,
 		},
 	}
-	svc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(repo, nil, nil, noopTxManager{}, logger)
 
 	ctx := context.Background()
 	detail, meta, err := svc.GetVideoDetail(ctx, videoID)
@@ -186,7 +186,7 @@ func TestVideoQueryService_ListMyUploadsAppliesFilters(t *testing.T) {
 			},
 		},
 	}
-	svc := services.NewVideoQueryService(repo, nil, noopTxManager{}, logger)
+	svc := services.NewVideoQueryService(repo, nil, nil, noopTxManager{}, logger)
 
 	ctx := metadata.Inject(context.Background(), metadata.HandlerMetadata{UserID: userID.String()})
 	statusFilters := []po.VideoStatus{po.VideoStatusProcessing}

@@ -23,6 +23,7 @@ type RunnerParams struct {
 	Subscriber gcpubsub.Subscriber
 	InboxRepo  *repositories.InboxRepository
 	UserRepo   videoUserStatesStore
+	StatsRepo  videoEngagementStatsStore
 	TxManager  txmanager.Manager
 	Logger     log.Logger
 	Config     config.InboxConfig
@@ -39,12 +40,15 @@ func NewRunner(params RunnerParams) (*Runner, error) {
 	if params.UserRepo == nil {
 		return nil, fmt.Errorf("engagement: user state repository is required")
 	}
+	if params.StatsRepo == nil {
+		return nil, fmt.Errorf("engagement: stats repository is required")
+	}
 	if params.TxManager == nil {
 		return nil, fmt.Errorf("engagement: tx manager is required")
 	}
 
 	metrics := newMetrics()
-	handler := NewEventHandler(params.UserRepo, params.Logger, metrics)
+	handler := NewEventHandler(params.UserRepo, params.StatsRepo, params.Logger, metrics)
 	decoder := newEventDecoder()
 
 	delegate, err := inbox.NewRunner[Event](inbox.RunnerParams[Event]{

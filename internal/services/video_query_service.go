@@ -32,15 +32,17 @@ type VideoQueryRepo interface {
 type VideoQueryService struct {
 	repo      VideoQueryRepo
 	userState *repositories.VideoUserStatesRepository
+	stats     *repositories.VideoEngagementStatsRepository
 	txManager txmanager.Manager
 	log       *log.Helper
 }
 
 // NewVideoQueryService 构造视频查询服务。
-func NewVideoQueryService(repo VideoQueryRepo, userState *repositories.VideoUserStatesRepository, tx txmanager.Manager, logger log.Logger) *VideoQueryService {
+func NewVideoQueryService(repo VideoQueryRepo, userState *repositories.VideoUserStatesRepository, stats *repositories.VideoEngagementStatsRepository, tx txmanager.Manager, logger log.Logger) *VideoQueryService {
 	return &VideoQueryService{
 		repo:      repo,
 		userState: userState,
+		stats:     stats,
 		txManager: tx,
 		log:       log.NewHelper(logger),
 	}
@@ -74,6 +76,7 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 		videoView   *po.VideoReadyView
 		state       *po.VideoUserState
 		metadataRow *po.VideoMetadata
+		statsRow    *po.VideoEngagementStatsProjection
 	)
 	var userID *uuid.UUID
 	if meta, ok := metadata.FromContext(ctx); ok {
@@ -103,6 +106,13 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 				return err
 			}
 		}
+		if s.stats != nil {
+			var err error
+			statsRow, err = s.stats.Get(txCtx, sess, videoID)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -125,6 +135,12 @@ func (s *VideoQueryService) GetVideoDetail(ctx context.Context, videoID uuid.UUI
 	if state != nil {
 		detail.HasLiked = state.HasLiked
 		detail.HasBookmarked = state.HasBookmarked
+	}
+	if statsRow != nil {
+		detail.LikeCount = statsRow.LikeCount
+		detail.BookmarkCount = statsRow.BookmarkCount
+		detail.WatchCount = statsRow.WatchCount
+		detail.UniqueWatchers = statsRow.UniqueWatchers
 	}
 	return detail, vo.NewVideoMetadataFromPO(metadataRow), nil
 }

@@ -219,6 +219,10 @@ type VideoDetail struct {
 	HasLiked       bool                   `protobuf:"varint,8,opt,name=has_liked,json=hasLiked,proto3" json:"has_liked,omitempty"`
 	HasBookmarked  bool                   `protobuf:"varint,9,opt,name=has_bookmarked,json=hasBookmarked,proto3" json:"has_bookmarked,omitempty"`
 	HasWatched     bool                   `protobuf:"varint,10,opt,name=has_watched,json=hasWatched,proto3" json:"has_watched,omitempty"`
+	LikeCount      int64                  `protobuf:"varint,11,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"`
+	BookmarkCount  int64                  `protobuf:"varint,12,opt,name=bookmark_count,json=bookmarkCount,proto3" json:"bookmark_count,omitempty"`
+	WatchCount     int64                  `protobuf:"varint,13,opt,name=watch_count,json=watchCount,proto3" json:"watch_count,omitempty"`
+	UniqueWatchers int64                  `protobuf:"varint,14,opt,name=unique_watchers,json=uniqueWatchers,proto3" json:"unique_watchers,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -321,6 +325,34 @@ func (x *VideoDetail) GetHasWatched() bool {
 		return x.HasWatched
 	}
 	return false
+}
+
+func (x *VideoDetail) GetLikeCount() int64 {
+	if x != nil {
+		return x.LikeCount
+	}
+	return 0
+}
+
+func (x *VideoDetail) GetBookmarkCount() int64 {
+	if x != nil {
+		return x.BookmarkCount
+	}
+	return 0
+}
+
+func (x *VideoDetail) GetWatchCount() int64 {
+	if x != nil {
+		return x.WatchCount
+	}
+	return 0
+}
+
+func (x *VideoDetail) GetUniqueWatchers() int64 {
+	if x != nil {
+		return x.UniqueWatchers
+	}
+	return 0
 }
 
 type VideoMetadata struct {
@@ -900,7 +932,7 @@ const file_api_video_v1_query_proto_rawDesc = "" +
 	"\bvideo_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\avideoId\"|\n" +
 	"\x16GetVideoDetailResponse\x12-\n" +
 	"\x06detail\x18\x01 \x01(\v2\x15.video.v1.VideoDetailR\x06detail\x123\n" +
-	"\bmetadata\x18\x02 \x01(\v2\x17.video.v1.VideoMetadataR\bmetadata\"\xc5\x02\n" +
+	"\bmetadata\x18\x02 \x01(\v2\x17.video.v1.VideoMetadataR\bmetadata\"\xd5\x03\n" +
 	"\vVideoDetail\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
@@ -915,7 +947,13 @@ const file_api_video_v1_query_proto_rawDesc = "" +
 	"\x0ehas_bookmarked\x18\t \x01(\bR\rhasBookmarked\x12\x1f\n" +
 	"\vhas_watched\x18\n" +
 	" \x01(\bR\n" +
-	"hasWatched\"\xfa\x03\n" +
+	"hasWatched\x12\x1d\n" +
+	"\n" +
+	"like_count\x18\v \x01(\x03R\tlikeCount\x12%\n" +
+	"\x0ebookmark_count\x18\f \x01(\x03R\rbookmarkCount\x12\x1f\n" +
+	"\vwatch_count\x18\r \x01(\x03R\n" +
+	"watchCount\x12'\n" +
+	"\x0funique_watchers\x18\x0e \x01(\x03R\x0euniqueWatchers\"\xfa\x03\n" +
 	"\rVideoMetadata\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12!\n" +
 	"\fmedia_status\x18\x02 \x01(\tR\vmediaStatus\x12'\n" +

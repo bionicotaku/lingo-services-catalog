@@ -137,6 +137,24 @@ type CatalogVideo struct {
 	ErrorMessage      pgtype.Text        `json:"error_message"`
 }
 
+type CatalogVideoEngagementStatsProjection struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	LikeCount      int64              `json:"like_count"`
+	BookmarkCount  int64              `json:"bookmark_count"`
+	WatchCount     int64              `json:"watch_count"`
+	UniqueWatchers int64              `json:"unique_watchers"`
+	FirstWatchAt   pgtype.Timestamptz `json:"first_watch_at"`
+	LastWatchAt    pgtype.Timestamptz `json:"last_watch_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type CatalogVideoEngagementWatcher struct {
+	VideoID        uuid.UUID          `json:"video_id"`
+	UserID         uuid.UUID          `json:"user_id"`
+	FirstWatchedAt pgtype.Timestamptz `json:"first_watched_at"`
+	LastWatchedAt  pgtype.Timestamptz `json:"last_watched_at"`
+}
+
 type CatalogVideoUserEngagementsProjection struct {
 	UserID               uuid.UUID          `json:"user_id"`
 	VideoID              uuid.UUID          `json:"video_id"`

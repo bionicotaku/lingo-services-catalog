@@ -42,6 +42,10 @@ message VideoDetail {
   bool has_liked = 8;
   bool has_bookmarked = 9;
   bool has_watched = 10;
+  int64 like_count = 11;
+  int64 bookmark_count = 12;
+  int64 watch_count = 13;
+  int64 unique_watchers = 14;
 }
 
 message VideoMetadata {
