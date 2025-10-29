@@ -10,11 +10,15 @@ import (
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
+	profilev1 "github.com/bionicotaku/lingo-services-profile/api/profile/v1"
+	"github.com/bionicotaku/lingo-utils/outbox/store"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestEventHandlerProcessesTimeline(t *testing.T) {
@@ -28,16 +32,14 @@ func TestEventHandlerProcessesTimeline(t *testing.T) {
 	videoID := uuid.New()
 	baseTime := time.Now().Add(-10 * time.Minute).UTC()
 
-	likeEvt := &engagement.Event{
-		EventName:      "profile.engagement.added",
-		State:          "added",
-		EngagementType: "like",
-		UserID:         userID.String(),
-		VideoID:        videoID.String(),
-		OccurredAt:     baseTime,
-		Version:        engagement.EventVersion,
-	}
-	require.NoError(t, handler.Handle(ctx, sess, likeEvt, nil))
+	likeEvt := marshalEvent(t, &profilev1.EngagementAddedEvent{
+		EventId:      uuid.New().String(),
+		UserId:       userID.String(),
+		VideoId:      videoID.String(),
+		FavoriteType: profilev1.FavoriteType_FAVORITE_TYPE_LIKE,
+		OccurredAt:   timestamppb.New(baseTime),
+	})
+	require.NoError(t, handler.Handle(ctx, sess, likeEvt, &store.InboxEvent{EventType: "profile.engagement.added"}))
 
 	state, ok := repo.state(userID, videoID)
 	require.True(t, ok)
@@ -46,16 +48,14 @@ func TestEventHandlerProcessesTimeline(t *testing.T) {
 	require.NotNil(t, state.LikedOccurredAt)
 	require.Equal(t, baseTime, state.LikedOccurredAt.UTC())
 
-	bookmarkEvt := &engagement.Event{
-		EventName:      "profile.engagement.added",
-		State:          "added",
-		EngagementType: "bookmark",
-		UserID:         userID.String(),
-		VideoID:        videoID.String(),
-		OccurredAt:     baseTime.Add(2 * time.Minute),
-		Version:        engagement.EventVersion,
-	}
-	require.NoError(t, handler.Handle(ctx, sess, bookmarkEvt, nil))
+	bookmarkEvt := marshalEvent(t, &profilev1.EngagementAddedEvent{
+		EventId:      uuid.New().String(),
+		UserId:       userID.String(),
+		VideoId:      videoID.String(),
+		FavoriteType: profilev1.FavoriteType_FAVORITE_TYPE_BOOKMARK,
+		OccurredAt:   timestamppb.New(baseTime.Add(2 * time.Minute)),
+	})
+	require.NoError(t, handler.Handle(ctx, sess, bookmarkEvt, &store.InboxEvent{EventType: "profile.engagement.added"}))
 
 	state, ok = repo.state(userID, videoID)
 	require.True(t, ok)
@@ -63,30 +63,26 @@ func TestEventHandlerProcessesTimeline(t *testing.T) {
 	require.Equal(t, baseTime.Add(2*time.Minute), state.BookmarkedOccurredAt.UTC())
 
 	// Stale like removal - should be ignored
-	staleUnlike := &engagement.Event{
-		EventName:      "profile.engagement.removed",
-		State:          "removed",
-		EngagementType: "like",
-		UserID:         userID.String(),
-		VideoID:        videoID.String(),
-		OccurredAt:     baseTime.Add(-time.Minute),
-		Version:        engagement.EventVersion,
-	}
-	require.NoError(t, handler.Handle(ctx, sess, staleUnlike, nil))
+	staleUnlike := marshalEvent(t, &profilev1.EngagementRemovedEvent{
+		EventId:      uuid.New().String(),
+		UserId:       userID.String(),
+		VideoId:      videoID.String(),
+		FavoriteType: profilev1.FavoriteType_FAVORITE_TYPE_LIKE,
+		OccurredAt:   timestamppb.New(baseTime.Add(-time.Minute)),
+	})
+	require.NoError(t, handler.Handle(ctx, sess, staleUnlike, &store.InboxEvent{EventType: "profile.engagement.removed"}))
 
 	state, _ = repo.state(userID, videoID)
 	require.True(t, state.HasLiked)
 
-	removeBookmark := &engagement.Event{
-		EventName:      "profile.engagement.removed",
-		State:          "removed",
-		EngagementType: "bookmark",
-		UserID:         userID.String(),
-		VideoID:        videoID.String(),
-		OccurredAt:     baseTime.Add(4 * time.Minute),
-		Version:        engagement.EventVersion,
-	}
-	require.NoError(t, handler.Handle(ctx, sess, removeBookmark, nil))
+	removeBookmark := marshalEvent(t, &profilev1.EngagementRemovedEvent{
+		EventId:      uuid.New().String(),
+		UserId:       userID.String(),
+		VideoId:      videoID.String(),
+		FavoriteType: profilev1.FavoriteType_FAVORITE_TYPE_BOOKMARK,
+		OccurredAt:   timestamppb.New(baseTime.Add(4 * time.Minute)),
+	})
+	require.NoError(t, handler.Handle(ctx, sess, removeBookmark, &store.InboxEvent{EventType: "profile.engagement.removed"}))
 
 	state, _ = repo.state(userID, videoID)
 	require.True(t, state.HasLiked)
@@ -94,24 +90,22 @@ func TestEventHandlerProcessesTimeline(t *testing.T) {
 	require.Equal(t, baseTime.Add(4*time.Minute), state.BookmarkedOccurredAt.UTC())
 }
 
-func TestEventHandlerUnknownTypeIsIgnored(t *testing.T) {
+func TestEventHandlerInvalidFavoriteType(t *testing.T) {
 	repo := newFakeVideoUserStatesRepository()
 	handler := engagement.NewEventHandler(repo, fakeStatsRepo{}, log.NewStdLogger(io.Discard), nil)
 
 	userID := uuid.New()
 	videoID := uuid.New()
-	evt := &engagement.Event{
-		EventName:      "profile.engagement.added",
-		State:          "added",
-		EngagementType: "comment",
-		UserID:         userID.String(),
-		VideoID:        videoID.String(),
-		OccurredAt:     time.Now().UTC(),
-		Version:        engagement.EventVersion,
-	}
-	err := handler.Handle(context.Background(), fakeSession{}, evt, nil)
+	evt := marshalEvent(t, &profilev1.EngagementAddedEvent{
+		EventId:      uuid.New().String(),
+		UserId:       userID.String(),
+		VideoId:      videoID.String(),
+		FavoriteType: profilev1.FavoriteType_FAVORITE_TYPE_UNSPECIFIED,
+		OccurredAt:   timestamppb.Now(),
+	})
+	err := handler.Handle(context.Background(), fakeSession{}, evt, &store.InboxEvent{EventType: "profile.engagement.added"})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported engagement_type")
+	require.Contains(t, err.Error(), "invalid-favorite-type")
 
 	_, ok := repo.state(userID, videoID)
 	require.False(t, ok)
@@ -200,5 +194,12 @@ func (fakeStatsRepo) Increment(context.Context, txmanager.Session, uuid.UUID, re
 }
 
 func (fakeStatsRepo) MarkWatcher(context.Context, txmanager.Session, uuid.UUID, uuid.UUID, time.Time) (*po.VideoWatcherRecord, error) {
-	return &po.VideoWatcherRecord{Inserted: false}, nil
+	return nil, nil
+}
+
+func marshalEvent(t *testing.T, msg proto.Message) *engagement.Event {
+	t.Helper()
+	data, err := proto.Marshal(msg)
+	require.NoError(t, err)
+	return &engagement.Event{Payload: data}
 }
