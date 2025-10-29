@@ -131,6 +131,8 @@ type CatalogVideo struct {
 	Difficulty        pgtype.Text        `json:"difficulty"`
 	Summary           pgtype.Text        `json:"summary"`
 	Tags              []string           `json:"tags"`
+	VisibilityStatus  string             `json:"visibility_status"`
+	PublishAt         pgtype.Timestamptz `json:"publish_at"`
 	RawSubtitleUrl    pgtype.Text        `json:"raw_subtitle_url"`
 	ErrorMessage      pgtype.Text        `json:"error_message"`
 }

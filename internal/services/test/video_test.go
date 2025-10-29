@@ -120,6 +120,12 @@ func TestUpdateVideoEnqueuesOutbox(t *testing.T) {
 	if len(outbox.messages) != 1 {
 		t.Fatalf("expected 1 outbox message, got %d", len(outbox.messages))
 	}
+	if repo.lastUpdate.PublishAt == nil {
+		t.Fatalf("expected publish_at to be set")
+	}
+	if repo.lastUpdate.VisibilityStatus == nil || *repo.lastUpdate.VisibilityStatus != po.VisibilityPublic {
+		t.Fatalf("expected visibility_status to be public")
+	}
 }
 
 func TestUpdateVideoNoFields(t *testing.T) {
@@ -146,6 +152,7 @@ type videoRepoStub struct {
 	updateVideo *po.Video
 	deleteVideo *po.Video
 	err         error
+	lastUpdate  repositories.UpdateVideoInput
 }
 
 func (s *videoRepoStub) Create(_ context.Context, _ txmanager.Session, _ repositories.CreateVideoInput) (*po.Video, error) {
@@ -155,7 +162,8 @@ func (s *videoRepoStub) Create(_ context.Context, _ txmanager.Session, _ reposit
 	return s.video, nil
 }
 
-func (s *videoRepoStub) Update(_ context.Context, _ txmanager.Session, _ repositories.UpdateVideoInput) (*po.Video, error) {
+func (s *videoRepoStub) Update(_ context.Context, _ txmanager.Session, input repositories.UpdateVideoInput) (*po.Video, error) {
+	s.lastUpdate = input
 	if s.err != nil {
 		return nil, s.err
 	}

@@ -328,18 +328,18 @@ func approxEqual(a time.Time, b time.Time) bool {
 }
 
 func assertInboxProcessed(ctx context.Context, t *testing.T, pool *pgxpool.Pool, eventID uuid.UUID) {
-    row := pool.QueryRow(ctx, `select processed_at, last_error from catalog.inbox_events where event_id = $1`, eventID)
-    var processedAt *time.Time
-    var lastError *string
-    if err := row.Scan(&processedAt, &lastError); err != nil {
-        t.Fatalf("fetch inbox event %s failed: %v", eventID, err)
-    }
-    if processedAt == nil {
-        t.Fatalf("inbox event %s not processed", eventID)
-    }
-    if lastError != nil && *lastError != "" {
-        t.Fatalf("inbox event %s recorded error: %s", eventID, *lastError)
-    }
+	row := pool.QueryRow(ctx, `select processed_at, last_error from catalog.inbox_events where event_id = $1`, eventID)
+	var processedAt *time.Time
+	var lastError *string
+	if err := row.Scan(&processedAt, &lastError); err != nil {
+		t.Fatalf("fetch inbox event %s failed: %v", eventID, err)
+	}
+	if processedAt == nil {
+		t.Fatalf("inbox event %s not processed", eventID)
+	}
+	if lastError != nil && *lastError != "" {
+		t.Fatalf("inbox event %s recorded error: %s", eventID, *lastError)
+	}
 }
 
 func boolPtr(v bool) *bool { return &v }

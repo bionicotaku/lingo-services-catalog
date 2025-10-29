@@ -20,6 +20,8 @@ SELECT
     status,
     media_status,
     analysis_status,
+    visibility_status,
+    publish_at,
     created_at,
     updated_at
 FROM catalog.videos
@@ -28,13 +30,15 @@ WHERE video_id = $1
 `
 
 type FindPublishedVideoRow struct {
-	VideoID        uuid.UUID          `json:"video_id"`
-	Title          string             `json:"title"`
-	Status         po.VideoStatus     `json:"status"`
-	MediaStatus    po.StageStatus     `json:"media_status"`
-	AnalysisStatus po.StageStatus     `json:"analysis_status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	VideoID          uuid.UUID          `json:"video_id"`
+	Title            string             `json:"title"`
+	Status           po.VideoStatus     `json:"status"`
+	MediaStatus      po.StageStatus     `json:"media_status"`
+	AnalysisStatus   po.StageStatus     `json:"analysis_status"`
+	VisibilityStatus string             `json:"visibility_status"`
+	PublishAt        pgtype.Timestamptz `json:"publish_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 // 读取前台查询可见的视频（仅 ready/published），字段裁剪
@@ -47,6 +51,8 @@ func (q *Queries) FindPublishedVideo(ctx context.Context, videoID uuid.UUID) (Fi
 		&i.Status,
 		&i.MediaStatus,
 		&i.AnalysisStatus,
+		&i.VisibilityStatus,
+		&i.PublishAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -81,6 +87,8 @@ SELECT
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message
 FROM catalog.videos
@@ -118,6 +126,8 @@ func (q *Queries) GetVideoLifecycleSnapshot(ctx context.Context, videoID uuid.UU
 		&i.Difficulty,
 		&i.Summary,
 		&i.Tags,
+		&i.VisibilityStatus,
+		&i.PublishAt,
 		&i.RawSubtitleUrl,
 		&i.ErrorMessage,
 	)
@@ -138,6 +148,8 @@ SELECT
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     updated_at,
     version
@@ -158,6 +170,8 @@ type GetVideoMetadataRow struct {
 	Difficulty        pgtype.Text        `json:"difficulty"`
 	Summary           pgtype.Text        `json:"summary"`
 	Tags              []string           `json:"tags"`
+	VisibilityStatus  string             `json:"visibility_status"`
+	PublishAt         pgtype.Timestamptz `json:"publish_at"`
 	RawSubtitleUrl    pgtype.Text        `json:"raw_subtitle_url"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 	Version           int64              `json:"version"`
@@ -179,6 +193,8 @@ func (q *Queries) GetVideoMetadata(ctx context.Context, videoID uuid.UUID) (GetV
 		&i.Difficulty,
 		&i.Summary,
 		&i.Tags,
+		&i.VisibilityStatus,
+		&i.PublishAt,
 		&i.RawSubtitleUrl,
 		&i.UpdatedAt,
 		&i.Version,
@@ -193,6 +209,8 @@ SELECT
     status,
     media_status,
     analysis_status,
+    visibility_status,
+    publish_at,
     created_at,
     updated_at
 FROM catalog.videos
@@ -213,13 +231,15 @@ type ListPublicVideosParams struct {
 }
 
 type ListPublicVideosRow struct {
-	VideoID        uuid.UUID          `json:"video_id"`
-	Title          string             `json:"title"`
-	Status         po.VideoStatus     `json:"status"`
-	MediaStatus    po.StageStatus     `json:"media_status"`
-	AnalysisStatus po.StageStatus     `json:"analysis_status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	VideoID          uuid.UUID          `json:"video_id"`
+	Title            string             `json:"title"`
+	Status           po.VideoStatus     `json:"status"`
+	MediaStatus      po.StageStatus     `json:"media_status"`
+	AnalysisStatus   po.StageStatus     `json:"analysis_status"`
+	VisibilityStatus string             `json:"visibility_status"`
+	PublishAt        pgtype.Timestamptz `json:"publish_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) ListPublicVideos(ctx context.Context, arg ListPublicVideosParams) ([]ListPublicVideosRow, error) {
@@ -237,6 +257,8 @@ func (q *Queries) ListPublicVideos(ctx context.Context, arg ListPublicVideosPara
 			&i.Status,
 			&i.MediaStatus,
 			&i.AnalysisStatus,
+			&i.VisibilityStatus,
+			&i.PublishAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -258,6 +280,8 @@ SELECT
     media_status,
     analysis_status,
     version,
+    visibility_status,
+    publish_at,
     created_at,
     updated_at
 FROM catalog.videos
@@ -292,14 +316,16 @@ type ListUserUploadsParams struct {
 }
 
 type ListUserUploadsRow struct {
-	VideoID        uuid.UUID          `json:"video_id"`
-	Title          string             `json:"title"`
-	Status         po.VideoStatus     `json:"status"`
-	MediaStatus    po.StageStatus     `json:"media_status"`
-	AnalysisStatus po.StageStatus     `json:"analysis_status"`
-	Version        int64              `json:"version"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	VideoID          uuid.UUID          `json:"video_id"`
+	Title            string             `json:"title"`
+	Status           po.VideoStatus     `json:"status"`
+	MediaStatus      po.StageStatus     `json:"media_status"`
+	AnalysisStatus   po.StageStatus     `json:"analysis_status"`
+	Version          int64              `json:"version"`
+	VisibilityStatus string             `json:"visibility_status"`
+	PublishAt        pgtype.Timestamptz `json:"publish_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) ListUserUploads(ctx context.Context, arg ListUserUploadsParams) ([]ListUserUploadsRow, error) {
@@ -325,6 +351,8 @@ func (q *Queries) ListUserUploads(ctx context.Context, arg ListUserUploadsParams
 			&i.MediaStatus,
 			&i.AnalysisStatus,
 			&i.Version,
+			&i.VisibilityStatus,
+			&i.PublishAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

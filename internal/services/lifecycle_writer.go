@@ -79,6 +79,8 @@ type UpdateVideoInput struct {
 	Difficulty        *string
 	Summary           *string
 	Tags              []string
+	VisibilityStatus  *string
+	PublishAt         *time.Time
 	RawSubtitleURL    *string
 	ErrorMessage      *string
 	MediaJobID        *string
@@ -177,6 +179,19 @@ func (w *LifecycleWriter) UpdateVideo(ctx context.Context, input UpdateVideoInpu
 		}
 	}
 
+	if input.Status != nil && *input.Status == po.VideoStatusPublished {
+		if input.PublishAt == nil && (cfg.previous == nil || cfg.previous.PublishAt == nil) {
+			now := time.Now().UTC()
+			input.PublishAt = &now
+		}
+		if input.VisibilityStatus == nil {
+			if cfg.previous == nil || cfg.previous.VisibilityStatus != po.VisibilityPublic {
+				visibility := po.VisibilityPublic
+				input.VisibilityStatus = &visibility
+			}
+		}
+	}
+
 	if input.ExpectedVersion != nil && cfg.previous != nil && cfg.previous.Version != *input.ExpectedVersion {
 		return nil, errors.Conflict(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "version conflict")
 	}
@@ -204,12 +219,18 @@ func (w *LifecycleWriter) UpdateVideo(ctx context.Context, input UpdateVideoInpu
 			HLSMasterPlaylist: input.HLSMasterPlaylist,
 			Difficulty:        input.Difficulty,
 			Summary:           input.Summary,
+			Tags:              input.Tags,
 			RawSubtitleURL:    input.RawSubtitleURL,
 			ErrorMessage:      input.ErrorMessage,
 			MediaJobID:        input.MediaJobID,
 			MediaEmittedAt:    input.MediaEmittedAt,
 			AnalysisJobID:     input.AnalysisJobID,
 			AnalysisEmittedAt: input.AnalysisEmittedAt,
+			RawFileSize:       input.RawFileSize,
+			RawResolution:     input.RawResolution,
+			RawBitrate:        input.RawBitrate,
+			VisibilityStatus:  input.VisibilityStatus,
+			PublishAt:         input.PublishAt,
 		})
 		if repoErr != nil {
 			return repoErr
@@ -232,6 +253,8 @@ func (w *LifecycleWriter) UpdateVideo(ctx context.Context, input UpdateVideoInpu
 			HLSMasterPlaylist: input.HLSMasterPlaylist,
 			Difficulty:        input.Difficulty,
 			Summary:           input.Summary,
+			VisibilityStatus:  input.VisibilityStatus,
+			PublishAt:         input.PublishAt,
 			RawSubtitleURL:    input.RawSubtitleURL,
 		}, eventID, occurredAt)
 		if buildErr != nil {
@@ -315,7 +338,9 @@ func hasUpdateFields(input UpdateVideoInput) bool {
 		input.MediaJobID != nil ||
 		input.MediaEmittedAt != nil ||
 		input.AnalysisJobID != nil ||
-		input.AnalysisEmittedAt != nil
+		input.AnalysisEmittedAt != nil ||
+		input.VisibilityStatus != nil ||
+		input.PublishAt != nil
 }
 
 func (w *LifecycleWriter) enqueueOutbox(ctx context.Context, sess txmanager.Session, event *outboxevents.DomainEvent, availableAt time.Time, meta operationMetadata) error {

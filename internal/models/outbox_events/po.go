@@ -91,6 +91,7 @@ type VideoUpdated struct {
 	Summary           *string
 	Tags              []string
 	RawSubtitleURL    *string
+	VisibilityStatus  *string
 	PublishedAt       *time.Time
 }
 
@@ -145,11 +146,12 @@ type VideoProcessingFailed struct {
 
 // VideoVisibilityChanged 描述可见性变更事件载荷。
 type VideoVisibilityChanged struct {
-	VideoID        uuid.UUID
-	Status         po.VideoStatus
-	PreviousStatus *po.VideoStatus
-	PublishedAt    *time.Time
-	Reason         *string
+	VideoID          uuid.UUID
+	Status           po.VideoStatus
+	VisibilityStatus string
+	PreviousStatus   *po.VideoStatus
+	PublishedAt      *time.Time
+	Reason           *string
 }
 
 const (

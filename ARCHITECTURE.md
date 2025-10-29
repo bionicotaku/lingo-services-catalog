@@ -25,7 +25,7 @@
 | 基础层     | `video_id`(ULID)、`upload_user_id`、`created_at`、`title`、`description`、`raw_file_reference`、`status`(`pending_upload`→`processing`→`ready`→`published`/`failed`/`rejected`/`archived`)、`media_status`、`analysis_status`、`error_message` | 上传记录、元信息、原始对象存储路径、阶段状态与错误信息；`raw_file_reference` 在注册上传时即写入 | Catalog + Upload         |
 | 媒体层     | `duration_micros`、`encoded_resolution`、`encoded_bitrate`、`thumbnail_url`、`hls_master_playlist`                                                                                                                                             | 转码后 HLS 列表（同名文件夹下 `master.m3u8`）、封面与时长（微秒）、目标码率                     | Media Pipeline           |
 | AI 层      | `difficulty`、`summary`、`tags`、`raw_subtitle_url`                                                                                                                                                                                            | AI 评估难度、生成摘要、标签以及原始字幕存储位置                                                 | AI Content Understanding |
-| 可见性层\* | `visibility_status`(`public`/`unlisted`/`private`)、`region_restrictions[]`、`age_rating`、`publish_time`、`takedown_reason`                                                                                                                   | 上架/区域/版权裁决（Post-MVP）                                                                  | Safety & QA / 运营       |
+| 可见性层\* | `visibility_status`(`public`/`unlisted`/`private`)、`region_restrictions[]`、`age_rating`、`publish_at`、`takedown_reason`                                                                                                                   | 上架/区域/版权裁决（Post-MVP）                                                                  | Safety & QA / 运营       |
 
 > \* 标记为 Post-MVP 的字段在初版数据库中不落库，仅保留领域概念以便后续演进。
 
@@ -36,7 +36,7 @@
   - `StartMediaProcessing` / `CompleteMediaProcessing`：将 `media_status` 从 `pending` 推进到 `processing` / `ready`，并同步媒体层字段。
   - `StartAnalysis` / `CompleteAnalysis`：将 `analysis_status` 从 `pending` 推进到 `processing` / `ready`，并写入 AI 层字段（难度、摘要、标签、原始字幕 URL 等）。
   - `RecomputeOverallStatus`：根据两个阶段状态刷新 `status`（任一阶段 `failed` → `status=failed`；两者 `ready` → `status=ready`；否则 `status=processing`）。
-  - `Publish`：仅允许 `status=ready` 时转 `published`，填充 `publish_time` 与 `visibility_status`。
+  - `Publish`：仅允许 `status=ready` 时转 `published`，填充 `publish_at` 与 `visibility_status`。
   - `Reject`：允许在 `status` ∈ `{ready, processing}` 时转 `rejected`，记录 `takedown_reason`。
   - `FailProcessing`：标记相应阶段为 `failed` 并将总体状态置为 `failed`；可通过 `UpdateProcessingStatus(stage, new_status=processing)` 将阶段回到 `processing` 并重试。
   - 所有行为都会发出领域事件（详见 §6）。
@@ -55,7 +55,7 @@
 | `pending_upload`                    | `RegisterUpload`（初始）                               | `pending_upload` | Upload               | 创建记录，未上传完毕                               |
 | `pending_upload` → `processing`     | `StartMediaProcessing` / `StartAnalysis` 任一开始      | `processing`     | Media / AI           | 阶段状态进入 `processing` 即刷新总体状态           |
 | `processing` → `ready`              | `CompleteMediaProcessing` + `CompleteAnalysis` 均完成  | `ready`          | Media + AI           | 需在服务层校验两个阶段均为 `ready`                 |
-| `ready` → `published`               | `Publish` / `FinalizeVisibility`                       | `published`      | Safety（MVP 手动）   | 可设置 `visibility_status`、`publish_time`         |
+| `ready` → `published`               | `Publish` / `FinalizeVisibility`                       | `published`      | Safety（MVP 手动）   | 可设置 `visibility_status`、`publish_at`         |
 | 任意 → `failed`                     | `FailProcessing`（媒体/分析阶段失败）                  | `failed`         | Media / AI / Catalog | 写入 `error_message`，可触发重试                   |
 | `failed` → `processing`             | `UpdateProcessingStatus(stage, new_status=processing)` | `processing`     | Media / AI / Catalog | 重置对应阶段为 `processing`，version 自增          |
 | `ready` / `processing` → `rejected` | `Reject`                                               | `rejected`       | Safety / Catalog     | MVP 仅记录 `error_message`，不可恢复到 `published` |
@@ -156,6 +156,10 @@ create table if not exists catalog.videos (
   summary              text,
   tags                 text[],                                             -- 标签数组（配 GIN 索引）
 
+  -- 可见性层字段（Safety 写入）
+  visibility_status   text not null default 'public',                     -- 可见性状态 public/unlisted/private
+  publish_at          timestamptz,                                        -- 发布时间（UTC），可为空
+
   raw_subtitle_url     text,                                               -- 原始字幕/ASR 输出
   error_message        text                                                -- 最近失败/拒绝原因
 );
@@ -193,6 +197,8 @@ comment on column catalog.videos.hls_master_playlist is 'HLS 主清单（master.
 comment on column catalog.videos.difficulty          is 'AI 评估难度（自由文本，可后续枚举化）';
 comment on column catalog.videos.summary             is 'AI 生成摘要';
 comment on column catalog.videos.tags                is 'AI 生成标签（text[]，使用 GIN 索引提升包含查询）';
+comment on column catalog.videos.visibility_status   is '可见性状态：public/unlisted/private，由 Safety 服务写入';
+comment on column catalog.videos.publish_at          is '发布时间（UTC），当视频上架时写入';
 
 comment on column catalog.videos.raw_subtitle_url    is '原始字幕/ASR 输出 URL/路径';
 comment on column catalog.videos.error_message       is '最近一次失败/拒绝原因（排障/审计）';
@@ -285,7 +291,7 @@ comment on trigger set_updated_at_on_videos on catalog.videos
 > - `renditions`：多码率产物列表（Media 写入）。
 > - `processing_progress`：处理进度百分比。
 > - `visibility_status`：可见性 public/unlisted/private（Safety 写入）。
-> - `publish_time`：发布时间（Safety 写入）。
+> - `publish_at`：发布时间（Safety 写入）。
 > - `region_restrictions`：区域限制列表。
 > - `age_rating`：年龄分级。
 > - `takedown_reason`：拒绝/下架原因。
@@ -450,7 +456,7 @@ service CatalogAdminService {
 | `catalog.video.stage_updated`      | 任一阶段（媒体/分析）状态变化            | `video_id`, `stage`, `previous_stage_status`, `new_stage_status`, `status`, `trace_id`, `version` | Catalog Read 投影, Monitoring, Media 控制台 |
 | `catalog.video.media_ready`        | `UpdateMediaInfo` 成功                   | `video_id`, `duration_micros`, `thumbnail_url`, `hls_master_playlist`, `version`                  | Catalog Read 投影, Feed, Search, AI         |
 | `catalog.video.ai_enriched`        | `UpdateAIAttributes` 成功                | `video_id`, `difficulty`, `summary`, `tags`, `raw_subtitle_url`, `version`                        | Catalog Read 投影, Search, RecSys           |
-| `catalog.video.visibility_changed` | `FinalizeVisibility` 或 `OverrideStatus` | `video_id`, `visibility_status`, `publish_time`, `region_restrictions`, `version`（actor 元数据 Post-MVP 预留） | Catalog Read 投影, Feed, Search             |
+| `catalog.video.visibility_changed` | `FinalizeVisibility` 或 `OverrideStatus` | `video_id`, `visibility_status`, `publish_at`, `region_restrictions`, `version`（actor 元数据 Post-MVP 预留） | Catalog Read 投影, Feed, Search             |
 | `catalog.video.processing_failed`  | 状态转为 `failed`                        | `video_id`, `error_message`, `failed_stage`                                                       | Alerting, Upload, Support                   |
 | `catalog.video.restored`           | 从失败/拒绝恢复                          | `video_id`, `previous_status`, `new_status`（actor 元数据 Post-MVP 预留）                         | Audit, Reporting                            |
 
@@ -497,7 +503,7 @@ service CatalogAdminService {
 
 ### 7.4 Safety / QA → Catalog
 
-- 审核通过：`FinalizeVisibility` 更新为 `published` / `unlisted` 并设置 `publish_time`。
+- 审核通过：`FinalizeVisibility` 更新为 `published` / `unlisted` 并设置 `publish_at`。
 - 审核拒绝：`FinalizeVisibility` 设置 `status=rejected`，记录 `takedown_reason`。
 
 ### 7.5 Gateway → Catalog

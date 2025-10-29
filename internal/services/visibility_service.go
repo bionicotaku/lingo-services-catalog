@@ -60,16 +60,29 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 	}
 
 	var targetStatus po.VideoStatus
+	var visibilityStatus *string
 	switch input.Action {
 	case VisibilityPublish:
 		targetStatus = po.VideoStatusPublished
 		if current.MediaStatus != po.StageReady || current.AnalysisStatus != po.StageReady {
 			return nil, errors.Conflict(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "video not ready for publish")
 		}
+		if current.VisibilityStatus != po.VisibilityPublic {
+			value := po.VisibilityPublic
+			visibilityStatus = &value
+		}
 	case VisibilityReject:
 		targetStatus = po.VideoStatusRejected
+		if current.VisibilityStatus != po.VisibilityPrivate {
+			value := po.VisibilityPrivate
+			visibilityStatus = &value
+		}
 	case VisibilityArchive:
 		targetStatus = po.VideoStatusArchived
+		if current.VisibilityStatus != po.VisibilityPrivate {
+			value := po.VisibilityPrivate
+			visibilityStatus = &value
+		}
 	default:
 		return nil, errors.BadRequest(videov1.ErrorReason_ERROR_REASON_VIDEO_UPDATE_INVALID.String(), "unknown visibility action")
 	}
@@ -80,9 +93,10 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 
 	statusValue := targetStatus
 	updateInput := UpdateVideoInput{
-		VideoID:      input.VideoID,
-		Status:       &statusValue,
-		ErrorMessage: input.Reason,
+		VideoID:          input.VideoID,
+		Status:           &statusValue,
+		ErrorMessage:     input.Reason,
+		VisibilityStatus: visibilityStatus,
 	}
 	updateInput.IdempotencyKey = input.IdempotencyKey
 	updateInput.ExpectedVersion = input.ExpectedVersion

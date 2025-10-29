@@ -24,6 +24,8 @@ type VideoUpdateChanges struct {
 	HLSMasterPlaylist *string
 	Difficulty        *string
 	Summary           *string
+	VisibilityStatus  *string
+	PublishAt         *time.Time
 	RawSubtitleURL    *string
 }
 
@@ -93,6 +95,15 @@ func NewVideoUpdatedEvent(video *po.Video, changes VideoUpdateChanges, eventID u
 	}
 	if changes.Summary != nil {
 		payload.Summary = changes.Summary
+		hasChange = true
+	}
+	if changes.VisibilityStatus != nil {
+		value := *changes.VisibilityStatus
+		payload.VisibilityStatus = &value
+		hasChange = true
+	}
+	if changes.PublishAt != nil {
+		payload.PublishedAt = cloneTime(changes.PublishAt)
 		hasChange = true
 	}
 	if changes.RawSubtitleURL != nil {
@@ -290,18 +301,18 @@ func NewVideoVisibilityChangedEvent(video *po.Video, previous po.VideoStatus, re
 	}
 
 	payload := &VideoVisibilityChanged{
-		VideoID: video.VideoID,
-		Status:  video.Status,
-		Reason:  reason,
+		VideoID:          video.VideoID,
+		Status:           video.Status,
+		VisibilityStatus: video.VisibilityStatus,
+		Reason:           reason,
 	}
 	if previous != "" {
 		prev := previous
 		payload.PreviousStatus = &prev
 	}
 
-	if video.Status == po.VideoStatusPublished {
-		published := occurredAt
-		payload.PublishedAt = &published
+	if video.PublishAt != nil {
+		payload.PublishedAt = cloneTime(video.PublishAt)
 	}
 
 	event := &DomainEvent{

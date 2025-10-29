@@ -12,12 +12,14 @@ import (
 )
 
 // BuildCreateVideoParams 将仓储层输入转换为 sqlc CreateVideoParams，统一处理可空字段。
-func BuildCreateVideoParams(uploadUserID uuid.UUID, title, rawFileReference string, description *string) catalogsql.CreateVideoParams {
+func BuildCreateVideoParams(uploadUserID uuid.UUID, title, rawFileReference string, description, visibilityStatus *string, publishAt *time.Time) catalogsql.CreateVideoParams {
 	return catalogsql.CreateVideoParams{
 		UploadUserID:     uploadUserID,
 		Title:            title,
 		RawFileReference: rawFileReference,
 		Description:      textFromPtr(description),
+		VisibilityStatus: ToPgText(visibilityStatus),
+		PublishAt:        ToPgTimestamptz(publishAt),
 	}
 }
 
@@ -36,6 +38,8 @@ func BuildUpdateVideoParams(
 	mediaJobID, analysisJobID *string,
 	mediaEmittedAt, analysisEmittedAt *time.Time,
 	tags []string,
+	visibilityStatus *string,
+	publishAt *time.Time,
 ) catalogsql.UpdateVideoParams {
 	return catalogsql.UpdateVideoParams{
 		Title:             ToPgText(title),
@@ -54,6 +58,8 @@ func BuildUpdateVideoParams(
 		Difficulty:        ToPgText(difficulty),
 		Summary:           ToPgText(summary),
 		Tags:              append([]string(nil), tags...),
+		VisibilityStatus:  ToPgText(visibilityStatus),
+		PublishAt:         ToPgTimestamptz(publishAt),
 		RawSubtitleUrl:    ToPgText(rawSubtitleURL),
 		ErrorMessage:      ToPgText(errorMessage),
 		MediaJobID:        ToPgText(mediaJobID),
@@ -93,6 +99,8 @@ func VideoFromCatalog(v catalogsql.CatalogVideo) *po.Video {
 		Difficulty:        textPtr(v.Difficulty),
 		Summary:           textPtr(v.Summary),
 		Tags:              append([]string(nil), v.Tags...),
+		VisibilityStatus:  v.VisibilityStatus,
+		PublishAt:         timestampPtr(v.PublishAt),
 		RawSubtitleURL:    textPtr(v.RawSubtitleUrl),
 		ErrorMessage:      textPtr(v.ErrorMessage),
 	}
@@ -113,6 +121,8 @@ func VideoMetadataFromRow(row catalogsql.GetVideoMetadataRow) *po.VideoMetadata 
 		Difficulty:        textPtr(row.Difficulty),
 		Summary:           textPtr(row.Summary),
 		Tags:              append([]string(nil), row.Tags...),
+		VisibilityStatus:  row.VisibilityStatus,
+		PublishAt:         timestampPtr(row.PublishAt),
 		RawSubtitleURL:    textPtr(row.RawSubtitleUrl),
 		UpdatedAt:         mustTimestamp(row.UpdatedAt),
 		Version:           row.Version,
@@ -122,13 +132,15 @@ func VideoMetadataFromRow(row catalogsql.GetVideoMetadataRow) *po.VideoMetadata 
 // VideoReadyViewFromFindRow 将 FindPublishedVideo 查询结果转换为 po.VideoReadyView。
 func VideoReadyViewFromFindRow(v catalogsql.FindPublishedVideoRow) *po.VideoReadyView {
 	return &po.VideoReadyView{
-		VideoID:        v.VideoID,
-		Title:          v.Title,
-		Status:         po.VideoStatus(v.Status),
-		MediaStatus:    po.StageStatus(v.MediaStatus),
-		AnalysisStatus: po.StageStatus(v.AnalysisStatus),
-		CreatedAt:      mustTimestamp(v.CreatedAt),
-		UpdatedAt:      mustTimestamp(v.UpdatedAt),
+		VideoID:          v.VideoID,
+		Title:            v.Title,
+		Status:           po.VideoStatus(v.Status),
+		MediaStatus:      po.StageStatus(v.MediaStatus),
+		AnalysisStatus:   po.StageStatus(v.AnalysisStatus),
+		CreatedAt:        mustTimestamp(v.CreatedAt),
+		UpdatedAt:        mustTimestamp(v.UpdatedAt),
+		VisibilityStatus: v.VisibilityStatus,
+		PublishAt:        timestampPtr(v.PublishAt),
 	}
 }
 

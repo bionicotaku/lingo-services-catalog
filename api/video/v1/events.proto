@@ -75,6 +75,7 @@ message Event {
     repeated string tags = 20;
     optional string raw_subtitle_url = 21;
     optional string published_at = 22;
+    optional string visibility_status = 23;
   }
 
   // VideoDeleted 表示视频删除事件
@@ -146,5 +147,6 @@ message Event {
     optional string reason = 7;
     // reserved 8, 9 for future actor metadata (temporary removal during MVP)
     reserved 8, 9;
+    optional string visibility_status = 10;
   }
 }

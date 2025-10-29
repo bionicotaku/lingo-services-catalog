@@ -6,12 +6,16 @@ INSERT INTO catalog.videos (
     upload_user_id,
     title,
     description,
-    raw_file_reference
+    raw_file_reference,
+    visibility_status,
+    publish_at
 ) VALUES (
     $1,
     $2,
     sqlc.narg('description'),
-    $3
+    $3,
+    COALESCE(sqlc.narg('visibility_status')::text, 'public'),
+    sqlc.narg('publish_at')
 )
 RETURNING
     video_id,
@@ -40,6 +44,8 @@ RETURNING
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message;
 
@@ -66,6 +72,8 @@ SET
     difficulty = COALESCE(sqlc.narg('difficulty'), difficulty),
     summary = COALESCE(sqlc.narg('summary'), summary),
     tags = COALESCE(sqlc.narg('tags'), tags),
+    visibility_status = COALESCE(sqlc.narg('visibility_status'), visibility_status),
+    publish_at = COALESCE(sqlc.narg('publish_at'), publish_at),
     raw_subtitle_url = COALESCE(sqlc.narg('raw_subtitle_url'), raw_subtitle_url),
     error_message = COALESCE(sqlc.narg('error_message'), error_message),
     version = version + 1
@@ -97,6 +105,8 @@ RETURNING
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message;
 
@@ -130,5 +140,7 @@ RETURNING
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message;

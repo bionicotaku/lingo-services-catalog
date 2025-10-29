@@ -44,6 +44,8 @@ CREATE TABLE catalog.videos (
   difficulty TEXT,
   summary TEXT,
   tags TEXT[],
+  visibility_status TEXT NOT NULL DEFAULT 'public',
+  publish_at TIMESTAMPTZ,
   raw_subtitle_url TEXT,
   error_message TEXT
 );

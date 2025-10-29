@@ -18,12 +18,16 @@ INSERT INTO catalog.videos (
     upload_user_id,
     title,
     description,
-    raw_file_reference
+    raw_file_reference,
+    visibility_status,
+    publish_at
 ) VALUES (
     $1,
     $2,
     $4,
-    $3
+    $3,
+    COALESCE($5::text, 'public'),
+    $6
 )
 RETURNING
     video_id,
@@ -52,15 +56,19 @@ RETURNING
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message
 `
 
 type CreateVideoParams struct {
-	UploadUserID     uuid.UUID   `json:"upload_user_id"`
-	Title            string      `json:"title"`
-	RawFileReference string      `json:"raw_file_reference"`
-	Description      pgtype.Text `json:"description"`
+	UploadUserID     uuid.UUID          `json:"upload_user_id"`
+	Title            string             `json:"title"`
+	RawFileReference string             `json:"raw_file_reference"`
+	Description      pgtype.Text        `json:"description"`
+	VisibilityStatus pgtype.Text        `json:"visibility_status"`
+	PublishAt        pgtype.Timestamptz `json:"publish_at"`
 }
 
 // Video 主表写入相关 SQL
@@ -71,6 +79,8 @@ func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Catal
 		arg.Title,
 		arg.RawFileReference,
 		arg.Description,
+		arg.VisibilityStatus,
+		arg.PublishAt,
 	)
 	var i CatalogVideo
 	err := row.Scan(
@@ -100,6 +110,8 @@ func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Catal
 		&i.Difficulty,
 		&i.Summary,
 		&i.Tags,
+		&i.VisibilityStatus,
+		&i.PublishAt,
 		&i.RawSubtitleUrl,
 		&i.ErrorMessage,
 	)
@@ -136,6 +148,8 @@ RETURNING
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message
 `
@@ -170,6 +184,8 @@ func (q *Queries) DeleteVideo(ctx context.Context, videoID uuid.UUID) (CatalogVi
 		&i.Difficulty,
 		&i.Summary,
 		&i.Tags,
+		&i.VisibilityStatus,
+		&i.PublishAt,
 		&i.RawSubtitleUrl,
 		&i.ErrorMessage,
 	)
@@ -199,10 +215,12 @@ SET
     difficulty = COALESCE($18, difficulty),
     summary = COALESCE($19, summary),
     tags = COALESCE($20, tags),
-    raw_subtitle_url = COALESCE($21, raw_subtitle_url),
-    error_message = COALESCE($22, error_message),
+    visibility_status = COALESCE($21, visibility_status),
+    publish_at = COALESCE($22, publish_at),
+    raw_subtitle_url = COALESCE($23, raw_subtitle_url),
+    error_message = COALESCE($24, error_message),
     version = version + 1
-WHERE video_id = $23
+WHERE video_id = $25
 RETURNING
     video_id,
     upload_user_id,
@@ -230,6 +248,8 @@ RETURNING
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message
 `
@@ -255,6 +275,8 @@ type UpdateVideoParams struct {
 	Difficulty        pgtype.Text            `json:"difficulty"`
 	Summary           pgtype.Text            `json:"summary"`
 	Tags              []string               `json:"tags"`
+	VisibilityStatus  pgtype.Text            `json:"visibility_status"`
+	PublishAt         pgtype.Timestamptz     `json:"publish_at"`
 	RawSubtitleUrl    pgtype.Text            `json:"raw_subtitle_url"`
 	ErrorMessage      pgtype.Text            `json:"error_message"`
 	VideoID           uuid.UUID              `json:"video_id"`
@@ -282,6 +304,8 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		arg.Difficulty,
 		arg.Summary,
 		arg.Tags,
+		arg.VisibilityStatus,
+		arg.PublishAt,
 		arg.RawSubtitleUrl,
 		arg.ErrorMessage,
 		arg.VideoID,
@@ -314,6 +338,8 @@ func (q *Queries) UpdateVideo(ctx context.Context, arg UpdateVideoParams) (Catal
 		&i.Difficulty,
 		&i.Summary,
 		&i.Tags,
+		&i.VisibilityStatus,
+		&i.PublishAt,
 		&i.RawSubtitleUrl,
 		&i.ErrorMessage,
 	)

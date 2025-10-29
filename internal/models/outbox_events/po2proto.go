@@ -108,6 +108,9 @@ func encodeVideoUpdated(evt *DomainEvent, payload *VideoUpdated) *videov1.Event_
 	if payload.RawSubtitleURL != nil {
 		updated.RawSubtitleUrl = payload.RawSubtitleURL
 	}
+	if payload.VisibilityStatus != nil {
+		updated.VisibilityStatus = payload.VisibilityStatus
+	}
 	if payload.PublishedAt != nil {
 		publishedAt := payload.PublishedAt.UTC().Format(time.RFC3339Nano)
 		updated.PublishedAt = &publishedAt
@@ -198,6 +201,10 @@ func encodeVideoVisibilityChanged(evt *DomainEvent, payload *VideoVisibilityChan
 		OccurredAt: evt.OccurredAt.UTC().Format(time.RFC3339Nano),
 		Status:     string(payload.Status),
 		Reason:     payload.Reason,
+	}
+	if payload.VisibilityStatus != "" {
+		value := payload.VisibilityStatus
+		visibility.VisibilityStatus = &value
 	}
 	if payload.PreviousStatus != nil {
 		value := string(*payload.PreviousStatus)

@@ -27,6 +27,8 @@ SELECT
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     error_message
 FROM catalog.videos
@@ -40,6 +42,8 @@ SELECT
     status,
     media_status,
     analysis_status,
+    visibility_status,
+    publish_at,
     created_at,
     updated_at
 FROM catalog.videos
@@ -60,6 +64,8 @@ SELECT
     difficulty,
     summary,
     tags,
+    visibility_status,
+    publish_at,
     raw_subtitle_url,
     updated_at,
     version
@@ -73,6 +79,8 @@ SELECT
     status,
     media_status,
     analysis_status,
+    visibility_status,
+    publish_at,
     created_at,
     updated_at
 FROM catalog.videos
@@ -93,6 +101,8 @@ SELECT
     media_status,
     analysis_status,
     version,
+    visibility_status,
+    publish_at,
     created_at,
     updated_at
 FROM catalog.videos

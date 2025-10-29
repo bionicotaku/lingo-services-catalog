@@ -41,6 +41,8 @@ type VideoMetadata struct {
 	Summary           *string
 	Tags              []string
 	RawSubtitleURL    *string
+	VisibilityStatus  string
+	PublishAt         *time.Time
 	UpdatedAt         time.Time
 	Version           int64
 }
@@ -55,6 +57,13 @@ const (
 	StageProcessing StageStatus = "processing" // 阶段执行中
 	StageReady      StageStatus = "ready"      // 阶段完成
 	StageFailed     StageStatus = "failed"     // 阶段失败
+)
+
+// Visibility 状态取值。
+const (
+	VisibilityPublic   = "public"
+	VisibilityUnlisted = "unlisted"
+	VisibilityPrivate  = "private"
 )
 
 // Video 表示 catalog.videos 表的数据库实体。
@@ -86,6 +95,8 @@ type Video struct {
 	Difficulty        *string     // AI 评估难度
 	Summary           *string     // AI 生成摘要
 	Tags              []string    // AI 生成标签
+	VisibilityStatus  string      // 可见性状态（public/unlisted/private）
+	PublishAt         *time.Time  // 发布时间（UTC）
 	RawSubtitleURL    *string     // 原始字幕/ASR 输出
 	ErrorMessage      *string     // 最近一次失败/拒绝原因
 }
@@ -93,13 +104,15 @@ type Video struct {
 // VideoReadyView 表示从 catalog.videos 主表读取的只读视图。
 // 仅携带展示层所需字段，限制状态在 ready/published 范围。
 type VideoReadyView struct {
-	VideoID        uuid.UUID   // 主键
-	Title          string      // 标题
-	Status         VideoStatus // 总体状态
-	MediaStatus    StageStatus // 媒体阶段状态
-	AnalysisStatus StageStatus // AI 阶段状态
-	CreatedAt      time.Time   // 创建时间
-	UpdatedAt      time.Time   // 最近更新时间
+	VideoID          uuid.UUID   // 主键
+	Title            string      // 标题
+	Status           VideoStatus // 总体状态
+	MediaStatus      StageStatus // 媒体阶段状态
+	AnalysisStatus   StageStatus // AI 阶段状态
+	CreatedAt        time.Time   // 创建时间
+	UpdatedAt        time.Time   // 最近更新时间
+	VisibilityStatus string      // 当前可见性状态
+	PublishAt        *time.Time
 }
 
 // VideoUserState 表示用户与视频的互动状态投影。
@@ -116,23 +129,27 @@ type VideoUserState struct {
 
 // VideoListEntry 表示来自主表的视频条目。
 type VideoListEntry struct {
-	VideoID        uuid.UUID
-	Title          string
-	Status         VideoStatus
-	MediaStatus    StageStatus
-	AnalysisStatus StageStatus
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	VideoID          uuid.UUID
+	Title            string
+	Status           VideoStatus
+	MediaStatus      StageStatus
+	AnalysisStatus   StageStatus
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	VisibilityStatus string
+	PublishAt        *time.Time
 }
 
 // MyUploadEntry 表示用户上传的视频条目。
 type MyUploadEntry struct {
-	VideoID        uuid.UUID
-	Title          string
-	Status         VideoStatus
-	MediaStatus    StageStatus
-	AnalysisStatus StageStatus
-	Version        int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	VideoID          uuid.UUID
+	Title            string
+	Status           VideoStatus
+	MediaStatus      StageStatus
+	AnalysisStatus   StageStatus
+	Version          int64
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	VisibilityStatus string
+	PublishAt        *time.Time
 }

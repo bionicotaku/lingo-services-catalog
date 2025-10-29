@@ -29,8 +29,12 @@
    - [x] `MediaInfoService`
    - [x] `AIAttributesService`
    - [x] `VisibilityService`（发布/拒绝/override）
-   - [x] 输出领域事件并写入 Outbox
+ - [x] 输出领域事件并写入 Outbox
      - [x] 2025-10-26：扩展 proto/outbox 以覆盖 `catalog.video.media_ready`、`catalog.video.ai_enriched`、`catalog.video.processing_failed`、`catalog.video.visibility_changed` 并在 Service 层落地（已完成，make lint && make test）
+     - [ ] 2025-10-29：补齐 Lifecycle/Visibility 服务与仓储对 `visibility_status`、`publish_at` 的写入逻辑
+       - [x] 仓储层/sqlc/mapper 更新完成，创建/更新接口已支持新字段
+       - [x] 服务层自动设置 `publish_at`、透传可见性状态（已接入 LifecycleWriter/VisibilityService）
+       - [x] Outbox 事件载荷与测试用例同步校验
 2. **Query**
  - [x] 实现 `CatalogQueryService` 基于主表读取（含 Engagement 降级逻辑）
   - [x] 支持 `ListUserPublicVideos`、`ListMyUploads` 分页与 ETag

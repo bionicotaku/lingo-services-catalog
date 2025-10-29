@@ -20,13 +20,20 @@ func TestBuildCreateVideoParams(t *testing.T) {
 		rawFileReference := "s3://bucket/video.mp4"
 		description := "Test description"
 
-		params := mappers.BuildCreateVideoParams(uploadUserID, title, rawFileReference, &description)
+		visibilityStatus := "unlisted"
+		now := time.Now().UTC()
+
+		params := mappers.BuildCreateVideoParams(uploadUserID, title, rawFileReference, &description, &visibilityStatus, &now)
 
 		assert.Equal(t, uploadUserID, params.UploadUserID)
 		assert.Equal(t, title, params.Title)
 		assert.Equal(t, rawFileReference, params.RawFileReference)
 		assert.True(t, params.Description.Valid)
 		assert.Equal(t, description, params.Description.String)
+		assert.True(t, params.VisibilityStatus.Valid)
+		assert.Equal(t, visibilityStatus, params.VisibilityStatus.String)
+		assert.True(t, params.PublishAt.Valid)
+		assert.WithinDuration(t, now, params.PublishAt.Time, time.Second)
 	})
 
 	t.Run("without description", func(t *testing.T) {
@@ -34,12 +41,14 @@ func TestBuildCreateVideoParams(t *testing.T) {
 		title := "Test Video"
 		rawFileReference := "s3://bucket/video.mp4"
 
-		params := mappers.BuildCreateVideoParams(uploadUserID, title, rawFileReference, nil)
+		params := mappers.BuildCreateVideoParams(uploadUserID, title, rawFileReference, nil, nil, nil)
 
 		assert.Equal(t, uploadUserID, params.UploadUserID)
 		assert.Equal(t, title, params.Title)
 		assert.Equal(t, rawFileReference, params.RawFileReference)
 		assert.False(t, params.Description.Valid)
+		assert.False(t, params.VisibilityStatus.Valid)
+		assert.False(t, params.PublishAt.Valid)
 	})
 }
 
@@ -67,6 +76,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		mediaJobID := "media-job-1"
 		analysisJobID := "analysis-job-1"
 		now := time.Now().UTC()
+		visibilityStatus := "public"
+		publishAt := now
 
 		params := mappers.BuildUpdateVideoParams(
 			videoID,
@@ -80,6 +91,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 			&mediaJobID, &analysisJobID,
 			&now, &now,
 			tags,
+			&visibilityStatus,
+			&publishAt,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -117,22 +130,41 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		assert.True(t, params.MediaEmittedAt.Valid)
 		assert.True(t, params.AnalysisEmittedAt.Valid)
 		assert.ElementsMatch(t, tags, params.Tags)
+		assert.True(t, params.VisibilityStatus.Valid)
+		assert.Equal(t, visibilityStatus, params.VisibilityStatus.String)
+		assert.True(t, params.PublishAt.Valid)
 	})
 
 	t.Run("update no fields (all nil)", func(t *testing.T) {
 		videoID := uuid.New()
+		var (
+			status         *po.VideoStatus
+			mediaStatus    *po.StageStatus
+			analysisStatus *po.StageStatus
+			emptyTags      []string
+			strPtr         *string
+			int64Ptr       *int64
+			int32Ptr       *int32
+			timePtr        *time.Time
+		)
 
 		params := mappers.BuildUpdateVideoParams(
 			videoID,
-			nil, nil, nil, nil,
-			nil, nil, nil, nil,
-			nil, nil, nil,
-			nil, nil, nil,
-			nil,
-			nil, nil,
-			nil, nil,
-			nil, nil,
-			nil,
+			strPtr, strPtr, strPtr, strPtr,
+			strPtr, strPtr, strPtr, strPtr,
+			status,
+			mediaStatus, analysisStatus,
+			int64Ptr,
+			strPtr,
+			int32Ptr,
+			int64Ptr,
+			strPtr,
+			int32Ptr,
+			strPtr, strPtr,
+			timePtr, timePtr,
+			emptyTags,
+			strPtr,
+			timePtr,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -154,23 +186,41 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		assert.False(t, params.RawSubtitleUrl.Valid)
 		assert.False(t, params.ErrorMessage.Valid)
 		assert.Len(t, params.Tags, 0)
+		assert.False(t, params.VisibilityStatus.Valid)
+		assert.False(t, params.PublishAt.Valid)
 	})
 
 	t.Run("partial update - only title", func(t *testing.T) {
 		videoID := uuid.New()
 		title := "Only Title Updated"
+		var (
+			status         *po.VideoStatus
+			mediaStatus    *po.StageStatus
+			analysisStatus *po.StageStatus
+			emptyTags      []string
+			strPtr         *string
+			int64Ptr       *int64
+			int32Ptr       *int32
+			timePtr        *time.Time
+		)
 
 		params := mappers.BuildUpdateVideoParams(
 			videoID,
 			&title, nil, nil, nil,
-			nil, nil, nil, nil,
-			nil, nil, nil,
-			nil, nil, nil,
-			nil,
-			nil, nil,
-			nil, nil,
-			nil, nil,
-			nil,
+			strPtr, strPtr, strPtr, strPtr,
+			status,
+			mediaStatus, analysisStatus,
+			int64Ptr,
+			strPtr,
+			int32Ptr,
+			int64Ptr,
+			strPtr,
+			int32Ptr,
+			strPtr, strPtr,
+			timePtr, timePtr,
+			emptyTags,
+			strPtr,
+			timePtr,
 		)
 
 		assert.Equal(t, videoID, params.VideoID)
@@ -179,6 +229,8 @@ func TestBuildUpdateVideoParams(t *testing.T) {
 		assert.False(t, params.Description.Valid)
 		assert.False(t, params.EncodedResolution.Valid)
 		assert.False(t, params.EncodedBitrate.Valid)
+		assert.False(t, params.VisibilityStatus.Valid)
+		assert.False(t, params.PublishAt.Valid)
 	})
 }
 
@@ -215,6 +267,8 @@ func TestVideoFromCatalog(t *testing.T) {
 			Difficulty:        pgtype.Text{String: "intermediate", Valid: true},
 			Summary:           pgtype.Text{String: "Summary", Valid: true},
 			Tags:              []string{"tag1", "tag2"},
+			VisibilityStatus:  "public",
+			PublishAt:         pgtype.Timestamptz{Time: now, Valid: true},
 			RawSubtitleUrl:    pgtype.Text{String: "https://cdn.example.com/subtitle.vtt", Valid: true},
 			ErrorMessage:      pgtype.Text{String: "some error", Valid: true},
 		}
@@ -251,6 +305,9 @@ func TestVideoFromCatalog(t *testing.T) {
 		require.NotNil(t, video.ThumbnailURL)
 		assert.Equal(t, "https://cdn.example.com/thumb.jpg", *video.ThumbnailURL)
 		assert.Equal(t, []string{"tag1", "tag2"}, video.Tags)
+		assert.Equal(t, "public", video.VisibilityStatus)
+		require.NotNil(t, video.PublishAt)
+		assert.True(t, now.Equal(*video.PublishAt))
 	})
 
 	t.Run("video with nil optional fields", func(t *testing.T) {
@@ -271,6 +328,7 @@ func TestVideoFromCatalog(t *testing.T) {
 			MediaStatus:      po.StagePending,
 			AnalysisStatus:   po.StagePending,
 			Tags:             []string{},
+			VisibilityStatus: "public",
 		}
 
 		video := mappers.VideoFromCatalog(catalogVideo)
@@ -289,6 +347,8 @@ func TestVideoFromCatalog(t *testing.T) {
 		assert.Nil(t, video.ThumbnailURL)
 		assert.Nil(t, video.HLSMasterPlaylist)
 		assert.Empty(t, video.Tags)
+		assert.Equal(t, "public", video.VisibilityStatus)
+		assert.Nil(t, video.PublishAt)
 	})
 }
 
@@ -297,13 +357,15 @@ func TestVideoReadyViewFromFindRow(t *testing.T) {
 	videoID := uuid.New()
 
 	row := catalogsql.FindPublishedVideoRow{
-		VideoID:        videoID,
-		Title:          "Test Video",
-		Status:         po.VideoStatusPublished,
-		MediaStatus:    po.StageReady,
-		AnalysisStatus: po.StageReady,
-		CreatedAt:      pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:      pgtype.Timestamptz{Time: now, Valid: true},
+		VideoID:          videoID,
+		Title:            "Test Video",
+		Status:           po.VideoStatusPublished,
+		MediaStatus:      po.StageReady,
+		AnalysisStatus:   po.StageReady,
+		CreatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
+		VisibilityStatus: "public",
+		PublishAt:        pgtype.Timestamptz{Time: now, Valid: true},
 	}
 
 	view := mappers.VideoReadyViewFromFindRow(row)
@@ -316,6 +378,10 @@ func TestVideoReadyViewFromFindRow(t *testing.T) {
 	assert.Equal(t, po.StageReady, view.AnalysisStatus)
 	assert.True(t, now.Equal(view.CreatedAt))
 	assert.True(t, now.Equal(view.UpdatedAt))
+	assert.Equal(t, "public", view.VisibilityStatus)
+	if assert.NotNil(t, view.PublishAt) {
+		assert.True(t, now.Equal(*view.PublishAt))
+	}
 }
 
 func TestToPgText(t *testing.T) {

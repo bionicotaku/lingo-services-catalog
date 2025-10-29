@@ -37,6 +37,10 @@ create table if not exists catalog.videos (
   summary              text,
   tags                 text[],                                             -- 标签数组（配 GIN 索引）
 
+  -- 可见性层字段（Safety 写入）
+  visibility_status   text not null default 'public',                     -- 可见性状态 public/unlisted/private
+  publish_at          timestamptz,                                        -- 发布时间（UTC），可为空
+
   raw_subtitle_url     text,                                               -- 原始字幕/ASR 输出
   error_message        text                                                -- 最近失败/拒绝原因
 );
@@ -74,6 +78,8 @@ comment on column catalog.videos.hls_master_playlist is 'HLS 主清单（master.
 comment on column catalog.videos.difficulty          is 'AI 评估难度（自由文本，可后续枚举化）';
 comment on column catalog.videos.summary             is 'AI 生成摘要';
 comment on column catalog.videos.tags                is 'AI 生成标签（text[]，使用 GIN 索引提升包含查询）';
+comment on column catalog.videos.visibility_status   is '可见性状态：public/unlisted/private，由 Safety 服务写入';
+comment on column catalog.videos.publish_at          is '发布时间（UTC），当视频上架时写入';
 
 comment on column catalog.videos.raw_subtitle_url    is '原始字幕/ASR 输出 URL/路径';
 comment on column catalog.videos.error_message       is '最近一次失败/拒绝原因（排障/审计）';

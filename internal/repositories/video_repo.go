@@ -44,6 +44,8 @@ type CreateVideoInput struct {
 	Title            string
 	Description      *string
 	RawFileReference string
+	VisibilityStatus *string
+	PublishAt        *time.Time
 }
 
 // UpdateVideoInput 表示可选更新字段的集合。
@@ -71,6 +73,8 @@ type UpdateVideoInput struct {
 	RawFileSize       *int64
 	RawResolution     *string
 	RawBitrate        *int32
+	VisibilityStatus  *string
+	PublishAt         *time.Time
 }
 
 // ListPublicVideosInput 描述公开视频分页查询参数。
@@ -97,6 +101,8 @@ func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, in
 		input.Title,
 		input.RawFileReference,
 		input.Description,
+		input.VisibilityStatus,
+		input.PublishAt,
 	)
 
 	queries := r.queries
@@ -145,6 +151,8 @@ func (r *VideoRepository) Update(ctx context.Context, sess txmanager.Session, in
 		input.MediaEmittedAt,
 		input.AnalysisEmittedAt,
 		input.Tags,
+		input.VisibilityStatus,
+		input.PublishAt,
 	))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -244,13 +252,15 @@ func (r *VideoRepository) ListPublicVideos(ctx context.Context, sess txmanager.S
 	items := make([]po.VideoListEntry, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, po.VideoListEntry{
-			VideoID:        row.VideoID,
-			Title:          row.Title,
-			Status:         row.Status,
-			MediaStatus:    row.MediaStatus,
-			AnalysisStatus: row.AnalysisStatus,
-			CreatedAt:      row.CreatedAt.Time,
-			UpdatedAt:      row.UpdatedAt.Time,
+			VideoID:          row.VideoID,
+			Title:            row.Title,
+			Status:           row.Status,
+			MediaStatus:      row.MediaStatus,
+			AnalysisStatus:   row.AnalysisStatus,
+			CreatedAt:        row.CreatedAt.Time,
+			UpdatedAt:        row.UpdatedAt.Time,
+			VisibilityStatus: row.VisibilityStatus,
+			PublishAt:        timestamptzPtr(row.PublishAt),
 		})
 	}
 	return items, nil
@@ -290,14 +300,16 @@ func (r *VideoRepository) ListUserUploads(ctx context.Context, sess txmanager.Se
 	items := make([]po.MyUploadEntry, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, po.MyUploadEntry{
-			VideoID:        row.VideoID,
-			Title:          row.Title,
-			Status:         row.Status,
-			MediaStatus:    row.MediaStatus,
-			AnalysisStatus: row.AnalysisStatus,
-			Version:        row.Version,
-			CreatedAt:      row.CreatedAt.Time,
-			UpdatedAt:      row.UpdatedAt.Time,
+			VideoID:          row.VideoID,
+			Title:            row.Title,
+			Status:           row.Status,
+			MediaStatus:      row.MediaStatus,
+			AnalysisStatus:   row.AnalysisStatus,
+			Version:          row.Version,
+			CreatedAt:        row.CreatedAt.Time,
+			UpdatedAt:        row.UpdatedAt.Time,
+			VisibilityStatus: row.VisibilityStatus,
+			PublishAt:        timestamptzPtr(row.PublishAt),
 		})
 	}
 	return items, nil
@@ -328,6 +340,14 @@ func toPgUUID(id *uuid.UUID) pgtype.UUID {
 	var b [16]byte
 	copy(b[:], id[:])
 	return pgtype.UUID{Bytes: b, Valid: true}
+}
+
+func timestamptzPtr(ts pgtype.Timestamptz) *time.Time {
+	if !ts.Valid {
+		return nil
+	}
+	value := ts.Time
+	return &value
 }
 
 func toStatusFilter(filter []po.VideoStatus) interface{} {

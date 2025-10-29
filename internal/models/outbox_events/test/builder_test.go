@@ -87,17 +87,22 @@ func TestBuildAttributes(t *testing.T) {
 func TestNewVideoUpdatedEvent(t *testing.T) {
 	now := time.Now().UTC()
 	video := &po.Video{
-		VideoID:        uuid.New(),
-		Status:         po.VideoStatusReady,
-		MediaStatus:    po.StageReady,
-		AnalysisStatus: po.StageReady,
-		UpdatedAt:      now,
+		VideoID:          uuid.New(),
+		Status:           po.VideoStatusReady,
+		MediaStatus:      po.StageReady,
+		AnalysisStatus:   po.StageReady,
+		VisibilityStatus: po.VisibilityPublic,
+		PublishAt:        &now,
+		UpdatedAt:        now,
 	}
 	newTitle := "New Title"
 	newStatus := po.VideoStatusPublished
+	visibility := po.VisibilityPublic
 	changes := outboxevents.VideoUpdateChanges{
-		Title:  &newTitle,
-		Status: &newStatus,
+		Title:            &newTitle,
+		Status:           &newStatus,
+		VisibilityStatus: &visibility,
+		PublishAt:        &now,
 	}
 	eventID := uuid.New()
 
@@ -118,12 +123,21 @@ func TestNewVideoUpdatedEvent(t *testing.T) {
 	if payload.Status == nil || *payload.Status != string(newStatus) {
 		t.Fatalf("status mismatch")
 	}
+	if payload.VisibilityStatus == nil || *payload.VisibilityStatus != visibility {
+		t.Fatalf("visibility status mismatch")
+	}
+	if payload.PublishedAt == nil {
+		t.Fatalf("published_at missing")
+	}
 	pb, err := outboxevents.ToProto(evt)
 	if err != nil {
 		t.Fatalf("encode proto: %v", err)
 	}
 	if pb.GetUpdated().GetTitle() != newTitle {
 		t.Fatalf("proto title mismatch")
+	}
+	if pb.GetUpdated().GetVisibilityStatus() != visibility {
+		t.Fatalf("proto visibility mismatch")
 	}
 }
 
@@ -301,9 +315,11 @@ func TestNewVideoVisibilityChangedEvent(t *testing.T) {
 	now := time.Now().UTC()
 	reason := "manual publish"
 	video := &po.Video{
-		VideoID:   uuid.New(),
-		Status:    po.VideoStatusPublished,
-		UpdatedAt: now,
+		VideoID:          uuid.New(),
+		Status:           po.VideoStatusPublished,
+		VisibilityStatus: po.VisibilityPublic,
+		PublishAt:        &now,
+		UpdatedAt:        now,
 	}
 
 	evt, err := outboxevents.NewVideoVisibilityChangedEvent(video, po.VideoStatusReady, &reason, uuid.New(), now)
@@ -320,12 +336,18 @@ func TestNewVideoVisibilityChangedEvent(t *testing.T) {
 	if payload.PublishedAt == nil {
 		t.Fatalf("published_at missing")
 	}
+	if payload.VisibilityStatus != po.VisibilityPublic {
+		t.Fatalf("visibility status mismatch: %s", payload.VisibilityStatus)
+	}
 	pb, err := outboxevents.ToProto(evt)
 	if err != nil {
 		t.Fatalf("ToProto: %v", err)
 	}
 	if pb.GetVisibilityChanged().GetPreviousStatus() != string(po.VideoStatusReady) {
 		t.Fatalf("proto previous status mismatch")
+	}
+	if pb.GetVisibilityChanged().GetVisibilityStatus() != po.VisibilityPublic {
+		t.Fatalf("proto visibility status mismatch")
 	}
 }
 

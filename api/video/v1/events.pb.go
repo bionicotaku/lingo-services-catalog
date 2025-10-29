@@ -449,6 +449,7 @@ type Event_VideoUpdated struct {
 	Tags              []string `protobuf:"bytes,20,rep,name=tags,proto3" json:"tags,omitempty"`
 	RawSubtitleUrl    *string  `protobuf:"bytes,21,opt,name=raw_subtitle_url,json=rawSubtitleUrl,proto3,oneof" json:"raw_subtitle_url,omitempty"`
 	PublishedAt       *string  `protobuf:"bytes,22,opt,name=published_at,json=publishedAt,proto3,oneof" json:"published_at,omitempty"`
+	VisibilityStatus  *string  `protobuf:"bytes,23,opt,name=visibility_status,json=visibilityStatus,proto3,oneof" json:"visibility_status,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -591,6 +592,13 @@ func (x *Event_VideoUpdated) GetRawSubtitleUrl() string {
 func (x *Event_VideoUpdated) GetPublishedAt() string {
 	if x != nil && x.PublishedAt != nil {
 		return *x.PublishedAt
+	}
+	return ""
+}
+
+func (x *Event_VideoUpdated) GetVisibilityStatus() string {
+	if x != nil && x.VisibilityStatus != nil {
+		return *x.VisibilityStatus
 	}
 	return ""
 }
@@ -1074,16 +1082,17 @@ func (x *Event_VideoProcessingFailed) GetAnalysisStatus() string {
 
 // VideoVisibilityChanged 表示可见性变化事件
 type Event_VideoVisibilityChanged struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	VideoId        string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
-	Version        int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	OccurredAt     string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	Status         string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	PreviousStatus *string                `protobuf:"bytes,5,opt,name=previous_status,json=previousStatus,proto3,oneof" json:"previous_status,omitempty"`
-	PublishedAt    *string                `protobuf:"bytes,6,opt,name=published_at,json=publishedAt,proto3,oneof" json:"published_at,omitempty"`
-	Reason         *string                `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	VideoId          string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Version          int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	OccurredAt       string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Status           string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	PreviousStatus   *string                `protobuf:"bytes,5,opt,name=previous_status,json=previousStatus,proto3,oneof" json:"previous_status,omitempty"`
+	PublishedAt      *string                `protobuf:"bytes,6,opt,name=published_at,json=publishedAt,proto3,oneof" json:"published_at,omitempty"`
+	Reason           *string                `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	VisibilityStatus *string                `protobuf:"bytes,10,opt,name=visibility_status,json=visibilityStatus,proto3,oneof" json:"visibility_status,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Event_VideoVisibilityChanged) Reset() {
@@ -1165,11 +1174,18 @@ func (x *Event_VideoVisibilityChanged) GetReason() string {
 	return ""
 }
 
+func (x *Event_VideoVisibilityChanged) GetVisibilityStatus() string {
+	if x != nil && x.VisibilityStatus != nil {
+		return *x.VisibilityStatus
+	}
+	return ""
+}
+
 var File_api_video_v1_events_proto protoreflect.FileDescriptor
 
 const file_api_video_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\xc2\x1f\n" +
+	"\x19api/video/v1/events.proto\x12\bvideo.v1\"\xd2 \n" +
 	"\x05Event\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x122\n" +
 	"\n" +
@@ -1206,7 +1222,7 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\x0fanalysis_status\x18\v \x01(\tR\x0eanalysisStatusB\x0e\n" +
 	"\f_descriptionB\x12\n" +
 	"\x10_duration_microsB\x0f\n" +
-	"\r_published_at\x1a\x9e\x06\n" +
+	"\r_published_at\x1a\xe6\x06\n" +
 	"\fVideoUpdated\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
@@ -1228,7 +1244,8 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\x04tags\x18\x14 \x03(\tR\x04tags\x12-\n" +
 	"\x10raw_subtitle_url\x18\x15 \x01(\tH\n" +
 	"R\x0erawSubtitleUrl\x88\x01\x01\x12&\n" +
-	"\fpublished_at\x18\x16 \x01(\tH\vR\vpublishedAt\x88\x01\x01B\b\n" +
+	"\fpublished_at\x18\x16 \x01(\tH\vR\vpublishedAt\x88\x01\x01\x120\n" +
+	"\x11visibility_status\x18\x17 \x01(\tH\fR\x10visibilityStatus\x88\x01\x01B\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\x12\n" +
 	"\x10_duration_microsB\t\n" +
@@ -1241,7 +1258,8 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\b_summaryB\x13\n" +
 	"\x11_raw_subtitle_urlB\x0f\n" +
-	"\r_published_at\x1a\xbf\x01\n" +
+	"\r_published_atB\x14\n" +
+	"\x12_visibility_status\x1a\xbf\x01\n" +
 	"\fVideoDeleted\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\"\n" +
@@ -1318,7 +1336,7 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	" \x01(\tR\x0eanalysisStatusB\x10\n" +
 	"\x0e_error_messageB\t\n" +
 	"\a_job_idB\r\n" +
-	"\v_emitted_at\x1a\xb5\x02\n" +
+	"\v_emitted_at\x1a\xfd\x02\n" +
 	"\x16VideoVisibilityChanged\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1f\n" +
@@ -1327,10 +1345,13 @@ const file_api_video_v1_events_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12,\n" +
 	"\x0fprevious_status\x18\x05 \x01(\tH\x00R\x0epreviousStatus\x88\x01\x01\x12&\n" +
 	"\fpublished_at\x18\x06 \x01(\tH\x01R\vpublishedAt\x88\x01\x01\x12\x1b\n" +
-	"\x06reason\x18\a \x01(\tH\x02R\x06reason\x88\x01\x01B\x12\n" +
+	"\x06reason\x18\a \x01(\tH\x02R\x06reason\x88\x01\x01\x120\n" +
+	"\x11visibility_status\x18\n" +
+	" \x01(\tH\x03R\x10visibilityStatus\x88\x01\x01B\x12\n" +
 	"\x10_previous_statusB\x0f\n" +
 	"\r_published_atB\t\n" +
-	"\a_reasonJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"\a_reasonB\x14\n" +
+	"\x12_visibility_statusJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"B\t\n" +
 	"\apayload*\x96\x02\n" +
 	"\tEventType\x12\x1a\n" +
