@@ -9,7 +9,7 @@
 - **仅移动端**直传 GCS（**无需 CORS**）。
 - Catalog 以 **(user_id, content_md5)** **全状态唯一**约束，确保**同一用户同一文件只能产生 1 条视频**，对象命名 videos/{user_id}/{content_md5}。
 - 以 **V4 Signed URL (XML API +** **x-goog-resumable:start\*\***)** 仅用于**发起会话**；后续分片走 session URI；签名中强制 **ifGenerationMatch=0\*\* 防覆盖。
-- GCS → Pub/Sub **OBJECT_FINALIZE** → **Push + OIDC** 调用 /\_/gcs/callback；服务端**幂等**推进 uploads 与 videos，并写 **Outbox** 事件。
+- GCS → Pub/Sub **OBJECT_FINALIZE** → Catalog 通过 **StreamingPull + Inbox Runner** 消费消息，在事务内推进 uploads 与 videos，并写 **Outbox** 事件。
 - 分片/断点遵循 GCS **Resumable Upload** 规范（308 Resume Incomplete + Range），移动端遵循 256 KiB 的整数倍（推荐 ≥8 MiB）。
 
 ---
@@ -36,18 +36,18 @@
 
 - 表 catalog.uploads：
 
-  - upload_id uuid pk default gen_random_uuid()
+  - video_id uuid primary key（上传会话即预留的视频 ID，回调成功后用它创建主表记录）
   - user_id uuid not null
-  - video_id uuid（可空；先上传后建视频或反之）
   - bucket text not null
   - object_name text not null（例如 videos/{user_id}/{content_md5}）
-  - original_filename text not null
-  - content_type text not null
+  - original_filename text
+  - content_type text
   - expected_size bigint not null default 0、size_bytes bigint not null default 0
   - content_md5 char(32) not null（**hex 32**）
   - status text check in ('pending','uploading','completed','failed') not null
   - gcs_generation text, gcs_etag text, md5_hash text, crc32c text
   - error_code text, error_message text
+  - reserved_at timestamptz not null default now()
   - created_at/updated_at timestamptz default now()
 
 - **唯一索引**：
@@ -65,15 +65,16 @@
 
 - 新增查询（建议最少集）：
 
-  - InsertUpload(user_id, content_md5, bucket, object_name, original_filename, content_type, expected_size, status='pending')
+  - UpsertUpload(user_id, video_id, content_md5, bucket, object_name, original_filename, content_type, expected_size)
 
-    - 用 **ON CONFLICT (user_id, content_md5) DO NOTHING**；随后 SELECT 返回现存行，实现**会话合并**。
+    - 使用 `INSERT ... ON CONFLICT (user_id, content_md5)` 返回已有或新生成的 video_id，确保并发请求收敛。
+
+  - GetUploadByVideoID(video_id)
 
   - GetUploadByUserMd5(user_id, content_md5)
 
-  - UpdateUploadCompleted(upload_id, size_bytes, md5_hash, crc32c, gcs_generation, gcs_etag)（**where status != ‘completed’**）
+  - UpdateUploadCompleted(video_id, size_bytes, md5_hash, crc32c, gcs_generation, gcs_etag)
 
-  - BindUploadToVideo(upload_id, video_id)（可选）
 
 - **DoD**：make sqlc 生成通过；执行 005\_\* 迁移成功（对照 README 的 001~004）。
 
@@ -85,8 +86,8 @@
 
 ```
 service UploadService {
+  // 仅暴露 InitResumableUpload：预留 video_id + 返回签名 URL
   rpc InitResumableUpload(InitResumableUploadRequest) returns (InitResumableUploadResponse);
-  rpc GetUpload(GetUploadRequest) returns (GetUploadResponse);
 }
 message InitResumableUploadRequest {
   string filename = 1;
@@ -94,22 +95,17 @@ message InitResumableUploadRequest {
   string content_type = 3;
   string content_md5_hex = 4;  // 移动端先算好
   int32  duration_seconds = 5; // 可选，要求 <= 300
-  string video_id = 6;         // 可选
+  string video_id = 6;         // 可选：复用既有视频会话
 }
 message InitResumableUploadResponse {
-  string upload_id = 1;
+  string video_id = 1;
   string bucket = 2;
   string object_name = 3;        // videos/{user}/{md5}
-  string resumable_init_url = 4; // V4 signed URL for POST + x-goog-resumable:start
+  string resumable_init_url = 4; // V4 signed URL (POST + x-goog-resumable:start)
   int64  expires_at_unixms = 5;  // ~15min
-  bool   already_completed = 6;  // 若该 md5 已完成
+  bool   already_uploaded = 6;   // 若该 md5 已完成
 }
-message GetUploadRequest  { string upload_id = 1; }
-message GetUploadResponse {
-  string status = 1; string bucket = 2; string object_name = 3;
-  string gcs_etag = 4; string gcs_generation = 5;
-  int64  size_bytes = 6; string md5_hash_hex = 7;
-}
+```
 ```
 
 - 更新 buf.yaml / buf.gen.yaml 并执行 make proto。
@@ -129,14 +125,15 @@ gcs:
   bucket: your-bucket
   signer_service_account: upload-signer@your-project.iam.gserviceaccount.com
   signed_url_ttl_seconds: 900
-  callback_audience: "https://<catalog-domain>/_/gcs/callback"
-server:
-  grpc_addr: "0.0.0.0:9000"
-  http_addr: "0.0.0.0:8000"  # 新增：接收 Pub/Sub Push
+
 pubsub:
   project_id: your-project
-  notification_topic: "video-uploads"
-  callback_path: "/_/gcs/callback"
+  notification_topic: video-uploads
+  subscription_id: video-uploads-catalog
+  receive:
+    numGoroutines: 4
+    maxOutstandingMessages: 500
+    maxOutstandingBytes: 67108864
 ```
 
 - （网关 HTTP→gRPC + JWT → metadata 注入 user_id 已就绪，本文仅使用，不展开）
@@ -160,9 +157,10 @@ pubsub:
 
 - 新增 internal/repositories/upload_repo.go，封装阶段 1 的 SQLC 查询：
 
-  - InsertOrGetByUserMd5(...) (row, inserted bool)（处理 ON CONFLICT + SELECT）
-  - MarkCompleted(...)（条件更新）
-  - GetByUploadID(...)，BindUploadToVideo(...)
+  - UpsertUpload(ctx, params) → 返回 video_id、是否新建；
+  - GetByVideoID(ctx, video_id)、GetByUserMd5(ctx, user_id, content_md5)；
+  - MarkUploadCompleted(ctx, video_id, completedParams)；
+  - （可选）ListExpiredUploads(ctx, cutoff) 供 Reaper 使用。
 
 **4-2. Service（领域逻辑）**
 
@@ -171,13 +169,11 @@ pubsub:
   - InitResumableUpload(ctx, req)
 
     1. 从 metadata 取 user_id；校验 duration<=300、content_type 白名单、size_bytes 上限；
-    2. 生成 object_name = "videos/{user_id}/{content_md5}"；
-    3. InsertOrGetByUserMd5 写入/复用 uploads（status='pending'）；
+    2. 生成或复用 video_id，并构造 object_name = "videos/{user_id}/{content_md5}"；
+    3. 调用 UpsertUpload 预留会话（status='pending'），返回统一的 video_id；
     4. 生成 **V4 Signed URL（POST）**，**带** x-goog-resumable:start 与 **ifGenerationMatch=0**；
-    5. 若该记录已 completed → already_completed=true；
-    6. 返回响应。
-
-  - GetUpload(ctx, upload_id)：直读仓储。
+    5. 在响应中返回 video_id、bucket、object_name、resumable_init_url、expires；
+    6. 若记录已 completed → already_uploaded=true，并在响应中提示无需重传。
 
 - **DoD**：并发 10 个相同 (user_id, md5) 调用仅返回**同一条**记录与对象名；不同 md5 互不影响。
 
@@ -189,26 +185,24 @@ pubsub:
 
 - 新增 internal/controllers/upload_grpc.go，注册 UploadService 到服务器，复用现有依赖注入（Wire）与 metadata 解析（README 已说明 header/metadata 规范）。
 
-**5-2. HTTP 回调（Pub/Sub Push + OIDC）**
+**5-2. StreamingPull 回调消费（Inbox Runner）**
 
-- 新增轻量 HTTP 服务（若 cmd/grpc 已兼容多 server，则在同进程启动 HTTP）与 /\_/gcs/callback：
+- 新增 `internal/tasks/uploads`（命名示例），注入 `gcpubsub.Subscriber` + `outbox/inbox.Runner`，通过 Wire 绑定到 `cmd/tasks/uploads`。
 
-  - 校验 Authorization: Bearer <JWT> 的 **issuer/audience/exp**（OIDC）并验签。
+- Decoder：解析 Pub/Sub 消息（仅处理 `attributes.eventType == OBJECT_FINALIZE`），Base64 解码 `message.data` 为 GCS JSON。
 
-  - 解析 Pub/Sub Push JSON（message.attributes.eventType == OBJECT_FINALIZE 时处理；message.data base64 的对象 JSON）。
+- Handler（与 Inbox 共享事务）：
 
-  - **Inbox 去重**（若已存在 catalog.inbox*events，用 source='gcs', dedup_key='{bucket}/{name}#{generation}' 作为主键；若无，则创建 006*\* 迁移加上）。
+  - Inbox 去重：source=`gcs`，dedup_key=`{bucket}/{name}#{generation}`；若 `processed_at` 已存在直接返回成功（Ack）。
+  - 校验 md5Hash（Base64 → hex）与 uploads.content_md5；失败则将 uploads 标记为 failed(MD5_MISMATCH)，并告警。
+  - 幂等更新：
+    - uploads：status≠completed 时更新 completed，回填 size/hash/etag/generation；
+    - videos：若不存在该 video_id，则创建主表记录（user_id、默认标题/描述、`status='processing'`）；若已存在，更新 raw_file_reference 并推进状态；
+    - 写 **Outbox**：video.upload.completed 等事件。
 
-  - 单事务**幂等**推进：
+- Runner 返回 nil → Ack；若 Decoder/Handler 抛错则返回 error → Pub/Sub 重投（至少一次语义）。
 
-    - 校验 md5Hash（base64→hex）与 uploads.content_md5 一致；否则 failed(MD5_MISMATCH)；
-    - uploads.status -> completed 并回填 size/hash/etag/generation（仅当当前非 completed）；
-    - videos.raw_file_reference="gs://{bucket}/{object_name}"；status: pending_upload -> processing；
-    - 写 **Outbox**：video.upload.completed。
-
-  - 返回 **2xx** 即 ACK；否则让 Pub/Sub 重试（至少一次）。
-
-- **DoD**：重复推送同一 generation 仅首次推进；后续无副作用（幂等）。
+- **DoD**：重复 delivery 同一 generation 仅首次推进；后续无副作用（幂等）。
 
 ---
 
@@ -228,7 +222,7 @@ pubsub:
 
   - 使用 curl 脚本模拟：**发起会话** → **分片上传**（2~3 块）→ **回调处理**（可用 replay 工具手动 POST 回调负载）。
 
-- **DoD**：脚本一次跑通；GetUpload 返回 completed 且视频状态进入 processing。
+- **DoD**：脚本一次跑通；上传完成后可通过 CatalogQueryService.GetVideoDetail 看到 processing 状态。
 
 ---
 
@@ -242,8 +236,8 @@ pubsub:
 
 **7-2. 日志关联**
 
-- 打印关键字段：upload_id、user_id、object_name、pubsub_message_id、gcs_generation。
-- **DoD**：Grafana/日志平台可按 upload_id 串联完整链路。
+- 打印关键字段：video_id、user_id、object_name、pubsub_message_id、gcs_generation。
+- **DoD**：Grafana/日志平台可按 video_id 串联完整链路。
 
 ---
 
@@ -253,16 +247,17 @@ pubsub:
 
 1. **Bucket 通知 → Pub/Sub**（仅 OBJECT_FINALIZE，可设置 --object-name-prefix=videos/）
 
-2. **Push 订阅（OIDC）**：
+2. **创建 StreamingPull 订阅**：
 
-   - --push-endpoint=https://<catalog-domain>/\_/gcs/callback
-   - --push-auth-service-account=<sa>@<project>.iam.gserviceaccount.com
-   - --push-auth-token-audience=https://<catalog-domain>/\_/gcs/callback
-   - 订阅的服务账号授予最小 IAM；Catalog 端严格校验 JWT。
+   ```sh
+   gcloud pubsub subscriptions create video-uploads-catalog \n     --topic=video-uploads \n     --ack-deadline=30 \n     --message-retention-duration=1209600s \n     --enable-message-ordering \n     --enable-exactly-once-delivery
+   ```
+
+   为订阅绑定最小权限服务账号（`roles/pubsub.subscriber`），并可选配置 dead-letter topic/监控策略。
 
 3. **注意**：**无需 CORS**（移动端-only）。
 
-- **DoD**：上传完成后 3~5 秒内可见回调命中；订阅健康（无堆积）。
+- **DoD**：上传完成后 3~5 秒内可在 StreamingPull Runner 日志/指标确认处理成功，订阅健康（无堆积）。
 
 ---
 
@@ -279,7 +274,7 @@ pubsub:
 
 **9-3. 回调幂等**
 
-- 重放同一 generation 的回调 3 次 → 仅首次推进，后续 204。
+- 重放同一 generation 的消息 3 次 → 仅首次推进，后续直接 Ack（无副作用）。
 
 **9-4. MD5 对账**
 
@@ -303,7 +298,7 @@ internal/infrastructure/gcs/signer.go  # 阶段 3
 internal/repositories/upload_repo.go   # 阶段 4
 internal/services/upload_service.go    # 阶段 4
 internal/controllers/upload_grpc.go    # 阶段 5
-internal/controllers/upload_http.go    # 阶段 5  (/_/gcs/callback)
+internal/tasks/uploads                 # 阶段 5（StreamingPull Runner）
 sqlc/queries/uploads.sql               # 阶段 1
 migrations/005_create_catalog_uploads.sql      # 阶段 1
 # 若缺 Inbox：
@@ -378,7 +373,7 @@ on conflict do nothing;
 - **Resumable Upload**（POST 发起会话 → Session URI → PUT 分片 → 308/Range/断点）
 - **Signed URL 与 Resumable**（PUT 阶段不需要再签名；Session URI 充当凭据）
 - **请求前置条件** ifGenerationMatch=0 防覆盖（存在则 412）
-- **Cloud Storage → Pub/Sub → Push + OIDC**（OBJECT_FINALIZE 事件与认证）
+- **Cloud Storage → Pub/Sub → StreamingPull**（OBJECT_FINALIZE 事件与消费）
 - **仓库结构/脚手架**（api/, cmd/, configs/, internal/, migrations/, sqlc/、README 迁移脚本与 Outbox 说明）
 
 ---
