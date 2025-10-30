@@ -8,10 +8,9 @@ package main
 
 import (
 	"context"
-
 	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
-	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
+	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
@@ -23,7 +22,9 @@ import (
 	"github.com/bionicotaku/lingo-utils/pgxpoolx"
 	"github.com/bionicotaku/lingo-utils/txmanager"
 	"github.com/go-kratos/kratos/v2"
+)
 
+import (
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -88,7 +89,6 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	messagingConfig := configloader.ProvideMessagingConfig(runtimeConfig)
 	configConfig := configloader.ProvideOutboxConfig(messagingConfig)
 	outboxRepository := repositories.NewOutboxRepository(pool, logger, configConfig)
-	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	txmanagerConfig := configloader.ProvideTxConfig(runtimeConfig)
 	txmanagerComponent, cleanup5, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
@@ -128,6 +128,7 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	}
 	publisher := gcpubsub.ProvidePublisher(gcpubsubComponent)
 	runner := outbox.ProvideRunner(outboxRepository, publisher, gcpubsubConfig, configConfig, logger)
+	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	engagementPubSubConfig := configloader.ProvideEngagementConfig(messagingConfig)
 	engagementSubscriber, cleanup7, err := configloader.ProvideEngagementSubscriber(contextContext, engagementPubSubConfig, dependencies)
 	if err != nil {

@@ -53,6 +53,8 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		repositories.ProviderSet, // 数据访问层（sqlc）
 		wire.Bind(new(services.LifecycleRepo), new(*repositories.VideoRepository)),  // 写仓储绑定
 		wire.Bind(new(services.VideoQueryRepo), new(*repositories.VideoRepository)), // 读仓储绑定
+		wire.Bind(new(services.OriginalMediaRepo), new(*repositories.VideoRepository)),
+		wire.Bind(new(services.VideoLookupRepo), new(*repositories.VideoRepository)),
 		wire.Bind(new(services.LifecycleOutboxWriter), new(*repositories.OutboxRepository)),
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）

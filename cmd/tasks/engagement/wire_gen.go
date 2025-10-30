@@ -9,7 +9,6 @@ package main
 import (
 	"context"
 	"fmt"
-
 	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
@@ -43,6 +42,9 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 	pool := pgxpoolx.ProvidePool(pgxpoolxComponent)
 	videoUserStatesRepository := repositories.NewVideoUserStatesRepository(pool, logger)
 	videoEngagementStatsRepository := repositories.NewVideoEngagementStatsRepository(pool, logger)
+	messagingConfig := configloader.ProvideMessagingConfig(runtimeConfig)
+	configConfig := configloader.ProvideOutboxConfig(messagingConfig)
+	inboxRepository := repositories.NewInboxRepository(pool, logger, configConfig)
 	txmanagerConfig := configloader.ProvideTxConfig(runtimeConfig)
 	txmanagerComponent, cleanup3, err := txmanager.NewComponent(txmanagerConfig, pool, logger)
 	if err != nil {
@@ -51,9 +53,6 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 		return nil, nil, err
 	}
 	manager := txmanager.ProvideManager(txmanagerComponent)
-	messagingConfig := configloader.ProvideMessagingConfig(runtimeConfig)
-	outboxConfig := configloader.ProvideOutboxConfig(messagingConfig)
-	inboxRepository := repositories.NewInboxRepository(pool, logger, outboxConfig)
 	engagementPubSubConfig := configloader.ProvideEngagementConfig(messagingConfig)
 	dependencies := configloader.ProvidePubSubDependencies(logger)
 	engagementSubscriber, cleanup4, err := configloader.ProvideEngagementSubscriber(contextContext, engagementPubSubConfig, dependencies)
@@ -63,7 +62,7 @@ func wireEngagementTask(contextContext context.Context, params configloader.Para
 		cleanup()
 		return nil, nil, err
 	}
-	runner := engagement.ProvideRunner(videoUserStatesRepository, videoEngagementStatsRepository, inboxRepository, manager, engagementSubscriber, outboxConfig, logger)
+	runner := engagement.ProvideRunner(videoUserStatesRepository, videoEngagementStatsRepository, inboxRepository, manager, engagementSubscriber, configConfig, logger)
 	mainEngagementApp, err := newEngagementApp(logger, runner)
 	if err != nil {
 		cleanup4()

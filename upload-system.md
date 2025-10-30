@@ -38,53 +38,56 @@
 
 ## **2. 端到端流程（移动端直传）**
 
-```
-Mobile Client         Catalog (gRPC)                    GCS                        Pub/Sub
-    |   InitResumableUpload(user_id, filename, size, content_type, content_md5, duration<=300)
-    |----------------------------->|
-    |   ← video_id, object_name="videos/{user}/{md5}", signed_init_url (V4, 15m)              |
-    |                                                                                         |
-    |   POST signed_init_url + x-goog-resumable:start  → 201 + Location: <session-URI>        |
-    |---------------------------------------------------------------------------------------> |
-    |   PUT <session-URI> chunks with Content-Range (256KiB aligned; recommend 8MiB)          |
-    |---------------------------------------------------------------------------------------> |
-    |   ... 308 Resume Incomplete + Range (已落盘上界)                                         |
-    |<--------------------------------------------------------------------------------------- |
-    |   (final chunk) → 200/201                                                               |
-    |                                                                                         |
-    |                                                          OBJECT_FINALIZE (JSON)  -----> | (topic)
-    |                                                                                         |
-    |         StreamingPull (Inbox Runner → create video + update uploads + publish event)    |
-    |<----------------------------------------------------------------------------------------|
-    |    tx: inbox.record + uploads.completed + videos.insert_or_update + outbox.enqueue       |
-```
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as Mobile Client
+    participant Catalog as Catalog Service (gRPC)
+    participant GCS as Google Cloud Storage
+    participant PubSub as Pub/Sub
+    participant Runner as StreamingPull Runner
+    participant Downstream as 转码/AI 等后续任务
 
+    Client->>Catalog: InitResumableUpload(filename,size,content_type,content_md5,duration[,video_id])
+    Catalog-->>Client: video_id, object_name, signed_init_url, expires
+    Client->>GCS: POST signed_init_url (x-goog-resumable:start)
+    GCS-->>Client: 201 Created + Location (session URI)
+    loop 分块上传
+        Client->>GCS: PUT session URI + Content-Range
+        GCS-->>Client: 308 Resume Incomplete / 200 OK
+    end
+    GCS-->>PubSub: OBJECT_FINALIZE (bucket,name,generation,md5Hash,...)
+    PubSub->>Runner: StreamingPull message
+    Runner->>Runner: Inbox 去重
+    Runner->>Runner: 校验 md5Hash 与 content_md5
+    alt 校验通过
+        Runner->>Runner: 更新 catalog.uploads (status=completed, ...)
+        Runner->>Runner: 创建/更新 catalog.videos (raw_file_reference, status=processing)
+        Runner->>Runner: Enqueue outbox events (video.upload.completed ...)
+        Runner->>Downstream: 触发后续任务
+    else 校验失败
+        Runner->>Runner: 标记 uploads failed (MD5_MISMATCH)
+    end
+    Runner-->>PubSub: Ack
+```
 > 本系统对“同一用户 + 同一内容（content_md5）”**强唯一**：并发/重试全部收敛到**同一条**上传记录与**同一个对象名**；通过 **ifGenerationMatch=0** 保障对象不被覆盖。
 
 ---
 
-```
-移动端
-   │ 1. 调用 InitResumableUpload（提交文件信息，服务端返回 video_id + 签名 URL）
-   ▼
-Catalog 服务
-   │ 2. 写入 catalog.uploads（状态 pending，预留 video_id）
-   │ 3. 生成 V4 Signed URL 并返回
-   ▼
-Google Cloud Storage (GCS)
-   │ 4. 使用签名 URL 发 POST（x-goog-resumable:start）获取 Session URI
-   │ 5. 通过 Session URI 分块 PUT 上传，处理 308/Range
-   │ 6. 上传成功 → 200/201
-   │
-   ├─(事件) 对象完成 → Pub/Sub 发布 OBJECT_FINALIZE
-   │
-Catalog StreamingPull Runner
-   │ 7. Inbox 去重 → 校验 md5Hash → 更新 catalog.uploads
-   │ 8. 若 catalog.videos 尚不存在该 video_id，则创建基础记录；
-   │    写 raw_file_reference、状态置 processing，并写 Outbox 事件
-   ▼
-后续流水线（转码 / AI / Feed 等）
-```
+**数据写入/更新流程**
+
+| 时机 | 操作 | 目标表/字段 | 备注 |
+| ---- | ---- | ------------ | ---- |
+| InitResumableUpload 成功 | UPSERT 会话记录 | catalog.uploads：video_id、user_id、bucket、object_name、original_filename、content_type、expected_size、content_md5、status='pending'、reserved_at | 冲突时复用既有记录，返回统一 video_id |
+| 客户端拿到响应 | （无额外写入） | —— | 响应携带 video_id、bucket、object_name、signed_url |
+| GCS 分块上传 | —— | —— | 仅 GCS 对象写入，无本地记录 |
+| OBJECT_FINALIZE 回调（校验通过） | 更新上传记录 | catalog.uploads：status='completed'、size_bytes、md5_hash、crc32c、gcs_generation、gcs_etag、content_type、updated_at | 若校验失败则写入 status='failed'、error_code、error_message |
+| 回调同事务 | 创建/更新主表 | catalog.videos：不存在→INSERT（user_id、raw_file_reference、status='processing' 等）；存在→UPDATE（刷新 raw_file_reference、状态等） | raw_file_reference 写成 gs://bucket/object_name |
+| 回调同事务 | 写出领域事件 | catalog.outbox_events：video.upload.completed 等 payload | 供 Outbox Runner 发布 |
+| Outbox Runner 成功发布 | 标记已发布 | catalog.outbox_events：published_at | 通用 Outbox 流程处理 |
+
+---
+
 
 ## **3. 数据模型与迁移**
 
@@ -97,25 +100,25 @@ Catalog StreamingPull Runner
 ```
 -- 005_create_catalog_uploads.sql
 create table if not exists catalog.uploads (
-  video_id          uuid primary key,    -- 预留的视频 ID（上传成功后用于创建主表记录）
-  user_id           uuid not null,
-  bucket            text not null,
-  object_name       text not null,       -- 建议: "videos/{user_id}/{content_md5}"
-  original_filename text,
-  content_type      text,
-  expected_size     bigint not null default 0,  -- 0=未知
-  size_bytes        bigint not null default 0,
-  content_md5       char(32) not null,         -- 客户端上报的 MD5（hex）
-  status            text not null check (status in ('pending','uploading','completed','failed')),
-  gcs_generation    text,
-  gcs_etag          text,
-  md5_hash          text,                 -- GCS 回调里的 md5Hash（统一为 hex 再存）
-  crc32c            text,
-  error_code        text,
-  error_message     text,
-  reserved_at       timestamptz not null default now(),
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now()
+  video_id          uuid primary key,    -- 预留的视频 ID；回调成功后用于创建/更新 catalog.videos
+  user_id           uuid not null,       -- 发起上传的用户 ID（来自认证 metadata）
+  bucket            text not null,       -- 目标 GCS 存储桶名称（支持多桶策略）
+  object_name       text not null,       -- 对象路径，例如 "videos/{user_id}/{content_md5}"
+  original_filename text,                -- 客户端上报的原始文件名，用于 UI/审计
+  content_type      text,                -- MIME 类型（如 video/mp4），用于白名单校验
+  expected_size     bigint not null default 0,  -- 客户端预估的字节数（0 表示未知）
+  size_bytes        bigint not null default 0,  -- 实际大小，由回调写入
+  content_md5       char(32) not null,         -- 客户端上报的 MD5（hex，驱动强唯一）
+  status            text not null check (status in ('pending','uploading','completed','failed')), -- 会话状态机
+  gcs_generation    text,                -- GCS generation，便于幂等/版本控制
+  gcs_etag          text,                -- GCS ETag（回调写入）
+  md5_hash          text,                -- 回调中返回的 md5Hash（统一转为 hex）
+  crc32c            text,                -- 回调中返回的 crc32c（Base64 → 字符串）
+  error_code        text,                -- 失败时的错误代码（如 MD5_MISMATCH）
+  error_message     text,                -- 失败时的详细描述
+  reserved_at       timestamptz not null default now(), -- 预留 video_id 的时间戳
+  created_at        timestamptz not null default now(), -- 记录创建时间
+  updated_at        timestamptz not null default now()  -- 记录最后更新时间
 );
 
 -- 唯一性：同一用户同一内容 永远 只有 1 条上传记录
@@ -269,13 +272,12 @@ message InitResumableUploadResponse {
    - 若返回 **308**，读取 Range 继续；
    - 断点恢复：PUT 0 字节 + Content-Range: bytes \*/{total} 查询偏移。
 
-5. 最后一块完成时返回 **200/201**；客户端可等待服务端事件通知，或在稍后通过 `CatalogQueryService.GetVideoDetail` 查询状态。
+**字段同步注意事项**
 
-**建议与限制**
-
-- content_type 必须与初始化一致；
-- size_bytes 建议提供（可校验异常场景）；
-- 仅允许 **video/mp4 / video/quicktime**（示例）等白名单。
+- 在 GCS 回调成功后，以 payload 中的 `contentType` 覆盖/校验 `content_type`，确保保存的是最终实际 MIME。
+- `md5Hash` 和 `crc32c` 从回调取值时注意格式：将 `md5Hash` 由 Base64 转为 32 字符 hex，再写入 `md5_hash`；`crc32c` 可保留 Base64 字符串或按需求转换。
+- 若将来需要版本并发控制，可在表中追加 `metageneration`（对应 JSON API）字段；当前场景暂不需要。
+- 任何带签名的下载 URL 不应持久化，凭借 `bucket + object_name + generation` 即可随时重新签发。
 
 ---
 

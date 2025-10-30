@@ -23,18 +23,18 @@ type UpdateOriginalMediaInput struct {
 	IdempotencyKey  string
 }
 
-type originalMediaRepo interface {
+type OriginalMediaRepo interface {
 	GetLifecycleSnapshot(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error)
 }
 
 // OriginalMediaService 负责记录上传完成后的原始媒体属性。
 type OriginalMediaService struct {
 	writer *LifecycleWriter
-	repo   originalMediaRepo
+	repo   OriginalMediaRepo
 }
 
 // NewOriginalMediaService 构造 OriginalMediaService。
-func NewOriginalMediaService(writer *LifecycleWriter, repo originalMediaRepo) *OriginalMediaService {
+func NewOriginalMediaService(writer *LifecycleWriter, repo OriginalMediaRepo) *OriginalMediaService {
 	return &OriginalMediaService{writer: writer, repo: repo}
 }
 
