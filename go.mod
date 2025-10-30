@@ -6,7 +6,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.1-20241127180247-a33202765966.1
 	cloud.google.com/go/pubsub v1.50.1
 	cloud.google.com/go/pubsub/v2 v2.0.0
-	github.com/bionicotaku/lingo-services-profile v0.0.0
+	github.com/bionicotaku/lingo-services-profile v0.1.0
 	github.com/bionicotaku/lingo-utils v0.1.5
 	github.com/bufbuild/protovalidate-go v0.8.2
 	github.com/docker/go-connections v0.5.0
@@ -114,5 +114,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251014184007-4626949a642f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/bionicotaku/lingo-services-profile => ../services-profile
