@@ -104,6 +104,30 @@ func (ns NullCatalogVideoStatus) Value() (driver.Value, error) {
 	return string(ns.CatalogVideoStatus), nil
 }
 
+type CatalogUpload struct {
+	VideoID            uuid.UUID          `json:"video_id"`
+	UserID             uuid.UUID          `json:"user_id"`
+	Bucket             string             `json:"bucket"`
+	ObjectName         string             `json:"object_name"`
+	ContentType        pgtype.Text        `json:"content_type"`
+	ExpectedSize       int64              `json:"expected_size"`
+	SizeBytes          int64              `json:"size_bytes"`
+	ContentMd5         string             `json:"content_md5"`
+	Title              string             `json:"title"`
+	Description        string             `json:"description"`
+	SignedUrl          pgtype.Text        `json:"signed_url"`
+	SignedUrlExpiresAt pgtype.Timestamptz `json:"signed_url_expires_at"`
+	Status             string             `json:"status"`
+	GcsGeneration      pgtype.Text        `json:"gcs_generation"`
+	GcsEtag            pgtype.Text        `json:"gcs_etag"`
+	Md5Hash            pgtype.Text        `json:"md5_hash"`
+	Crc32c             pgtype.Text        `json:"crc32c"`
+	ErrorCode          pgtype.Text        `json:"error_code"`
+	ErrorMessage       pgtype.Text        `json:"error_message"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type CatalogVideo struct {
 	VideoID           uuid.UUID          `json:"video_id"`
 	UploadUserID      uuid.UUID          `json:"upload_user_id"`

@@ -26,4 +26,10 @@ enum ErrorReason {
 
   // 删除请求无效
   ERROR_REASON_VIDEO_DELETE_INVALID = 6;
+
+  // 上传请求参数无效
+  ERROR_REASON_UPLOAD_INVALID = 7;
+
+  // 上传已完成，不允许重复发起
+  ERROR_REASON_UPLOAD_ALREADY_COMPLETED = 8;
 }

@@ -23,7 +23,7 @@ func TestNewGRPCServer_WithNetwork(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: false}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, nil, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -55,7 +55,7 @@ func TestNewGRPCServer_WithTimeout(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, nil, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -75,7 +75,7 @@ func TestNewGRPCServer_MetricsDisabled(t *testing.T) {
 		GRPCIncludeHealth: false,
 	}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, nil, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -91,7 +91,7 @@ func TestNewGRPCServer_NilMetricsConfig(t *testing.T) {
 	logger := log.NewStdLogger(io.Discard)
 
 	// 传入 nil metricsCfg，应使用默认值（metrics enabled）
-	srv := grpcserver.NewGRPCServer(cfg, nil, nil, commandHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, nil, nil, commandHandler, queryHandler, nil, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -111,7 +111,7 @@ func TestNewGRPCServer_MetricsIncludeHealth(t *testing.T) {
 		GRPCIncludeHealth: true,
 	}
 
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, commandHandler, queryHandler, nil, logger)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}

@@ -11,6 +11,7 @@ message Bootstrap {
   Data data = 2;
   Observability observability = 3;
   Messaging messaging = 4;
+  GCS gcs = 5;
 }
 
 message Server {
@@ -78,6 +79,13 @@ message Data {
 
   PostgreSQL postgres = 1 [(buf.validate.field).required = true];
   Client grpc_client = 2;
+}
+
+message GCS {
+  string project_id = 1;
+  string bucket = 2 [(buf.validate.field).string = { min_len: 1 }];
+  string signer_service_account = 3 [(buf.validate.field).string = { min_len: 1 }];
+  google.protobuf.Duration signed_url_ttl = 4;
 }
 
 message Observability {

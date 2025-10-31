@@ -38,7 +38,7 @@ import (
 // 可选指标采集：
 // - 根据 metricsCfg.GRPCEnabled 决定是否启用 otelgrpc.StatsHandler
 // - 可通过 metricsCfg.GRPCIncludeHealth 控制是否采集健康检查指标
-func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.MetricsConfig, jwt gcjwt.ServerMiddleware, lifecycle *controllers.LifecycleHandler, query *controllers.VideoQueryHandler, logger log.Logger) *grpc.Server {
+func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.MetricsConfig, jwt gcjwt.ServerMiddleware, lifecycle *controllers.LifecycleHandler, query *controllers.VideoQueryHandler, upload *controllers.UploadHandler, logger log.Logger) *grpc.Server {
 	// metricsCfg 为可选参数，默认启用指标采集以保持向后兼容。
 	// 调用方可通过配置显式控制指标行为。
 	metricsEnabled := true
@@ -87,6 +87,9 @@ func NewGRPCServer(cfg configloader.ServerConfig, metricsCfg *observability.Metr
 	}
 	if lifecycle != nil {
 		videov1.RegisterCatalogLifecycleServiceServer(srv, lifecycle)
+	}
+	if upload != nil {
+		videov1.RegisterUploadServiceServer(srv, upload)
 	}
 	return srv
 }

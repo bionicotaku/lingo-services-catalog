@@ -10,6 +10,7 @@ import (
 	"context"
 	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/gcs"
 	"github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
@@ -114,7 +115,30 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 	videoEngagementStatsRepository := repositories.NewVideoEngagementStatsRepository(pool, logger)
 	videoQueryService := services.NewVideoQueryService(videoRepository, videoUserStatesRepository, videoEngagementStatsRepository, manager, logger)
 	videoQueryHandler := controllers.NewVideoQueryHandler(videoQueryService, baseHandler)
-	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, lifecycleHandler, videoQueryHandler, logger)
+	uploadRepository := repositories.NewUploadRepository(pool, logger)
+	gcsConfig := configloader.ProvideGCSConfig(runtimeConfig)
+	resumableSigner, err := gcs.ProvideResumableSigner(contextContext, gcsConfig, logger)
+	if err != nil {
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	string2 := gcsConfig.Bucket
+	duration := gcsConfig.SignedURLTTL
+	uploadService, err := services.NewUploadService(uploadRepository, resumableSigner, string2, duration, logger)
+	if err != nil {
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	uploadHandler := controllers.NewUploadHandler(baseHandler, uploadService)
+	server := grpcserver.NewGRPCServer(serverConfig, metricsConfig, serverMiddleware, lifecycleHandler, videoQueryHandler, uploadHandler, logger)
 	gcpubsubConfig := configloader.ProvidePubSubConfig(messagingConfig)
 	dependencies := configloader.ProvidePubSubDependencies(logger)
 	gcpubsubComponent, cleanup6, err := gcpubsub.NewComponent(contextContext, gcpubsubConfig, dependencies)

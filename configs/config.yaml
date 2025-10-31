@@ -95,6 +95,13 @@ data:
       # 同步透传 x-md- 前缀，兼容所有内部元数据
       - x-md-
 
+# GCS 上传配置：签发 Resumable 会话的签名 URL
+gcs:
+  project_id: smiling-landing-472320-q0
+  bucket: media-uploads-dev
+  signer_service_account: upload-signer@smiling-landing-472320-q0.iam.gserviceaccount.com
+  signed_url_ttl: 900s
+
 # 可观测性配置：追踪与指标
 observability:
   # 全局标签，附加到指标/追踪/日志

@@ -12,6 +12,7 @@ import (
 
 	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
+	gcssigner "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/gcs"
 	grpcserver "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/grpc_server"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
@@ -41,13 +42,15 @@ import (
 func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) {
 	panic(wire.Build(
 		configloader.ProviderSet, // 配置加载与解析
-		gclog.ProviderSet,        // 结构化日志
-		gcjwt.ProviderSet,        // JWT 认证中间件
-		obswire.ProviderSet,      // OpenTelemetry 追踪和指标
-		pgxpoolx.ProviderSet,     // PostgreSQL 连接池
-		txmanager.ProviderSet,    // 事务管理器
-		gcpubsub.ProviderSet,     // Pub/Sub 发布与订阅
-		grpcserver.ProviderSet,   // gRPC Server
+		wire.FieldsOf(new(configloader.GCSConfig), "Bucket", "SignedURLTTL"),
+		gclog.ProviderSet,      // 结构化日志
+		gcjwt.ProviderSet,      // JWT 认证中间件
+		obswire.ProviderSet,    // OpenTelemetry 追踪和指标
+		pgxpoolx.ProviderSet,   // PostgreSQL 连接池
+		txmanager.ProviderSet,  // 事务管理器
+		gcpubsub.ProviderSet,   // Pub/Sub 发布与订阅
+		grpcserver.ProviderSet, // gRPC Server
+		gcssigner.ProvideResumableSigner,
 		// grpcclient.ProviderSet, // 暂时不使用, 未来需要调用外部 gRPC 服务时再启用
 		// clients.ProviderSet,    // 暂时不使用, 未来需要调用外部服务时再启用
 		repositories.ProviderSet, // 数据访问层（sqlc）
@@ -56,6 +59,8 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		wire.Bind(new(services.OriginalMediaRepo), new(*repositories.VideoRepository)),
 		wire.Bind(new(services.VideoLookupRepo), new(*repositories.VideoRepository)),
 		wire.Bind(new(services.LifecycleOutboxWriter), new(*repositories.OutboxRepository)),
+		wire.Bind(new(services.UploadRepositoryContract), new(*repositories.UploadRepository)),
+		wire.Bind(new(services.UploadSigner), new(*gcssigner.ResumableSigner)),
 		services.ProviderSet,    // 业务逻辑层
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		outboxtasks.ProvideRunner,

@@ -47,7 +47,7 @@ func TestJWTServer_SkipValidate_OptionalToken(t *testing.T) {
 	}
 
 	srvCfg := configloader.ServerConfig{Address: "127.0.0.1:0"}
-	server := grpcserver.NewGRPCServer(srvCfg, metricsCfg, serverMW, commandHandler, queryHandler, logger)
+	server := grpcserver.NewGRPCServer(srvCfg, metricsCfg, serverMW, commandHandler, queryHandler, nil, logger)
 
 	addr, stop := startKratosServer(t, server)
 	defer stop()

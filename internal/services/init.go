@@ -16,4 +16,5 @@ var ProviderSet = wire.NewSet(
 	NewAIAttributesService,
 	NewVisibilityService,
 	NewLifecycleService,
+	NewUploadService,
 )

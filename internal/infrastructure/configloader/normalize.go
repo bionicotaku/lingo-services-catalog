@@ -23,6 +23,7 @@ func fromProto(b *configpb.Bootstrap) RuntimeConfig {
 		GRPCClient:    grpcClientFromProto(b.GetData().GetGrpcClient()),
 		Observability: observabilityFromProto(b.GetObservability()),
 		Messaging:     messagingFromProto(b.GetMessaging(), b.GetData()),
+		GCS:           gcsFromProto(b.GetGcs()),
 	}
 	return rc
 }
@@ -203,6 +204,18 @@ func messagingFromProto(msg *configpb.Messaging, data *configpb.Data) MessagingC
 	return cfg
 }
 
+func gcsFromProto(cfg *configpb.GCS) GCSConfig {
+	if cfg == nil {
+		return GCSConfig{}
+	}
+	return GCSConfig{
+		ProjectID:            cfg.GetProjectId(),
+		Bucket:               cfg.GetBucket(),
+		SignerServiceAccount: cfg.GetSignerServiceAccount(),
+		SignedURLTTL:         durationOrZero(cfg.GetSignedUrlTtl()),
+	}
+}
+
 func pubsubFromProto(pb *configpb.PubSub) PubSubConfig {
 	if pb == nil {
 		return PubSubConfig{}
@@ -320,5 +333,8 @@ func fillDefaults(cfg *RuntimeConfig) {
 	}
 	if len(cfg.GRPCClient.MetadataKeys) == 0 {
 		cfg.GRPCClient.MetadataKeys = append([]string(nil), cfg.Server.MetadataKeys...)
+	}
+	if cfg.GCS.SignedURLTTL <= 0 {
+		cfg.GCS.SignedURLTTL = 15 * time.Minute
 	}
 }

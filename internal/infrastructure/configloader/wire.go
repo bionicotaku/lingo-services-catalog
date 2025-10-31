@@ -42,6 +42,7 @@ var ProviderSet = wire.NewSet(
 	ProvideEngagementSubscriber,
 	ProvideOutboxConfig,
 	ProvideHandlerTimeouts,
+	ProvideGCSConfig,
 )
 
 // LoadRuntimeConfig 调用 Load 并供 Wire 使用。
@@ -299,6 +300,11 @@ func ProvideOutboxConfig(msg MessagingConfig) outboxcfg.Config {
 		panic(err)
 	}
 	return cfg
+}
+
+// ProvideGCSConfig 暴露 GCS 配置供其他组件使用。
+func ProvideGCSConfig(cfg RuntimeConfig) GCSConfig {
+	return cfg.GCS
 }
 
 func boolPtr(v bool) *bool {

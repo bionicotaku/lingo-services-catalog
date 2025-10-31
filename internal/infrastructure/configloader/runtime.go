@@ -11,6 +11,7 @@ type RuntimeConfig struct {
 	GRPCClient    GRPCClientConfig
 	Observability ObservabilityConfig
 	Messaging     MessagingConfig
+	GCS           GCSConfig
 }
 
 // ServiceInfo 描述服务标识与运行环境。
@@ -127,6 +128,14 @@ type MessagingConfig struct {
 	Topics  map[string]PubSubConfig
 	Outbox  OutboxPublisherConfig
 	Inboxes map[string]InboxConfig
+}
+
+// GCSConfig 描述生成签名 URL 所需的 GCS 信息。
+type GCSConfig struct {
+	ProjectID            string
+	Bucket               string
+	SignerServiceAccount string
+	SignedURLTTL         time.Duration
 }
 
 // PubSubConfig 提供与 GCP Pub/Sub 兼容的设置。

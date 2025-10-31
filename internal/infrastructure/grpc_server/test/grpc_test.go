@@ -105,7 +105,7 @@ func startServer(t *testing.T) (string, func()) {
 	}
 	logger := log.NewStdLogger(io.Discard)
 	metricsCfg := &observability.MetricsConfig{GRPCEnabled: true, GRPCIncludeHealth: false}
-	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, logger)
+	srv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, nil, logger)
 
 	// Force endpoint initialization to retrieve the bound address.
 	endpointURL, err := srv.Endpoint()

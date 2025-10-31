@@ -9,4 +9,5 @@ var ProviderSet = wire.NewSet(
 	NewBaseHandler,
 	NewLifecycleHandler,
 	NewVideoQueryHandler,
+	NewUploadHandler,
 )

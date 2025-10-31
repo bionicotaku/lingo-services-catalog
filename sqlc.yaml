@@ -5,6 +5,7 @@ sql:
     queries:
       - "internal/repositories/sqlc/commands.sql"
       - "internal/repositories/sqlc/queries.sql"
+      - "internal/repositories/sqlc/uploads.sql"
       - "internal/repositories/sqlc/engagement_projection.sql"
       - "internal/repositories/sqlc/engagement_stats.sql"
     engine: postgresql

@@ -99,7 +99,7 @@ func startVideoServer(t *testing.T) (addr string, stop func()) {
 		Address:      "127.0.0.1:0",
 		MetadataKeys: []string{"x-apigateway-api-userinfo", "x-md-", "x-md-idempotency-key", "x-md-if-match", "x-md-if-none-match"},
 	}
-	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, logger)
+	grpcSrv := grpcserver.NewGRPCServer(cfg, metricsCfg, nil, lifecycleHandler, queryHandler, nil, logger)
 
 	endpointURL, err := grpcSrv.Endpoint()
 	if err != nil {

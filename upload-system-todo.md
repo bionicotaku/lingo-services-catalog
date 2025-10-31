@@ -22,53 +22,53 @@
 
 ## 阶段 1 ｜数据层扩展（migrations + sqlc）
 
-- [ ] 创建 `migrations/005_create_catalog_uploads.sql`，字段与约束要求：
+- [x] 创建 `migrations/005_create_catalog_uploads.sql`，字段与约束要求：
   - 基础信息：`video_id uuid primary key`、`user_id uuid not null`、`bucket text not null`、`object_name text not null`（约定 `raw_videos/{user_id}/{video_id}`）。
   - 元数据：`content_type text`、`title text not null`、`description text not null`、`expected_size bigint not null default 0`、`size_bytes bigint not null default 0`。
   - 约束字段：`content_md5 char(32) not null`、`status text check (status in ('uploading','completed','failed')) not null`。
   - 签名 & 校验：`signed_url text`、`signed_url_expires_at timestamptz`、`gcs_generation text`、`gcs_etag text`、`md5_hash text`、`crc32c text`、`error_code text`、`error_message text`。
   - 审计：`created_at timestamptz default now()`、`updated_at timestamptz default now()` + 触发器。
   - 唯一索引：`(user_id, content_md5)` 与 `(bucket, object_name)`。
-- [ ] 若仓库尚无 Inbox 表（按 002 迁移确认），补充 `006_create_catalog_inbox_events.sql` 并在文档说明。
-- [ ] 在 `sqlc/schema/` 新增或更新 `003_catalog_uploads.sql`，与迁移保持一致。
-- [ ] 增加 `sqlc/queries/uploads.sql`，至少包含：`UpsertUpload`、`GetUploadByVideoID`、`GetUploadByUserMd5`、`MarkUploadCompleted`、`MarkUploadFailed`、`ListExpiredUploads`（可选）。
-- [ ] 运行 `sqlc generate` 并确认生成代码无误。
+- [x] 若仓库尚无 Inbox 表（按 002 迁移确认），补充 `006_create_catalog_inbox_events.sql` 并在文档说明。（现有 002 迁移已包含 inbox/outbox 表，确认无需新增）
+- [x] 在 `sqlc/schema/` 新增或更新 `003_catalog_uploads.sql`，与迁移保持一致。
+- [x] 增加 `sqlc/queries/uploads.sql`，至少包含：`UpsertUpload`、`GetUploadByVideoID`、`GetUploadByUserMd5`、`MarkUploadCompleted`、`MarkUploadFailed`、`ListExpiredUploads`（可选）。
+- [x] 运行 `sqlc generate` 并确认生成代码无误。
 - [ ] 本阶段 DoD：迁移可成功执行（`psql -f` 或 `go run ./cmd/migrate`），sqlc 生成无报错。
 
 ---
 
 ## 阶段 2 ｜Proto 契约
 
-- [ ] 更新/新增 `api/video/v1/upload.proto`：
+- [x] 更新/新增 `api/video/v1/upload.proto`：
   - `InitResumableUploadRequest` 仅保留：`size_bytes`、`content_type`、`content_md5_hex`、`duration_seconds`、`title`、`description`（所有字段为必填，添加 buf.validate 约束）。
   - `InitResumableUploadResponse` 仅返回：`video_id`、`resumable_init_url`、`expires_at_unixms`。
-- [ ] 清除旧的 `filename`、`video_id`（请求端）或 `bucket/object_name/already_uploaded` 等字段。
-- [ ] 运行 `buf generate`（或 `make proto`）并确保 gRPC stub 更新。
-- [ ] 更新 `cmd/grpc/wire.go` / `wire_gen.go` 中的服务注册引用（如有 proto 包名或接口变动）。
-- [ ] 本阶段 DoD：`go test ./api/...` 编译通过，生成代码没有遗留冲突。
+- [x] 清除旧的 `filename`、`video_id`（请求端）或 `bucket/object_name/already_uploaded` 等字段。
+- [x] 运行 `buf generate`（或 `make proto`）并确保 gRPC stub 更新。
+- [x] 更新 `cmd/grpc/wire.go` / `wire_gen.go` 中的服务注册引用（如有 proto 包名或接口变动）。
+- [x] 本阶段 DoD：`go test ./api/...` 编译通过，生成代码没有遗留冲突。
 
 ---
 
 ## 阶段 3 ｜配置与基础设施
 
-- [ ] 在 `configs/conf.proto`、`configs/config.yaml` 中加入/确认以下字段：
+- [x] 在 `configs/conf.proto`、`configs/config.yaml` 中加入/确认以下字段：
   - `gcs.project_id`、`gcs.bucket`、`gcs.signer_service_account`、`gcs.signed_url_ttl_seconds`。
   - `pubsub.notification_topic`、`pubsub.subscription_id`、`pubsub.receive.*`。
-- [ ] 新建 `internal/infrastructure/gcs/signer.go`（若已存在则扩展）：提供 `SignedResumableInitURL(ctx, bucket, objectName, contentType, ttl)`，签名 headers 包含 `x-goog-resumable:start`、`x-upload-content-type`、`x-goog-if-generation-match:0`。
-- [ ] 在 Wire 图中注入 signer，并在服务启动/任务启动入口加载配置。
+- [x] 新建 `internal/infrastructure/gcs/signer.go`（若已存在则扩展）：提供 `SignedResumableInitURL(ctx, bucket, objectName, contentType, ttl)`，签名 headers 包含 `x-goog-resumable:start`、`x-upload-content-type`、`x-goog-if-generation-match:0`。
+- [x] 在 Wire 图中注入 signer，并在服务启动/任务启动入口加载配置。
 - [ ] 本阶段 DoD：手动调用 signer 返回的 URL 可成功发起 Resumable 会话并得到 Session URI（可用 curl 验证）。
 
 ---
 
 ## 阶段 4 ｜仓储与服务层实现
 
-- [ ] 新增 `internal/repositories/upload_repository.go`：封装 sqlc 生成的查询，提供接口：
+- [x] 新增 `internal/repositories/upload_repository.go`：封装 sqlc 生成的查询，提供接口：
   - `Upsert(ctx, params) (UploadRecord, created bool, error)`。
   - `GetByVideoID(ctx, videoID)`、`GetByUserMd5(ctx, userID, md5)`。
   - `MarkCompleted(ctx, params)`（写入 size/hash/generation 等）。
   - `MarkFailed(ctx, params)`（写入错误码/信息）。
   - 可选：`ListExpired(ctx, now)` 用于后续 Reaper。
-- [ ] 新增 `internal/services/upload_service.go`（或并入 LifecycleService 子模块）：
+- [x] 新增 `internal/services/upload_service.go`（或并入 LifecycleService 子模块）：
   - 校验 metadata 中的 `user_id`、白名单 `content_type`、`duration_seconds <= 300`、`size_bytes` 上限。
   - 始终生成新的 `video_id`；`object_name = fmt.Sprintf("raw_videos/%s/%s", userID, videoID)`。
   - 调用 `Upsert`：若 `created==false && status=='uploading'` → 覆盖最新元数据并返回原签名；若 `status=='completed'` → 返回业务错误（重复资源）。
@@ -80,10 +80,10 @@
 
 ## 阶段 5 ｜接口适配（Controller / Wire）
 
-- [ ] 新增 `internal/controllers/upload_handler.go`（或命名为 `upload_grpc.go`）：
+- [x] 新增 `internal/controllers/upload_handler.go`（或命名为 `upload_grpc.go`）：
   - 从 context metadata 解析 user id，调用 Service，按统一错误规范返回 Problem Details。
   - 将业务错误（重复资源等）映射为 `FailedPrecondition` 或 `AlreadyExists`。
-- [ ] 更新 `internal/controllers/init.go`、`cmd/grpc/main.go`、`cmd/grpc/wire.go`/`wire_gen.go`，确保 UploadService 完成注册。
+- [x] 更新 `internal/controllers/init.go`、`cmd/grpc/main.go`、`cmd/grpc/wire.go`/`wire_gen.go`，确保 UploadService 完成注册。
 - [ ] 为 handler 编写最小单元测试（metadata 缺失、校验失败、成功路径）。
 
 ---
