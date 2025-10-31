@@ -124,12 +124,12 @@
 
 ## 阶段 9 ｜端到端演练与回归
 
-- [ ] 编写或更新端到端脚本：模拟客户端计算 MD5 → 调 Init → 使用 Session URI 上传（可用本地文件/假文件）→ 假触发回调。
-- [ ] 验证并发 10 次 Init：仅 1 条 uploads 记录，自增字段正确。
-- [ ] 验证会话过期：模拟签名过期后重新 Init，旧 Session URI 上传成功被 412 拒绝。
-- [ ] 验证回调重复：同一消息投递 3 次仅第一次生效。
-- [ ] 验证 MD5 不一致：构造错误 MD5，Runner 将记录标记为 failed 并写 error_code。
-- [ ] 重新执行 `make lint && go test ./...`，确认无回归；记录输出供交付复核。
+- [x] 编写或更新端到端脚本：新增 `go test ./test -run TestUploadEndToEnd`，覆盖“计算 MD5 → InitResumableUpload → 本地 Resumable 会话 → 模拟 OBJECT_FINALIZE”全流程。
+- [x] 验证并发 10 次 Init：仅 1 条 uploads 记录，自增字段正确（`TestUploadEndToEnd_ConcurrentInitSingleRow`）。
+- [x] 验证会话过期：模拟签名过期后重新 Init，旧 Session URI 上传成功被 412 拒绝（`TestUploadEndToEnd_SessionExpiryRenewsSignedURL`）。
+- [x] 验证回调重复：同一消息投递 3 次仅第一次生效（`TestUploadEndToEnd_DuplicateFinalizeIdempotent`）。
+- [x] 验证 MD5 不一致：构造错误 MD5，Runner 将记录标记为 failed 并写 error_code（`TestUploadEndToEnd_MD5MismatchMarksFailed`）。
+- [x] 重新执行 `make lint && go test ./...`，确认无回归；记录输出供交付复核。
 
 ---
 

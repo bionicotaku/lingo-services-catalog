@@ -11,6 +11,7 @@ import (
 
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -169,6 +170,100 @@ func TestUploadServiceIntegration_ConcurrentInitSingleSession(t *testing.T) {
 	finalSession, err := repo.GetByVideoID(ctx, nil, first.Session.VideoID)
 	require.NoError(t, err)
 	require.NotNil(t, finalSession.SignedURL)
+}
+
+func TestUploadServiceIntegration_DifferentUsersSameMD5(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dsn, terminate := startPostgres(ctx, t)
+	defer terminate()
+
+	pool, err := pgxpool.New(ctx, dsn)
+	require.NoError(t, err)
+	t.Cleanup(func() { pool.Close() })
+
+	applyAllMigrations(ctx, t, pool)
+
+	repo := repositories.NewUploadRepository(pool, log.NewStdLogger(io.Discard))
+	signer := &spySigner{url: "https://signed.example", expires: time.Now().Add(10 * time.Minute).UTC()}
+	svc, err := services.NewUploadService(repo, signer, "catalog-media", 10*time.Minute, log.NewStdLogger(io.Discard))
+	require.NoError(t, err)
+
+	md5Hex := strings.Repeat("c", 32)
+
+	input := services.InitResumableUploadInput{
+		SizeBytes:       2048,
+		ContentType:     "video/mp4",
+		ContentMD5Hex:   md5Hex,
+		DurationSeconds: 45,
+		Title:           "Upload",
+		Description:     "Same MD5",
+	}
+
+	input.UserID = uuid.New()
+	resA, err := svc.InitResumableUpload(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, resA)
+
+	input.UserID = uuid.New()
+	resB, err := svc.InitResumableUpload(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, resB)
+
+	require.NotEqual(t, resA.Session.VideoID, resB.Session.VideoID)
+
+	var count int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from catalog.uploads`).Scan(&count))
+	require.Equal(t, 2, count)
+}
+
+func TestUploadServiceIntegration_CompletedSessionConflicts(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dsn, terminate := startPostgres(ctx, t)
+	defer terminate()
+
+	pool, err := pgxpool.New(ctx, dsn)
+	require.NoError(t, err)
+	t.Cleanup(func() { pool.Close() })
+
+	applyAllMigrations(ctx, t, pool)
+
+	repo := repositories.NewUploadRepository(pool, log.NewStdLogger(io.Discard))
+	signer := &spySigner{url: "https://signed.example", expires: time.Now().Add(10 * time.Minute).UTC()}
+	svc, err := services.NewUploadService(repo, signer, "catalog-media", 10*time.Minute, log.NewStdLogger(io.Discard))
+	require.NoError(t, err)
+
+	userID := uuid.New()
+	md5Hex := strings.Repeat("d", 32)
+	input := services.InitResumableUploadInput{
+		UserID:          userID,
+		SizeBytes:       1024,
+		ContentType:     "video/mp4",
+		ContentMD5Hex:   md5Hex,
+		DurationSeconds: 30,
+		Title:           "Complete",
+		Description:     "Mark completed",
+	}
+
+	first, err := svc.InitResumableUpload(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, first)
+
+	_, err = repo.MarkCompleted(ctx, nil, repositories.MarkUploadCompletedInput{
+		VideoID:   first.Session.VideoID,
+		SizeBytes: 1024,
+		MD5Hash:   &md5Hex,
+	})
+	require.NoError(t, err)
+
+	_, err = svc.InitResumableUpload(ctx, input)
+	require.Error(t, err)
+	kerr := kerrors.FromError(err)
+	require.NotNil(t, kerr)
+	require.Equal(t, "ERROR_REASON_UPLOAD_ALREADY_COMPLETED", kerr.Reason)
 }
 
 type spySigner struct {

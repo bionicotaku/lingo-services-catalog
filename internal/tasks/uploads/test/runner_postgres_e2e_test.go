@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,6 +344,169 @@ func TestUploadsRunner_MD5MismatchMarksFailed(t *testing.T) {
 
 	events := countVideoCreatedEvents(ctx, t, pool, videoID)
 	require.EqualValues(t, 0, events)
+}
+
+func TestUploadsRunner_FinalizeForUnknownObjectIgnored(t *testing.T) {
+	env := newUploadsRunnerEnv(t)
+	defer env.Shutdown()
+
+	ctx := env.ctx
+	pool := env.pool
+	publisher := env.publisher
+
+	payload := map[string]any{
+		"bucket":      "media-test",
+		"name":        "raw_videos/unknown/unknown",
+		"generation":  "42",
+		"size":        "1024",
+		"contentType": "video/mp4",
+		"md5Hash":     "d41d8cd98f00b204e9800998ecf8427e",
+		"crc32c":      "AAAAAA==",
+		"etag":        "etag-unknown",
+	}
+
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	attrs := map[string]string{
+		"event_type":       "OBJECT_FINALIZE",
+		"event_id":         fmt.Sprintf("%s/%s#%s", payload["bucket"], payload["name"], payload["generation"]),
+		"bucketId":         payload["bucket"].(string),
+		"objectId":         payload["name"].(string),
+		"objectGeneration": payload["generation"].(string),
+		"aggregate_type":   "upload",
+		"aggregate_id":     uuid.NewString(),
+		"schema_version":   "v1",
+	}
+
+	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: data, Attributes: attrs})
+	require.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+
+	var uploadsCount int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from catalog.uploads`).Scan(&uploadsCount))
+	require.Equal(t, 0, uploadsCount)
+
+	var videosCount int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from catalog.videos`).Scan(&videosCount))
+	require.Equal(t, 0, videosCount)
+
+	var eventsCount int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from catalog.outbox_events`).Scan(&eventsCount))
+	require.Equal(t, 0, eventsCount)
+}
+
+func TestUploadsRunner_ReprocessAfterFailure(t *testing.T) {
+	env := newUploadsRunnerEnv(t)
+	defer env.Shutdown()
+
+	ctx := env.ctx
+	pool := env.pool
+	publisher := env.publisher
+
+	userID := uuid.New()
+	videoID := uuid.New()
+	bucket := "media-test"
+	objectName := fmt.Sprintf("raw_videos/%s/%s", userID.String(), videoID.String())
+	contentType := "video/mp4"
+	expectedSize := int64(5 * 1024 * 1024)
+
+	_, err := pool.Exec(ctx, `insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing`, userID, "reprocess@test.local")
+	require.NoError(t, err)
+
+	md5Hex := "d41d8cd98f00b204e9800998ecf8427e"
+	md5Base64 := "1B2M2Y8AsgTpgAmY7PhCfg=="
+	now := time.Now().UTC()
+
+	_, err = pool.Exec(ctx, `
+        insert into catalog.uploads (
+            video_id,
+            user_id,
+            bucket,
+            object_name,
+            content_type,
+            expected_size,
+            size_bytes,
+            content_md5,
+            title,
+            description,
+            signed_url,
+            signed_url_expires_at,
+            status,
+            created_at,
+            updated_at
+        ) values (
+            $1,$2,$3,$4,$5,$6,0,$7,'Reprocess','First attempt','https://signed.example',$8,'uploading',$9,$9
+        )
+    `, videoID, userID, bucket, objectName, contentType, expectedSize, md5Hex, now.Add(10*time.Minute), now)
+	require.NoError(t, err)
+
+	badPayload := map[string]any{
+		"bucket":      bucket,
+		"name":        objectName,
+		"generation":  "10",
+		"size":        fmt.Sprintf("%d", expectedSize),
+		"contentType": contentType,
+		"md5Hash":     "AAAAAAAAAAAAAAAAAAAAAA==",
+		"crc32c":      "AAAAAA==",
+		"etag":        "etag-bad",
+	}
+
+	data, err := json.Marshal(badPayload)
+	require.NoError(t, err)
+
+	attrs := map[string]string{
+		"event_type":       "OBJECT_FINALIZE",
+		"event_id":         fmt.Sprintf("%s/%s#%s", bucket, objectName, "10"),
+		"bucketId":         bucket,
+		"objectId":         objectName,
+		"objectGeneration": "10",
+		"aggregate_type":   "upload",
+		"aggregate_id":     videoID.String(),
+		"schema_version":   "v1",
+	}
+
+	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: data, Attributes: attrs})
+	require.NoError(t, err)
+
+	failed := waitForUploadSession(ctx, t, pool, videoID, 10*time.Second, func(row uploadSessionRow) bool {
+		return row.Status == "failed" && strings.EqualFold(row.ErrorCode, "MD5_MISMATCH")
+	})
+	require.NotNil(t, failed)
+
+	goodPayload := map[string]any{
+		"bucket":      bucket,
+		"name":        objectName,
+		"generation":  "11",
+		"size":        fmt.Sprintf("%d", expectedSize),
+		"contentType": contentType,
+		"md5Hash":     md5Base64,
+		"crc32c":      "AAAAAA==",
+		"etag":        "etag-good",
+	}
+
+	data, err = json.Marshal(goodPayload)
+	require.NoError(t, err)
+
+	attrs["event_id"] = fmt.Sprintf("%s/%s#%s", bucket, objectName, "11")
+	attrs["objectGeneration"] = "11"
+
+	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: data, Attributes: attrs})
+	require.NoError(t, err)
+
+	completed := waitForUploadSession(ctx, t, pool, videoID, 15*time.Second, func(row uploadSessionRow) bool {
+		return row.Status == "completed" && row.MD5Hex == md5Hex && row.ErrorCode == ""
+	})
+	require.NotNil(t, completed)
+
+	video := waitForVideoRecord(ctx, t, pool, videoID, 15*time.Second, func(row videoRecord) bool {
+		return strings.HasPrefix(row.RawFileReference, "gs://"+bucket+"/")
+	})
+	require.NotNil(t, video)
+
+	events := countVideoCreatedEvents(ctx, t, pool, videoID)
+	require.EqualValues(t, 1, events)
 }
 
 type uploadSessionRow struct {
