@@ -15,6 +15,7 @@ import (
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 
 	"github.com/bionicotaku/lingo-utils/txmanager"
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
@@ -94,6 +95,36 @@ func TestUploadHandler_MissingUserMetadata(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestUploadHandler_AlreadyCompletedError(t *testing.T) {
+	userID := uuid.New()
+	repo := &handlerRepoStub{
+		existing: &po.UploadSession{
+			VideoID: uuid.New(),
+			UserID:  userID,
+			Status:  po.UploadStatusCompleted,
+		},
+	}
+	signer := handlerSignerStub{url: "https://signed", exp: time.Now().Add(5 * time.Minute)}
+	svc := newUploadServiceForHandler(t, repo, signer)
+	handler := controllers.NewUploadHandler(controllers.NewBaseHandler(controllers.HandlerTimeouts{}), svc)
+
+	ctx := incomingContextWithUser(t, userID)
+	_, err := handler.InitResumableUpload(ctx, &videov1.InitResumableUploadRequest{
+		SizeBytes:       1024,
+		ContentType:     "video/mp4",
+		ContentMd5Hex:   strings.Repeat("c", 32),
+		DurationSeconds: 45,
+		Title:           "Blocked",
+		Description:     "Duplicate upload",
+	})
+	if err == nil {
+		t.Fatal("expected conflict error")
+	}
+	if ke := kerrors.FromError(err); ke == nil || ke.Reason != videov1.ErrorReason_ERROR_REASON_UPLOAD_ALREADY_COMPLETED.String() {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

@@ -102,14 +102,13 @@
 
 ## 阶段 7 ｜测试矩阵
 
-- [ ] 单元测试：
-  - Service 层：覆盖输入校验、复用逻辑、重复资源拒绝、签名刷新异常。
-  - Repository 层：使用 testcontainers/Postgres 验证 Upsert/Completed/Failed 行为及约束。
-- [ ] 集成测试：
-  - `InitResumableUpload` → Mock signer 返回固定 URL，验证响应及仓储记录。
-  - `OBJECT_FINALIZE` → 使用 pstest + testcontainers 模拟消息，验证 uploads → videos → outbox 全链路（包括重复消息、MD5 mismatch）。
-  - 并发场景：多 goroutine 同时调用 Init，确保只生成一个 video_id。
-- [ ] CI 覆盖：`make lint`、`go test ./...`、`buf lint`、`sqlc generate`（若集成在 make 目标）。
+- [x] 单元测试：
+  - Service 层：新增 `internal/services/test/upload_service_test.go` 用例覆盖签名复用、过期刷新、Signer 失败等分支。
+  - Repository 层：在 `internal/repositories/test/upload_repository_integration_test.go` 通过 testcontainers 验证 Upsert/Completed/Failed/Expired 列表逻辑。
+- [x] 集成测试：
+  - `internal/services/test/upload_service_integration_test.go` 验证 Init → 会话复用/过期刷新与并发幂等。
+  - `internal/tasks/uploads/test/runner_postgres_e2e_test.go` 增补 MD5 mismatch 分支，确保 uploads → videos/outbox 行为符合设计。
+- [x] CI 覆盖：执行 `make lint`（含 go vet/staticcheck/revive/buf lint）与 `go test ./...`。
 
 ---
 

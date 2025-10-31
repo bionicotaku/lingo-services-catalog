@@ -159,6 +159,7 @@ func (e *uploadsRunnerEnv) Shutdown() {
 		e.cleanup()
 	}
 }
+
 func TestUploadsRunner_ObjectFinalizeCreatesVideo(t *testing.T) {
 	env := newUploadsRunnerEnv(t)
 	defer env.Shutdown()
@@ -262,12 +263,96 @@ func TestUploadsRunner_ObjectFinalizeCreatesVideo(t *testing.T) {
 	require.EqualValues(t, 1, eventsAfter)
 }
 
+func TestUploadsRunner_MD5MismatchMarksFailed(t *testing.T) {
+	env := newUploadsRunnerEnv(t)
+	defer env.Shutdown()
+
+	ctx := env.ctx
+	pool := env.pool
+	publisher := env.publisher
+
+	userID := uuid.New()
+	videoID := uuid.New()
+	bucket := "media-test"
+	objectName := fmt.Sprintf("raw_videos/%s/%s", userID.String(), videoID.String())
+	contentType := "video/mp4"
+	expectedSize := int64(2 * 1024 * 1024)
+
+	_, err := pool.Exec(ctx, `
+        insert into catalog.uploads (
+            video_id,
+            user_id,
+            bucket,
+            object_name,
+            content_type,
+            expected_size,
+            size_bytes,
+            content_md5,
+            title,
+            description,
+            signed_url,
+            signed_url_expires_at,
+            status,
+            created_at,
+            updated_at
+        ) values (
+            $1,$2,$3,$4,$5,$6,0,$7,'Runner Test','MD5 mismatch','https://signed.example',$8,'uploading',$9,$9
+        )
+    `, videoID, userID, bucket, objectName, contentType, expectedSize, "d41d8cd98f00b204e9800998ecf8427e", time.Now().Add(5*time.Minute), time.Now())
+	require.NoError(t, err)
+
+	payload := map[string]any{
+		"bucket":      bucket,
+		"name":        objectName,
+		"generation":  "3",
+		"size":        fmt.Sprintf("%d", expectedSize),
+		"contentType": contentType,
+		"md5Hash":     "XUFAKrxLKna5cZ2REBfFkg==", // md5("hello")
+		"crc32c":      "AAAAAA==",
+		"etag":        "etag-mismatch",
+	}
+
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	attrs := map[string]string{
+		"event_type":       "OBJECT_FINALIZE",
+		"event_id":         fmt.Sprintf("%s/%s#3", bucket, objectName),
+		"bucketId":         bucket,
+		"objectId":         objectName,
+		"objectGeneration": "3",
+		"aggregate_type":   "upload",
+		"aggregate_id":     videoID.String(),
+		"schema_version":   "v1",
+	}
+
+	_, err = publisher.Publish(ctx, gcpubsub.Message{Data: data, Attributes: attrs})
+	require.NoError(t, err)
+
+	upload := waitForUploadSession(ctx, t, pool, videoID, 10*time.Second, func(row uploadSessionRow) bool {
+		return row.Status == "failed" && row.ErrorCode == "MD5_MISMATCH"
+	})
+	require.NotNil(t, upload)
+	require.Equal(t, "MD5_MISMATCH", upload.ErrorCode)
+	require.Equal(t, "", upload.MD5Hex)
+
+	var videoCount int
+	err = pool.QueryRow(ctx, `select count(*) from catalog.videos where video_id = $1`, videoID).Scan(&videoCount)
+	require.NoError(t, err)
+	require.Equal(t, 0, videoCount)
+
+	events := countVideoCreatedEvents(ctx, t, pool, videoID)
+	require.EqualValues(t, 0, events)
+}
+
 type uploadSessionRow struct {
 	Status      string
 	SizeBytes   int64
 	MD5Hex      string
 	Generation  string
 	ContentType string
+	ErrorCode   string
+	ErrorMsg    string
 }
 
 type videoRecord struct {
@@ -279,13 +364,15 @@ func waitForUploadSession(ctx context.Context, t *testing.T, pool *pgxpool.Pool,
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		row := pool.QueryRow(ctx, `select status, size_bytes, md5_hash, gcs_generation, content_type from catalog.uploads where video_id = $1`, videoID)
+		row := pool.QueryRow(ctx, `select status, size_bytes, md5_hash, gcs_generation, content_type, error_code, error_message from catalog.uploads where video_id = $1`, videoID)
 		var status string
 		var size int64
 		var md5 pgtype.Text
 		var generation pgtype.Text
 		var contentType pgtype.Text
-		err := row.Scan(&status, &size, &md5, &generation, &contentType)
+		var errorCode pgtype.Text
+		var errorMessage pgtype.Text
+		err := row.Scan(&status, &size, &md5, &generation, &contentType, &errorCode, &errorMessage)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				time.Sleep(50 * time.Millisecond)
@@ -299,6 +386,8 @@ func waitForUploadSession(ctx context.Context, t *testing.T, pool *pgxpool.Pool,
 			MD5Hex:      md5.String,
 			Generation:  generation.String,
 			ContentType: contentType.String,
+			ErrorCode:   errorCode.String,
+			ErrorMsg:    errorMessage.String,
 		}
 		if predicate == nil || predicate(item) {
 			return &item
