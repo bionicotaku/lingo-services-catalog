@@ -94,9 +94,9 @@
   - Decoder：仅处理 `eventType == OBJECT_FINALIZE`，解析 message attributes/data。
   - Handler：在事务内执行 Inbox 去重 → 校验 md5 → 更新 uploads → 创建/更新 videos → 写 outbox → 标记 inbox processed。
   - 保证幂等：重复 generation / 已完成上传不再重复写主表。
-- [ ] 新增 `cmd/tasks/uploads/main.go`，注入 Pub/Sub subscriber、logger、metrics、handler。（暂缓：当前按指示与 gRPC 主进程共存，后续再拆分独立 CLI）
+- [x] 新增 `cmd/tasks/uploads/main.go`，注入 Pub/Sub subscriber、logger、metrics、handler。（已完成：现阶段仍与 gRPC 主进程共存，后续如需拆分再调整）
 - [x] 在 Wire 中绑定 Runner，复用现有 Outbox/Inbox 基础设施（2025-10-31：完成，runner 随 `cmd/grpc` 启动）。
-- [ ] 本阶段 DoD：本地启动 Runner（可指向 pstest 或真实 Pub/Sub），能消费模拟消息并更新数据库。
+- [x] 本阶段 DoD：本地启动 Runner（可指向 pstest 或真实 Pub/Sub），能消费模拟消息并更新数据库（2025-10-31：新增 `internal/tasks/uploads/test/runner_postgres_e2e_test.go` 覆盖 OBJECT_FINALIZE 正向 + 幂等场景）。
 
 ---
 
