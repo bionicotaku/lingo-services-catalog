@@ -27,8 +27,8 @@ import (
 
 type videoRepoStub struct{}
 
-func (videoRepoStub) Create(context.Context, txmanager.Session, repositories.CreateVideoInput) (*po.Video, error) {
-	return nil, repositories.ErrVideoNotFound
+func (videoRepoStub) Create(context.Context, txmanager.Session, repositories.CreateVideoInput) (*po.Video, bool, error) {
+	return nil, false, repositories.ErrVideoNotFound
 }
 
 func (videoRepoStub) Update(context.Context, txmanager.Session, repositories.UpdateVideoInput) (*po.Video, error) {

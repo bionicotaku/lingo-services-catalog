@@ -23,6 +23,19 @@ func BuildCreateVideoParams(uploadUserID uuid.UUID, title, rawFileReference stri
 	}
 }
 
+// BuildCreateVideoWithIDParams 构造显式指定 video_id 的插入参数。
+func BuildCreateVideoWithIDParams(videoID uuid.UUID, uploadUserID uuid.UUID, title, rawFileReference string, description, visibilityStatus *string, publishAt *time.Time) catalogsql.CreateVideoWithIDParams {
+	return catalogsql.CreateVideoWithIDParams{
+		VideoID:          videoID,
+		UploadUserID:     uploadUserID,
+		Title:            title,
+		RawFileReference: rawFileReference,
+		Description:      textFromPtr(description),
+		VisibilityStatus: ToPgText(visibilityStatus),
+		PublishAt:        ToPgTimestamptz(publishAt),
+	}
+}
+
 // BuildUpdateVideoParams 将更新输入转换为 sqlc UpdateVideoParams。
 func BuildUpdateVideoParams(
 	videoID uuid.UUID,

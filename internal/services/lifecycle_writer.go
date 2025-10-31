@@ -20,7 +20,7 @@ import (
 
 // LifecycleRepo 定义生命周期写入所需的持久化能力。
 type LifecycleRepo interface {
-	Create(ctx context.Context, sess txmanager.Session, input repositories.CreateVideoInput) (*po.Video, error)
+	Create(ctx context.Context, sess txmanager.Session, input repositories.CreateVideoInput) (*po.Video, bool, error)
 	Update(ctx context.Context, sess txmanager.Session, input repositories.UpdateVideoInput) (*po.Video, error)
 }
 
@@ -53,10 +53,13 @@ type operationMetadata struct {
 
 // CreateVideoInput 表示创建视频的输入。
 type CreateVideoInput struct {
+	VideoID          uuid.UUID
 	UploadUserID     uuid.UUID
 	Title            string
 	Description      *string
 	RawFileReference string
+	VisibilityStatus *string
+	PublishAt        *time.Time
 	IdempotencyKey   string
 }
 
@@ -123,11 +126,14 @@ func (w *LifecycleWriter) CreateVideo(ctx context.Context, input CreateVideoInpu
 	)
 
 	err := w.txManager.WithinTx(ctx, txmanager.TxOptions{}, func(txCtx context.Context, sess txmanager.Session) error {
-		video, repoErr := w.repo.Create(txCtx, sess, repositories.CreateVideoInput{
+		video, inserted, repoErr := w.repo.Create(txCtx, sess, repositories.CreateVideoInput{
+			VideoID:          input.VideoID,
 			UploadUserID:     input.UploadUserID,
 			Title:            input.Title,
 			Description:      input.Description,
 			RawFileReference: input.RawFileReference,
+			VisibilityStatus: input.VisibilityStatus,
+			PublishAt:        input.PublishAt,
 		})
 		if repoErr != nil {
 			return repoErr
@@ -137,17 +143,19 @@ func (w *LifecycleWriter) CreateVideo(ctx context.Context, input CreateVideoInpu
 		if occurredAt.IsZero() {
 			occurredAt = time.Now().UTC()
 		}
-		evtID := uuid.New()
-		evt, buildErr := outboxevents.NewVideoCreatedEvent(video, evtID, occurredAt)
-		if buildErr != nil {
-			return fmt.Errorf("build video created event: %w", buildErr)
-		}
-		if err := w.enqueueOutbox(txCtx, sess, evt, occurredAt, meta); err != nil {
-			return err
+		if inserted {
+			evtID := uuid.New()
+			evt, buildErr := outboxevents.NewVideoCreatedEvent(video, evtID, occurredAt)
+			if buildErr != nil {
+				return fmt.Errorf("build video created event: %w", buildErr)
+			}
+			if err := w.enqueueOutbox(txCtx, sess, evt, occurredAt, meta); err != nil {
+				return err
+			}
+			event = evt
 		}
 
 		created = video
-		event = evt
 		return nil
 	})
 	if err != nil {
@@ -159,7 +167,11 @@ func (w *LifecycleWriter) CreateVideo(ctx context.Context, input CreateVideoInpu
 		return nil, errors.InternalServer(videov1.ErrorReason_ERROR_REASON_QUERY_VIDEO_FAILED.String(), "failed to create video").WithCause(fmt.Errorf("create video: %w", err))
 	}
 
-	w.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s", created.VideoID, input.Title)
+	if event == nil {
+		w.log.WithContext(ctx).Infof("CreateVideo: video already exists video_id=%s", created.VideoID)
+	} else {
+		w.log.WithContext(ctx).Infof("CreateVideo: video_id=%s title=%s", created.VideoID, input.Title)
+	}
 	return NewVideoRevision(created, event, occurredAt), nil
 }
 

@@ -1,19 +1,21 @@
 package configloader
 
 import (
-	"context"
+    "context"
+    "fmt"
 
-	"github.com/bionicotaku/lingo-utils/gcjwt"
-	"github.com/bionicotaku/lingo-utils/gclog"
-	"github.com/bionicotaku/lingo-utils/gcpubsub"
-	obswire "github.com/bionicotaku/lingo-utils/observability"
-	outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
-	"github.com/bionicotaku/lingo-utils/pgxpoolx"
-	txconfig "github.com/bionicotaku/lingo-utils/txmanager"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/wire"
+    "github.com/bionicotaku/lingo-utils/gcjwt"
+    "github.com/bionicotaku/lingo-utils/gclog"
+    "github.com/bionicotaku/lingo-utils/gcpubsub"
+    obswire "github.com/bionicotaku/lingo-utils/observability"
+    outboxcfg "github.com/bionicotaku/lingo-utils/outbox/config"
+    "github.com/bionicotaku/lingo-utils/pgxpoolx"
+    txconfig "github.com/bionicotaku/lingo-utils/txmanager"
+    "github.com/go-kratos/kratos/v2/log"
+    "github.com/google/uuid"
+    "github.com/google/wire"
 
-	"github.com/bionicotaku/lingo-services-catalog/internal/controllers"
+    "github.com/bionicotaku/lingo-services-catalog/internal/controllers"
 )
 
 // EngagementPubSubConfig 包装 engagement 订阅所需的 gcpubsub.Config，避免与主 Pub/Sub 冲突。
@@ -21,6 +23,12 @@ type EngagementPubSubConfig gcpubsub.Config
 
 // EngagementSubscriber 标签化 engagement 订阅者实例，避免与主订阅者冲突。
 type EngagementSubscriber gcpubsub.Subscriber
+
+// UploadPubSubConfig 包装 GCS 上传订阅配置。
+type UploadPubSubConfig gcpubsub.Config
+
+// UploadSubscriber 标签化上传回调订阅者。
+type UploadSubscriber gcpubsub.Subscriber
 
 // ProviderSet 暴露配置加载相关的依赖注入入口。
 var ProviderSet = wire.NewSet(
@@ -38,8 +46,10 @@ var ProviderSet = wire.NewSet(
 	ProvideMessagingConfig,
 	ProvidePubSubConfig,
 	ProvideEngagementConfig,
+	ProvideUploadConfig,
 	ProvidePubSubDependencies,
 	ProvideEngagementSubscriber,
+	ProvideUploadSubscriber,
 	ProvideOutboxConfig,
 	ProvideHandlerTimeouts,
 	ProvideGCSConfig,
@@ -226,6 +236,15 @@ func ProvideEngagementConfig(msg MessagingConfig) EngagementPubSubConfig {
 	return EngagementPubSubConfig(toGCPubSubConfig(cfg))
 }
 
+// ProvideUploadConfig 返回 Upload Runner 使用的 Pub/Sub 配置。
+func ProvideUploadConfig(msg MessagingConfig) UploadPubSubConfig {
+	cfg, ok := selectTopic(msg, "uploads")
+	if !ok {
+		return UploadPubSubConfig(gcpubsub.Config{})
+	}
+	return UploadPubSubConfig(toGCPubSubConfig(cfg))
+}
+
 func toGCPubSubConfig(cfg PubSubConfig) gcpubsub.Config {
 	if cfg.ProjectID == "" {
 		return gcpubsub.Config{}
@@ -269,6 +288,20 @@ func ProvideEngagementSubscriber(ctx context.Context, cfg EngagementPubSubConfig
 	return EngagementSubscriber(gcpubsub.ProvideSubscriber(comp)), cleanup, nil
 }
 
+// ProvideUploadSubscriber 构造上传回调订阅者，并补充所需的事件属性。
+func ProvideUploadSubscriber(ctx context.Context, cfg UploadPubSubConfig, deps gcpubsub.Dependencies) (UploadSubscriber, func(), error) {
+	base := gcpubsub.Config(cfg)
+	if base.ProjectID == "" || base.SubscriptionID == "" {
+		return UploadSubscriber(nil), func() {}, nil
+	}
+	comp, cleanup, err := gcpubsub.NewComponent(ctx, base, deps)
+	if err != nil {
+		return UploadSubscriber(nil), cleanup, err
+	}
+	inner := gcpubsub.ProvideSubscriber(comp)
+	return UploadSubscriber(uploadSubscriberAdapter{inner: inner}), cleanup, nil
+}
+
 // ProvideOutboxConfig 构造 outboxcfg.Config。
 func ProvideOutboxConfig(msg MessagingConfig) outboxcfg.Config {
 	cfg := outboxcfg.Config{
@@ -305,6 +338,57 @@ func ProvideOutboxConfig(msg MessagingConfig) outboxcfg.Config {
 // ProvideGCSConfig 暴露 GCS 配置供其他组件使用。
 func ProvideGCSConfig(cfg RuntimeConfig) GCSConfig {
 	return cfg.GCS
+}
+
+const defaultUploadEventType = "OBJECT_FINALIZE"
+
+type uploadSubscriberAdapter struct {
+	inner gcpubsub.Subscriber
+}
+
+func (a uploadSubscriberAdapter) Receive(ctx context.Context, handler func(context.Context, *gcpubsub.Message) error) error {
+	if a.inner == nil {
+		return nil
+	}
+	return a.inner.Receive(ctx, func(c context.Context, msg *gcpubsub.Message) error {
+		ensureUploadAttributes(msg)
+		return handler(c, msg)
+	})
+}
+
+func (a uploadSubscriberAdapter) Stop() {
+	if a.inner != nil {
+		a.inner.Stop()
+	}
+}
+
+func ensureUploadAttributes(msg *gcpubsub.Message) {
+	if msg == nil {
+		return
+	}
+	if msg.Attributes == nil {
+		msg.Attributes = make(map[string]string)
+	}
+	attrs := msg.Attributes
+	if _, ok := attrs["event_type"]; !ok {
+		if eventType := attrs["eventType"]; eventType != "" {
+			attrs["event_type"] = eventType
+		} else {
+			attrs["event_type"] = defaultUploadEventType
+		}
+	}
+	if _, ok := attrs["event_id"]; !ok {
+		bucket := attrs["bucketId"]
+		object := attrs["objectId"]
+		generation := attrs["objectGeneration"]
+		if bucket != "" && object != "" && generation != "" {
+			attrs["event_id"] = fmt.Sprintf("%s/%s#%s", bucket, object, generation)
+		} else if msg.ID != "" {
+			attrs["event_id"] = msg.ID
+		} else {
+			attrs["event_id"] = uuid.NewString()
+		}
+	}
 }
 
 func boolPtr(v bool) *bool {

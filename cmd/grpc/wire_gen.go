@@ -16,6 +16,7 @@ import (
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/outbox"
+	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/uploads"
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
 	"github.com/bionicotaku/lingo-utils/gcpubsub"
@@ -165,8 +166,22 @@ func wireApp(contextContext context.Context, params configloader.Params) (*krato
 		return nil, nil, err
 	}
 	engagementRunner := engagement.ProvideRunner(videoUserStatesRepository, videoEngagementStatsRepository, inboxRepository, manager, engagementSubscriber, configConfig, logger)
-	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, engagementRunner)
+	uploadPubSubConfig := configloader.ProvideUploadConfig(messagingConfig)
+	uploadSubscriber, cleanup8, err := configloader.ProvideUploadSubscriber(contextContext, uploadPubSubConfig, dependencies)
+	if err != nil {
+		cleanup7()
+		cleanup6()
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	uploadsRunner := uploads.ProvideRunner(uploadRepository, inboxRepository, lifecycleWriter, manager, uploadSubscriber, configConfig, logger)
+	app := newApp(observabilityComponent, logger, server, serviceInfo, runner, engagementRunner, uploadsRunner)
 	return app, func() {
+		cleanup8()
 		cleanup7()
 		cleanup6()
 		cleanup5()

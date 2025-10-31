@@ -10,6 +10,7 @@ import (
 
 	configloader "github.com/bionicotaku/lingo-services-catalog/internal/infrastructure/configloader"
 	"github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
+	uploadrunner "github.com/bionicotaku/lingo-services-catalog/internal/tasks/uploads"
 	obswire "github.com/bionicotaku/lingo-utils/observability"
 	outboxpublisher "github.com/bionicotaku/lingo-utils/outbox/publisher"
 	"github.com/go-kratos/kratos/v2"
@@ -35,6 +36,7 @@ func newApp(
 	meta configloader.ServiceInfo,
 	publisher *outboxpublisher.Runner,
 	engagementRunner *engagement.Runner,
+	uploadsRunner *uploadrunner.Runner,
 ) *kratos.App {
 	options := []kratos.Option{
 		kratos.ID(meta.InstanceID),
@@ -56,6 +58,9 @@ func newApp(
 	}
 	if engagementRunner != nil {
 		workers = append(workers, worker{name: "engagement consumer", run: engagementRunner.Run})
+	}
+	if uploadsRunner != nil {
+		workers = append(workers, worker{name: "uploads consumer", run: uploadsRunner.Run})
 	}
 
 	if len(workers) > 0 {

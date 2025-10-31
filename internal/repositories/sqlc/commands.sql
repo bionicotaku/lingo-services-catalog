@@ -49,6 +49,57 @@ RETURNING
     raw_subtitle_url,
     error_message;
 
+-- name: CreateVideoWithID :one
+INSERT INTO catalog.videos (
+    video_id,
+    upload_user_id,
+    title,
+    description,
+    raw_file_reference,
+    visibility_status,
+    publish_at
+) VALUES (
+    $1,
+    $2,
+    $3,
+    sqlc.narg('description'),
+    $4,
+    COALESCE(sqlc.narg('visibility_status')::text, 'public'),
+    sqlc.narg('publish_at')
+)
+ON CONFLICT DO NOTHING
+RETURNING
+    video_id,
+    upload_user_id,
+    created_at,
+    updated_at,
+    title,
+    description,
+    raw_file_reference,
+    status,
+    version,
+    media_status,
+    analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
+    raw_file_size,
+    raw_resolution,
+    raw_bitrate,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    visibility_status,
+    publish_at,
+    raw_subtitle_url,
+    error_message;
+
 -- name: UpdateVideo :one
 UPDATE catalog.videos
 SET

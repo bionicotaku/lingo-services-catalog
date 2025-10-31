@@ -118,6 +118,114 @@ func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Catal
 	return i, err
 }
 
+const createVideoWithID = `-- name: CreateVideoWithID :one
+INSERT INTO catalog.videos (
+    video_id,
+    upload_user_id,
+    title,
+    description,
+    raw_file_reference,
+    visibility_status,
+    publish_at
+) VALUES (
+    $1,
+    $2,
+    $3,
+    $5,
+    $4,
+    COALESCE($6::text, 'public'),
+    $7
+)
+ON CONFLICT DO NOTHING
+RETURNING
+    video_id,
+    upload_user_id,
+    created_at,
+    updated_at,
+    title,
+    description,
+    raw_file_reference,
+    status,
+    version,
+    media_status,
+    analysis_status,
+    media_job_id,
+    media_emitted_at,
+    analysis_job_id,
+    analysis_emitted_at,
+    raw_file_size,
+    raw_resolution,
+    raw_bitrate,
+    duration_micros,
+    encoded_resolution,
+    encoded_bitrate,
+    thumbnail_url,
+    hls_master_playlist,
+    difficulty,
+    summary,
+    tags,
+    visibility_status,
+    publish_at,
+    raw_subtitle_url,
+    error_message
+`
+
+type CreateVideoWithIDParams struct {
+	VideoID          uuid.UUID          `json:"video_id"`
+	UploadUserID     uuid.UUID          `json:"upload_user_id"`
+	Title            string             `json:"title"`
+	RawFileReference string             `json:"raw_file_reference"`
+	Description      pgtype.Text        `json:"description"`
+	VisibilityStatus pgtype.Text        `json:"visibility_status"`
+	PublishAt        pgtype.Timestamptz `json:"publish_at"`
+}
+
+func (q *Queries) CreateVideoWithID(ctx context.Context, arg CreateVideoWithIDParams) (CatalogVideo, error) {
+	row := q.db.QueryRow(ctx, createVideoWithID,
+		arg.VideoID,
+		arg.UploadUserID,
+		arg.Title,
+		arg.RawFileReference,
+		arg.Description,
+		arg.VisibilityStatus,
+		arg.PublishAt,
+	)
+	var i CatalogVideo
+	err := row.Scan(
+		&i.VideoID,
+		&i.UploadUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Title,
+		&i.Description,
+		&i.RawFileReference,
+		&i.Status,
+		&i.Version,
+		&i.MediaStatus,
+		&i.AnalysisStatus,
+		&i.MediaJobID,
+		&i.MediaEmittedAt,
+		&i.AnalysisJobID,
+		&i.AnalysisEmittedAt,
+		&i.RawFileSize,
+		&i.RawResolution,
+		&i.RawBitrate,
+		&i.DurationMicros,
+		&i.EncodedResolution,
+		&i.EncodedBitrate,
+		&i.ThumbnailUrl,
+		&i.HlsMasterPlaylist,
+		&i.Difficulty,
+		&i.Summary,
+		&i.Tags,
+		&i.VisibilityStatus,
+		&i.PublishAt,
+		&i.RawSubtitleUrl,
+		&i.ErrorMessage,
+	)
+	return i, err
+}
+
 const deleteVideo = `-- name: DeleteVideo :one
 DELETE FROM catalog.videos
 WHERE video_id = $1

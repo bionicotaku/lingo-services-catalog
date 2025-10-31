@@ -40,6 +40,7 @@ func NewVideoRepository(db *pgxpool.Pool, logger log.Logger) *VideoRepository {
 
 // CreateVideoInput 表示创建视频的输入参数。
 type CreateVideoInput struct {
+	VideoID          uuid.UUID
 	UploadUserID     uuid.UUID
 	Title            string
 	Description      *string
@@ -95,7 +96,39 @@ type ListUserUploadsInput struct {
 }
 
 // Create 创建新视频记录，video_id 由数据库自动生成。
-func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, input CreateVideoInput) (*po.Video, error) {
+func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, input CreateVideoInput) (*po.Video, bool, error) {
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	if input.VideoID != uuid.Nil {
+		params := mappers.BuildCreateVideoWithIDParams(
+			input.VideoID,
+			input.UploadUserID,
+			input.Title,
+			input.RawFileReference,
+			input.Description,
+			input.VisibilityStatus,
+			input.PublishAt,
+		)
+
+		record, err := queries.CreateVideoWithID(ctx, params)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				video, getErr := r.GetLifecycleSnapshot(ctx, sess, input.VideoID)
+				if getErr != nil {
+					return nil, false, getErr
+				}
+				return video, false, nil
+			}
+			r.log.WithContext(ctx).Errorf("create video with id failed: video_id=%s err=%v", input.VideoID, err)
+			return nil, false, fmt.Errorf("create video with id: %w", err)
+		}
+		r.log.WithContext(ctx).Infof("video created with id: video_id=%s title=%s", record.VideoID, record.Title)
+		return mappers.VideoFromCatalog(record), true, nil
+	}
+
 	params := mappers.BuildCreateVideoParams(
 		input.UploadUserID,
 		input.Title,
@@ -105,19 +138,14 @@ func (r *VideoRepository) Create(ctx context.Context, sess txmanager.Session, in
 		input.PublishAt,
 	)
 
-	queries := r.queries
-	if sess != nil {
-		queries = queries.WithTx(sess.Tx())
-	}
-
 	record, err := queries.CreateVideo(ctx, params)
 	if err != nil {
 		r.log.WithContext(ctx).Errorf("create video failed: title=%s err=%v", input.Title, err)
-		return nil, fmt.Errorf("create video: %w", err)
+		return nil, false, fmt.Errorf("create video: %w", err)
 	}
 
 	r.log.WithContext(ctx).Infof("video created: video_id=%s title=%s", record.VideoID, record.Title)
-	return mappers.VideoFromCatalog(record), nil
+	return mappers.VideoFromCatalog(record), true, nil
 }
 
 // Update 根据输入字段对视频进行部分更新，返回更新后的实体。

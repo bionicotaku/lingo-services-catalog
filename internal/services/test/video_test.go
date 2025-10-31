@@ -153,13 +153,17 @@ type videoRepoStub struct {
 	deleteVideo *po.Video
 	err         error
 	lastUpdate  repositories.UpdateVideoInput
+	existing    bool
 }
 
-func (s *videoRepoStub) Create(_ context.Context, _ txmanager.Session, _ repositories.CreateVideoInput) (*po.Video, error) {
+func (s *videoRepoStub) Create(_ context.Context, _ txmanager.Session, _ repositories.CreateVideoInput) (*po.Video, bool, error) {
 	if s.err != nil {
-		return nil, s.err
+		return nil, false, s.err
 	}
-	return s.video, nil
+	if s.video == nil {
+		return nil, false, repositories.ErrVideoNotFound
+	}
+	return s.video, !s.existing, nil
 }
 
 func (s *videoRepoStub) Update(_ context.Context, _ txmanager.Session, input repositories.UpdateVideoInput) (*po.Video, error) {

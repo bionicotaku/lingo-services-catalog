@@ -27,5 +27,12 @@ func NewRegisterUploadService(writer *LifecycleWriter) *RegisterUploadService {
 
 // RegisterUpload 创建视频基础记录，并写入 Outbox 事件。
 func (s *RegisterUploadService) RegisterUpload(ctx context.Context, input RegisterUploadInput) (*VideoRevision, error) {
-	return s.writer.CreateVideo(ctx, CreateVideoInput(input))
+	create := CreateVideoInput{
+		UploadUserID:     input.UploadUserID,
+		Title:            input.Title,
+		Description:      input.Description,
+		RawFileReference: input.RawFileReference,
+		IdempotencyKey:   input.IdempotencyKey,
+	}
+	return s.writer.CreateVideo(ctx, create)
 }

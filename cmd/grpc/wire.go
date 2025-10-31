@@ -18,6 +18,7 @@ import (
 	"github.com/bionicotaku/lingo-services-catalog/internal/services"
 	engagementtasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/engagement"
 	outboxtasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/outbox"
+	uploadtasks "github.com/bionicotaku/lingo-services-catalog/internal/tasks/uploads"
 
 	"github.com/bionicotaku/lingo-utils/gcjwt"
 	"github.com/bionicotaku/lingo-utils/gclog"
@@ -65,6 +66,7 @@ func wireApp(context.Context, configloader.Params) (*kratos.App, func(), error) 
 		controllers.ProviderSet, // 控制器层（gRPC handlers）
 		outboxtasks.ProvideRunner,
 		engagementtasks.ProvideRunner,
+		uploadtasks.ProvideRunner,
 		newApp, // 组装 Kratos 应用
 	))
 }
