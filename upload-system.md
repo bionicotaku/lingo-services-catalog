@@ -36,7 +36,50 @@
 
 ---
 
-## **2. 端到端流程（移动端直传）**
+## **2. 上传会话处理流程**
+
+```mermaid
+flowchart TD
+    A([InitResumableUpload 请求]) --> B{"是否已存在？<br/>user_id, content_md5"}
+    B -->|否| C[[生成 video_id<br/>object_name=raw_videos/user_id/video_id]]
+    C --> D[[请求 GCS 签名 URL<br/>POST + x-goog-resumable:start, ifGenerationMatch=0]]
+    D -->|成功| E[[UPSERT catalog.uploads<br/>写入参数 + signed_url/expires + status='uploading']]
+    D -->|失败| F([返回签名失败])
+    E --> G([响应：返回 video_id/resumable_init_url/expires_at])
+
+    B -->|是| H[[SELECT ... FOR UPDATE 锁定 uploads]]
+    H --> I{status?}
+    I -->|completed| J([返回错误：已存在重复资源<br/>提示拒绝重新上传])
+    I -->|uploading| K{"signed_url_expires_at<br/>是否已过期?"}
+    K -->|未过期| L[[覆盖最新请求参数，返回原 signed_url/expires]]
+    K -->|已过期| M[[重新请求签名 URL]]
+    M -->|成功| E
+    M -->|失败| F
+    L --> P([响应：复用原会话，返回旧签名])
+
+G --> END((等待客户端上传并触发回调))
+P --> END
+    J --> END_DONE((流程结束：已上传))
+    F --> FAIL((流程失败))
+```
+
+**关键规则**
+
+- `(user_id, content_md5)` 作为强唯一键；所有重试都会指向同一会话。
+- 上传中的会话仅返回已有 `signed_url`/`video_id`；签名过期时由服务端重新签发并覆盖。
+- 已完成会话直接返回错误（重复资源），禁止重新上传。
+- 整个流程依赖 `ifGenerationMatch=0`，确保只有第一个成功会话写入目标对象。
+
+
+
+对于同一个路径raw_videos/user_id/video_id，就算生成了多个 Signed URL、各自建立了多个 Session URI，最终也只会有第一个真正完成写入的会话成功：
+
+  - 成功者：对象生成；回调触发；业务推进。
+  - 其余会话：在最终 PUT 提交阶段遭到 412 Precondition Failed，因为对象已存在并不满足 generation=0。
+
+---
+
+## **3. 端到端流程（移动端直传）**
 
 ```mermaid
 sequenceDiagram
@@ -48,8 +91,8 @@ sequenceDiagram
     participant Runner as StreamingPull Runner
     participant Downstream as 转码/AI 等后续任务
 
-    Client->>Catalog: InitResumableUpload(filename,size,content_type,content_md5,duration[,video_id])
-    Catalog-->>Client: video_id, object_name, signed_init_url, expires
+    Client->>Catalog: InitResumableUpload(size,content_type,content_md5,duration,title,description)
+    Catalog-->>Client: video_id, signed_init_url, expires
     Client->>GCS: POST signed_init_url (x-goog-resumable:start)
     GCS-->>Client: 201 Created + Location (session URI)
     loop 分块上传
@@ -78,22 +121,23 @@ sequenceDiagram
 
 | 时机 | 操作 | 目标表/字段 | 备注 |
 | ---- | ---- | ------------ | ---- |
-| InitResumableUpload 成功 | UPSERT 会话记录 | catalog.uploads：video_id、user_id、bucket、object_name、original_filename、content_type、expected_size、content_md5、status='pending'、reserved_at | 冲突时复用既有记录，返回统一 video_id |
-| 客户端拿到响应 | （无额外写入） | —— | 响应携带 video_id、bucket、object_name、signed_url |
+| InitResumableUpload 成功 | UPSERT 会话记录 | catalog.uploads：video_id、user_id、bucket、object_name、content_type、expected_size、content_md5、title、description、signed_url、signed_url_expires_at、status='uploading' | 若 `(user_id, content_md5)` 已存在且状态为 `uploading`：复用原会话/VideoID（签名未过期直接返回原 signed_url/expires，过期则按首次创建流程重新签发并覆盖）；`completed` → 返回错误（重复资源），拒绝继续上传；依赖 `ifGenerationMatch=0` 保证只有一个会话最终写入 GCS |
+| 客户端拿到响应 | （无额外写入） | —— | 响应仅携带 video_id、signed_url（resumable_init_url）及过期时间 |
 | GCS 分块上传 | —— | —— | 仅 GCS 对象写入，无本地记录 |
 | OBJECT_FINALIZE 回调（校验通过） | 更新上传记录 | catalog.uploads：status='completed'、size_bytes、md5_hash、crc32c、gcs_generation、gcs_etag、content_type、updated_at | 若校验失败则写入 status='failed'、error_code、error_message |
-| 回调同事务 | 创建/更新主表 | catalog.videos：不存在→INSERT（user_id、raw_file_reference、status='processing' 等）；存在→UPDATE（刷新 raw_file_reference、状态等） | raw_file_reference 写成 gs://bucket/object_name |
-| 回调同事务 | 写出领域事件 | catalog.outbox_events：video.upload.completed 等 payload | 供 Outbox Runner 发布 |
+| 回调同事务 | 创建主表记录 | catalog.videos：INSERT（user_id、title、description、raw_file_reference、status='processing'、visibility_status、publish_at 等） | 当前策略仅首次创建；如主键冲突则回滚事务，保持 uploads 状态未变并记录错误 |
+| 回调同事务 | 写出领域事件 | catalog.outbox_events：video.upload.completed 等 payload | 供 Outbox Runner 发布；若生成失败同样回滚事务 |
+| 回调失败（校验失败/插入失败） | 标记上传失败 | catalog.uploads：status='failed'、error_code、error_message | 记录具体原因（如 MD5_MISMATCH、video_insert_conflict），不写主表/事件 |
 | Outbox Runner 成功发布 | 标记已发布 | catalog.outbox_events：published_at | 通用 Outbox 流程处理 |
 
 ---
 
 
-## **3. 数据模型与迁移**
+## **4. 数据模型与迁移**
 
 > 你仓库已有 catalog.videos（含 raw_file_reference 与状态机）与 Outbox/Inbox 机制；此处在其上新增/强化“上传聚合”。
 
-### **3.1 表：**
+### **4.1 表：**
 
 ### **catalog.uploads**
 
@@ -103,20 +147,22 @@ create table if not exists catalog.uploads (
   video_id          uuid primary key,    -- 预留的视频 ID；回调成功后用于创建/更新 catalog.videos
   user_id           uuid not null,       -- 发起上传的用户 ID（来自认证 metadata）
   bucket            text not null,       -- 目标 GCS 存储桶名称（支持多桶策略）
-  object_name       text not null,       -- 对象路径，例如 "videos/{user_id}/{content_md5}"
-  original_filename text,                -- 客户端上报的原始文件名，用于 UI/审计
+  object_name       text not null,       -- 对象路径，例如 "raw_videos/{user_id}/{video_id}"
   content_type      text,                -- MIME 类型（如 video/mp4），用于白名单校验
   expected_size     bigint not null default 0,  -- 客户端预估的字节数（0 表示未知）
   size_bytes        bigint not null default 0,  -- 实际大小，由回调写入
   content_md5       char(32) not null,         -- 客户端上报的 MD5（hex，驱动强唯一）
-  status            text not null check (status in ('pending','uploading','completed','failed')), -- 会话状态机
+  title             text not null,       -- 用户输入的视频标题
+  description       text not null,       -- 用户输入的视频描述
+  signed_url        text,                -- 会话签名 URL（需安全存储，仅供审计/手动恢复）
+  signed_url_expires_at timestamptz,     -- 签名 URL 的过期时间，便于清理和权限管控
+  status            text not null check (status in ('uploading','completed','failed')), -- 会话状态机：uploading=会话已创建等待完成，completed=回调已落主表，failed=校验或回调失败
   gcs_generation    text,                -- GCS generation，便于幂等/版本控制
   gcs_etag          text,                -- GCS ETag（回调写入）
   md5_hash          text,                -- 回调中返回的 md5Hash（统一转为 hex）
   crc32c            text,                -- 回调中返回的 crc32c（Base64 → 字符串）
   error_code        text,                -- 失败时的错误代码（如 MD5_MISMATCH）
   error_message     text,                -- 失败时的详细描述
-  reserved_at       timestamptz not null default now(), -- 预留 video_id 的时间戳
   created_at        timestamptz not null default now(), -- 记录创建时间
   updated_at        timestamptz not null default now()  -- 记录最后更新时间
 );
@@ -134,7 +180,7 @@ create unique index if not exists uploads_object_unique_idx
 
 > uploads 表中的 `video_id` 仅在回调成功时才会在 `catalog.videos` 创建对应记录；保留独立唯一索引可确保同一用户同一内容只会预留一次 video_id。无需在 videos 表额外添加 `(user_id, content_md5)` 约束。
 
-### **3.2**
+### **4.2**
 
 ### **videos**
 
@@ -145,15 +191,14 @@ create unique index if not exists uploads_object_unique_idx
 
 ---
 
-## **4. 对象命名与前置条件**
+## **5. 对象命名与前置条件**
 
-- **对象路径**：object_name = "videos/{user_id}/{content_md5}"。
+- **对象路径**：object_name = "raw_videos/{user_id}/{video_id}"（与用户本地文件名解耦，确保幂等与隔离）。
 - **前置条件**：签名时强制 **ifGenerationMatch=0**，表示**仅当对象不存在**时允许创建，避免并发/重试覆盖。
-- **文件名展示**：不进入对象名（避免路径注入），保存在 original_filename 供 UI 显示即可。
 
 ---
 
-## **5. gRPC 契约**
+## **6. gRPC 契约**
 
 > 网关已将 HTTP→gRPC 代理与 JWT 校验完成，并将 user_id 等放入 metadata。服务端从 context 取用户身份执行业务即可（不在本文展开）。
 
@@ -167,29 +212,26 @@ service UploadService {
 }
 
 message InitResumableUploadRequest {
-  string filename         = 1;
-  int64  size_bytes       = 2;    // 可为 0（未知）
-  string content_type     = 3;    // e.g. video/mp4
-  string content_md5_hex  = 4;    // 必填：移动端先算好 MD5 (hex 32)
-  int32  duration_seconds = 5;    // 可选：若提供则校验 <= 300
-  string video_id         = 6;    // 可选：复用既有视频 ID（重传场景）
+  int64  size_bytes       = 1;    // 可为 0（未知）
+  string content_type     = 2;    // e.g. video/mp4
+  string content_md5_hex  = 3;    // 必填：移动端先算好 MD5 (hex 32)
+  int32  duration_seconds = 4;    // 必填：上传前预处理端产出（要求 ≤ 300）
+  string title            = 5;    // 必填：用户输入的视频标题
+  string description      = 6;    // 必填：用户输入的视频描述
 }
 
 message InitResumableUploadResponse {
   string video_id           = 1; // 预留的视频 ID，上传成功后据此创建主表记录
-  string bucket             = 2;
-  string object_name        = 3; // videos/{user}/{md5}
-  string resumable_init_url = 4; // V4 Signed URL (POST + x-goog-resumable:start)
-  int64  expires_at_unixms  = 5; // 默认 15 分钟
-  bool   already_uploaded   = 6; // 若此前已完成上传则为 true
+  string resumable_init_url = 2; // V4 Signed URL (POST + x-goog-resumable:start)
+  int64  expires_at_unixms  = 3; // 默认 15 分钟
 }
 ```
 
 ---
 
-## **6. 服务端实现**
+## **7. 服务端实现**
 
-### **6.1 初始化（无幂等键，靠 MD5 强唯一 + 前置条件）**
+### **7.1 初始化（无幂等键，靠 MD5 强唯一 + 前置条件）**
 
 **步骤**
 
@@ -198,9 +240,8 @@ message InitResumableUploadResponse {
 2. 校验：duration_seconds ≤ 300、content_type 白名单、size_bytes 上限。
 
 3. **预留 video_id 并写入 uploads**：
-   - 若请求提供 video_id，则校验其归属与状态（允许重传时复用该记录）。
-   - 若未提供，则生成新的 UUID 作为 video_id（此时主表尚未创建记录）。
-   - 以 (user_id, content_md5) 为强唯一，在 `catalog.uploads` upsert：若冲突（并发/重试），复用既有 video_id；否则插入状态 `pending` 的新记录。
+   - 服务端始终生成新的 UUID 作为 video_id（主表此时尚未创建记录）。
+   - 以 (user_id, content_md5) 为强唯一，在 `catalog.uploads` upsert：若冲突（并发/重试），复用既有 video_id；否则插入状态 `uploading` 的新记录，并持久化 `title`、`description` 等元数据。
 
 4. 生成 **V4 Signed URL**（XML API 的 POST），签名包含：
 
@@ -209,16 +250,16 @@ message InitResumableUploadResponse {
    - x-upload-content-type: <content_type>；
    - 过期时间（建议 15 分钟）。
 
-5. 返回：video_id/bucket/object_name/resumable_init_url/exp；若记录已处于 completed，`already_uploaded=true` 并可直接使用原有 video 资源。
+5. 返回：video_id/resumable_init_url/exp；若记录已处于 completed，则直接返回错误（重复资源），提醒用户不要重复上传。
 
 > 发起会话：移动端对 **Signed URL 做 POST**，成功后从响应头 **Location** 取 **Session URI**。
 
-### **6.2 移动端分块上传规范（摘要，详见 §7）**
+### **7.2 移动端分块上传规范（摘要，详见 §8）**
 
 - 使用 Session URI 进行 **PUT**；分块按 **256 KiB 的整数倍**（推荐 **≥ 8 MiB**）；最后一块可不满足。
 - 未完成时返回 **308 Resume Incomplete**，并携带 **Range**；断线后可发送 **0 字节 PUT +** **Content-Range: bytes \*/TOTAL** 查询偏移。
 
-### **6.3 回调处理（StreamingPull + Inbox Runner）**
+### **7.3 回调处理（StreamingPull + Inbox Runner）**
 
 **入口**：后台任务通过 `gcpubsub.Subscriber.Receive` 消费 `OBJECT_FINALIZE` 事件，所有逻辑在单事务内完成。
 
@@ -245,15 +286,15 @@ message InitResumableUploadResponse {
 
 ---
 
-## **7. 移动端集成规范（iOS/Android）**
+## **8. 移动端集成规范（iOS/Android）**
 
 > 移动端**不需要任何 GCP 凭据**：凭借 Catalog 签发的**短时 V4 Signed URL**（POST 发起会话）+ **Session URI** 完成上传。
 
 **步骤**
 
-1. **本地计算 MD5（hex 32）**：建议流式/分片计算（后台线程），5 分钟以内视频通常可接受等待；或“边读边算边上传”。
+1. **本地计算 MD5（hex 32）与视频时长**：建议流式/分片计算（后台线程），同时通过本地解码获取 `duration_seconds`（限制 ≤ 300 秒）。
 
-2. 调 gRPC：InitResumableUpload(filename, size, content_type, content_md5_hex, duration_seconds<=300) → 返回 resumable_init_url。
+2. 调 gRPC：InitResumableUpload(size_bytes, content_type, content_md5_hex, duration_seconds, title, description) → 返回 resumable_init_url。
 
 3. POST resumable_init_url，**必须**带：
 
@@ -277,11 +318,11 @@ message InitResumableUploadResponse {
 - 在 GCS 回调成功后，以 payload 中的 `contentType` 覆盖/校验 `content_type`，确保保存的是最终实际 MIME。
 - `md5Hash` 和 `crc32c` 从回调取值时注意格式：将 `md5Hash` 由 Base64 转为 32 字符 hex，再写入 `md5_hash`；`crc32c` 可保留 Base64 字符串或按需求转换。
 - 若将来需要版本并发控制，可在表中追加 `metageneration`（对应 JSON API）字段；当前场景暂不需要。
-- 任何带签名的下载 URL 不应持久化，凭借 `bucket + object_name + generation` 即可随时重新签发。
+- 持久化 `signed_url` 时务必使用加密字段或 KMS 保护，并结合 `signed_url_expires_at` 定期清理/轮换，避免长期暴露上传权限。
 
 ---
 
-## **8. 权限与安全**
+## **9. 权限与安全**
 
 - **客户端（移动端）零 GCP 凭据**：凭借 **V4 Signed URL** 的时间/路径受限能力，直接对目标对象发起会话（POST），随后使用 Session URI 上传；**任何持有者**在有效期内可用，因此要**缩短有效期**并通过 HTTPS 传输，避免日志泄漏。
 - **前置条件**：强制 ifGenerationMatch=0，避免并发/重试覆盖已存在对象。
@@ -291,7 +332,7 @@ message InitResumableUploadResponse {
 
 ---
 
-## **9. 并发控制、去重与幂等**
+## **10. 并发控制、去重与幂等**
 
 - **强唯一（设计基石）**：(user_id, content_md5) 全状态唯一索引 → 「同一用户同一内容仅 1 条上传记录」。
 - **会话合并**：并发初始化时，只有一个事务插入成功；冲突方 SELECT 既有记录并返回**同一对象名**与签名 URL。
@@ -301,7 +342,7 @@ message InitResumableUploadResponse {
 
 ---
 
-## **10. 观测与告警**
+## **11. 观测与告警**
 
 **指标（建议以 OpenTelemetry / Prometheus 暴露）**
 
@@ -315,15 +356,15 @@ message InitResumableUploadResponse {
 
 ---
 
-## **11. 上线与运维**
+## **12. 上线与运维**
 
-### **11.1 迁移**
+### **12.1 迁移**
 
 - 执行 005_create_catalog_uploads.sql（创建表与索引）。
 - 升级 Catalog 以暴露 UploadService，并部署 StreamingPull Runner（如 `cmd/tasks/uploads`）。
 - 不需要配置 CORS（**移动端-only**）。
 
-### **11.2 GCS 与 Pub/Sub**
+### **12.2 GCS 与 Pub/Sub**
 
 1. **创建 Topic**：`video-uploads`。
 
@@ -342,7 +383,7 @@ message InitResumableUploadResponse {
 
    为订阅绑定最小权限服务账号（`roles/pubsub.subscriber`），可按需配置 dead-letter topic 兜底异常消息。
 
-### **11.3 配置清单（**
+### **12.3 配置清单（**
 
 ### **configs/config.yaml**
 
@@ -367,15 +408,15 @@ pubsub:
 
 ---
 
-## **12. 失败与清理**
+## **13. 失败与清理**
 
-- **会话过期**：GCS 会话约一周有效，后台 Reaper 定期将超期的 pending/uploading 标记为 failed 并告警。
+- **会话过期**：GCS 会话约一周有效，后台 Reaper 定期将超期未完成的 uploading 会话标记为 failed 并告警。
 - **MD5 不一致**：标记 failed (MD5_MISMATCH)，不推进视频状态；必要时提示用户重传。
 - **重复上传**：初始化阶段即命中 (user_id, content_md5) 唯一约束，直接复用已存在记录；若对象已存在，ifGenerationMatch=0 会阻止覆盖。
 
 ---
 
-## **13. 安全基线**
+## **14. 安全基线**
 
 - Signed URL 有效期**尽量短**（默认 15 分钟），Session URI 不持久化到日志。
 - 桶启用 **Uniform bucket-level access**，Catalog 的服务账号仅授予必要权限。
@@ -383,7 +424,7 @@ pubsub:
 
 ---
 
-## **14. 验收用例（建议脚本化）**
+## **15. 验收用例（建议脚本化）**
 
 1. **并发初始化**：同一用户 + 相同 MD5 并发 10 次 → 仅 1 条 uploads，其余复用；对象名一致。
 2. **覆盖防护**：开启两个会话同时上传 → 仅第一个成功，第二个在最终提交阶段因 ifGenerationMatch=0 失败。
@@ -394,9 +435,9 @@ pubsub:
 
 ---
 
-## **15. 附：实现要点片段**
+## **16. 附：实现要点片段**
 
-### **15.1 签名（V4 / XML API / Resumable-init）**
+### **16.1 签名（V4 / XML API / Resumable-init）**
 
 > 在使用 GCS 客户端库生成 V4 Signed URL 时，显式包含需要签名的**请求头**：
 
@@ -406,12 +447,12 @@ pubsub:
 
 > 该 URL 仅用于**发起会话的 POST**；移动端随后使用响应头 Location 中的 **Session URI** 进行 PUT 分块。
 
-### **15.2 分块建议**
+### **16.2 分块建议**
 
 - chunk = 8 MiB 起步（或网络状况更优时增大）；
 - 每块必须是 **256 KiB 的整数倍**（最后一块除外）；处理 **308 + Range**。
 
-### **15.3 回调幂等伪码**
+### **16.3 回调幂等伪码**
 
 ```
 -- 事务内
@@ -425,7 +466,7 @@ on conflict do nothing;
 
 ---
 
-## **16. 未来演进（不影响现有接口）**
+## **17. 未来演进（不影响现有接口）**
 
 - **请求级幂等键**：未来如需“网关重放零副作用”，可增设 idempotency_keys 表；流程：先查幂等键 → 未命中再走 MD5 强唯一分支（**与本稿完全兼容**）。
 - **更强校验**：在移动端计算 **SHA-256** 并存为 content_sha256，将 md5 仅用于与 GCS md5Hash 对账。
@@ -433,7 +474,7 @@ on conflict do nothing;
 
 ---
 
-## **17. 参考**
+## **18. 参考**
 
 - **Resumable 上传步骤 / 308 / Range / 一周有效期**（官方）：发起/执行/状态码说明。
 - **V4 Signed URL 概念**（时效性与最小暴露原则）。
