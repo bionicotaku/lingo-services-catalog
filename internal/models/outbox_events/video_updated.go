@@ -2,7 +2,6 @@ package outboxevents
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
@@ -24,6 +23,7 @@ type VideoUpdateChanges struct {
 	HLSMasterPlaylist *string
 	Difficulty        *string
 	Summary           *string
+	Tags              []string
 	VisibilityStatus  *string
 	PublishAt         *time.Time
 	RawSubtitleURL    *string
@@ -50,7 +50,6 @@ func NewVideoUpdatedEvent(video *po.Video, changes VideoUpdateChanges, eventID u
 
 	payload := &VideoUpdated{
 		VideoID: video.VideoID,
-		Tags:    nil,
 	}
 	hasChange := false
 
@@ -97,6 +96,14 @@ func NewVideoUpdatedEvent(video *po.Video, changes VideoUpdateChanges, eventID u
 		payload.Summary = changes.Summary
 		hasChange = true
 	}
+	if len(changes.Tags) > 0 {
+		payload.Tags = append([]string(nil), changes.Tags...)
+		hasChange = true
+	}
+	if changes.RawSubtitleURL != nil {
+		payload.RawSubtitleURL = changes.RawSubtitleURL
+		hasChange = true
+	}
 	if changes.VisibilityStatus != nil {
 		value := *changes.VisibilityStatus
 		payload.VisibilityStatus = &value
@@ -104,10 +111,6 @@ func NewVideoUpdatedEvent(video *po.Video, changes VideoUpdateChanges, eventID u
 	}
 	if changes.PublishAt != nil {
 		payload.PublishedAt = cloneTime(changes.PublishAt)
-		hasChange = true
-	}
-	if changes.RawSubtitleURL != nil {
-		payload.RawSubtitleURL = changes.RawSubtitleURL
 		hasChange = true
 	}
 
@@ -121,206 +124,6 @@ func NewVideoUpdatedEvent(video *po.Video, changes VideoUpdateChanges, eventID u
 		AggregateID:   video.VideoID,
 		AggregateType: AggregateTypeVideo,
 		Version:       version,
-		OccurredAt:    occurredAt,
-		Payload:       payload,
-	}
-	return event, nil
-}
-
-// NewVideoMediaReadyEvent 基于更新后的实体构建媒体阶段完成事件。
-func NewVideoMediaReadyEvent(video *po.Video, eventID uuid.UUID, occurredAt time.Time) (*DomainEvent, error) {
-	if video == nil {
-		return nil, ErrNilVideo
-	}
-	if eventID == uuid.Nil {
-		return nil, ErrInvalidEventID
-	}
-	if video.MediaStatus != po.StageReady {
-		return nil, fmt.Errorf("event builder: media stage not ready")
-	}
-
-	if occurredAt.IsZero() {
-		switch {
-		case video.MediaEmittedAt != nil:
-			occurredAt = video.MediaEmittedAt.UTC()
-		case !video.UpdatedAt.IsZero():
-			occurredAt = video.UpdatedAt.UTC()
-		default:
-			occurredAt = time.Now().UTC()
-		}
-	} else {
-		occurredAt = occurredAt.UTC()
-	}
-
-	payload := &VideoMediaReady{
-		VideoID:           video.VideoID,
-		Status:            video.Status,
-		MediaStatus:       video.MediaStatus,
-		AnalysisStatus:    video.AnalysisStatus,
-		DurationMicros:    video.DurationMicros,
-		EncodedResolution: video.EncodedResolution,
-		EncodedBitrate:    video.EncodedBitrate,
-		ThumbnailURL:      video.ThumbnailURL,
-		HLSMasterPlaylist: video.HLSMasterPlaylist,
-		JobID:             video.MediaJobID,
-		EmittedAt:         cloneTime(video.MediaEmittedAt),
-	}
-
-	event := &DomainEvent{
-		EventID:       eventID,
-		Kind:          KindVideoMediaReady,
-		AggregateID:   video.VideoID,
-		AggregateType: AggregateTypeVideo,
-		Version:       VersionFromTime(occurredAt),
-		OccurredAt:    occurredAt,
-		Payload:       payload,
-	}
-	return event, nil
-}
-
-// NewVideoAIEnrichedEvent 基于更新后的实体构建 AI 阶段完成事件。
-func NewVideoAIEnrichedEvent(video *po.Video, eventID uuid.UUID, occurredAt time.Time) (*DomainEvent, error) {
-	if video == nil {
-		return nil, ErrNilVideo
-	}
-	if eventID == uuid.Nil {
-		return nil, ErrInvalidEventID
-	}
-	if video.AnalysisStatus != po.StageReady {
-		return nil, fmt.Errorf("event builder: analysis stage not ready")
-	}
-
-	if occurredAt.IsZero() {
-		switch {
-		case video.AnalysisEmittedAt != nil:
-			occurredAt = video.AnalysisEmittedAt.UTC()
-		case !video.UpdatedAt.IsZero():
-			occurredAt = video.UpdatedAt.UTC()
-		default:
-			occurredAt = time.Now().UTC()
-		}
-	} else {
-		occurredAt = occurredAt.UTC()
-	}
-
-	tags := append([]string(nil), video.Tags...)
-
-	payload := &VideoAIEnriched{
-		VideoID:        video.VideoID,
-		Status:         video.Status,
-		AnalysisStatus: video.AnalysisStatus,
-		MediaStatus:    video.MediaStatus,
-		Difficulty:     video.Difficulty,
-		Summary:        video.Summary,
-		Tags:           tags,
-		RawSubtitleURL: video.RawSubtitleURL,
-		JobID:          video.AnalysisJobID,
-		EmittedAt:      cloneTime(video.AnalysisEmittedAt),
-		ErrorMessage:   video.ErrorMessage,
-	}
-
-	event := &DomainEvent{
-		EventID:       eventID,
-		Kind:          KindVideoAIEnriched,
-		AggregateID:   video.VideoID,
-		AggregateType: AggregateTypeVideo,
-		Version:       VersionFromTime(occurredAt),
-		OccurredAt:    occurredAt,
-		Payload:       payload,
-	}
-	return event, nil
-}
-
-// NewVideoProcessingFailedEvent 构建处理失败事件。
-func NewVideoProcessingFailedEvent(video *po.Video, stage string, jobID *string, emittedAt *time.Time, errorMessage *string, eventID uuid.UUID, occurredAt time.Time) (*DomainEvent, error) {
-	if video == nil {
-		return nil, ErrNilVideo
-	}
-	if eventID == uuid.Nil {
-		return nil, ErrInvalidEventID
-	}
-	switch stage {
-	case "media", "analysis":
-	default:
-		return nil, ErrInvalidStage
-	}
-
-	if occurredAt.IsZero() {
-		switch {
-		case emittedAt != nil:
-			occurredAt = emittedAt.UTC()
-		case !video.UpdatedAt.IsZero():
-			occurredAt = video.UpdatedAt.UTC()
-		default:
-			occurredAt = time.Now().UTC()
-		}
-	} else {
-		occurredAt = occurredAt.UTC()
-	}
-
-	payload := &VideoProcessingFailed{
-		VideoID:        video.VideoID,
-		Status:         video.Status,
-		MediaStatus:    video.MediaStatus,
-		AnalysisStatus: video.AnalysisStatus,
-		Stage:          stage,
-		ErrorMessage:   errorMessage,
-		JobID:          jobID,
-		EmittedAt:      cloneTime(emittedAt),
-	}
-
-	event := &DomainEvent{
-		EventID:       eventID,
-		Kind:          KindVideoProcessingFailed,
-		AggregateID:   video.VideoID,
-		AggregateType: AggregateTypeVideo,
-		Version:       VersionFromTime(occurredAt),
-		OccurredAt:    occurredAt,
-		Payload:       payload,
-	}
-	return event, nil
-}
-
-// NewVideoVisibilityChangedEvent 构建可见性变更事件。
-func NewVideoVisibilityChangedEvent(video *po.Video, previous po.VideoStatus, reason *string, eventID uuid.UUID, occurredAt time.Time) (*DomainEvent, error) {
-	if video == nil {
-		return nil, ErrNilVideo
-	}
-	if eventID == uuid.Nil {
-		return nil, ErrInvalidEventID
-	}
-
-	if occurredAt.IsZero() {
-		if !video.UpdatedAt.IsZero() {
-			occurredAt = video.UpdatedAt.UTC()
-		} else {
-			occurredAt = time.Now().UTC()
-		}
-	} else {
-		occurredAt = occurredAt.UTC()
-	}
-
-	payload := &VideoVisibilityChanged{
-		VideoID:          video.VideoID,
-		Status:           video.Status,
-		VisibilityStatus: video.VisibilityStatus,
-		Reason:           reason,
-	}
-	if previous != "" {
-		prev := previous
-		payload.PreviousStatus = &prev
-	}
-
-	if video.PublishAt != nil {
-		payload.PublishedAt = cloneTime(video.PublishAt)
-	}
-
-	event := &DomainEvent{
-		EventID:       eventID,
-		Kind:          KindVideoVisibilityChanged,
-		AggregateID:   video.VideoID,
-		AggregateType: AggregateTypeVideo,
-		Version:       VersionFromTime(occurredAt),
 		OccurredAt:    occurredAt,
 		Payload:       payload,
 	}

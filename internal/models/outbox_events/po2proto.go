@@ -29,14 +29,6 @@ func ToProto(evt *DomainEvent) (*videov1.Event, error) {
 		pb.Payload = &videov1.Event_Updated{Updated: encodeVideoUpdated(evt, payload)}
 	case *VideoDeleted:
 		pb.Payload = &videov1.Event_Deleted{Deleted: encodeVideoDeleted(evt, payload)}
-	case *VideoMediaReady:
-		pb.Payload = &videov1.Event_MediaReady{MediaReady: encodeVideoMediaReady(evt, payload)}
-	case *VideoAIEnriched:
-		pb.Payload = &videov1.Event_AiEnriched{AiEnriched: encodeVideoAIEnriched(evt, payload)}
-	case *VideoProcessingFailed:
-		pb.Payload = &videov1.Event_ProcessingFailed{ProcessingFailed: encodeVideoProcessingFailed(evt, payload)}
-	case *VideoVisibilityChanged:
-		pb.Payload = &videov1.Event_VisibilityChanged{VisibilityChanged: encodeVideoVisibilityChanged(evt, payload)}
 	default:
 		return nil, fmt.Errorf("events: unsupported payload type %T", payload)
 	}
@@ -134,88 +126,6 @@ func encodeVideoDeleted(evt *DomainEvent, payload *VideoDeleted) *videov1.Event_
 	return deleted
 }
 
-func encodeVideoMediaReady(evt *DomainEvent, payload *VideoMediaReady) *videov1.Event_VideoMediaReady {
-	media := &videov1.Event_VideoMediaReady{
-		VideoId:           payload.VideoID.String(),
-		Version:           evt.Version,
-		OccurredAt:        evt.OccurredAt.UTC().Format(time.RFC3339Nano),
-		Status:            string(payload.Status),
-		MediaStatus:       string(payload.MediaStatus),
-		AnalysisStatus:    string(payload.AnalysisStatus),
-		DurationMicros:    payload.DurationMicros,
-		EncodedResolution: payload.EncodedResolution,
-		EncodedBitrate:    payload.EncodedBitrate,
-		ThumbnailUrl:      payload.ThumbnailURL,
-		HlsMasterPlaylist: payload.HLSMasterPlaylist,
-		JobId:             payload.JobID,
-	}
-	if payload.EmittedAt != nil {
-		media.EmittedAt = toProtoTime(payload.EmittedAt)
-	}
-	return media
-}
-
-func encodeVideoAIEnriched(evt *DomainEvent, payload *VideoAIEnriched) *videov1.Event_VideoAIEnriched {
-	enriched := &videov1.Event_VideoAIEnriched{
-		VideoId:        payload.VideoID.String(),
-		Version:        evt.Version,
-		OccurredAt:     evt.OccurredAt.UTC().Format(time.RFC3339Nano),
-		Status:         string(payload.Status),
-		AnalysisStatus: string(payload.AnalysisStatus),
-		MediaStatus:    string(payload.MediaStatus),
-		Difficulty:     payload.Difficulty,
-		Summary:        payload.Summary,
-		Tags:           append([]string(nil), payload.Tags...),
-		RawSubtitleUrl: payload.RawSubtitleURL,
-		JobId:          payload.JobID,
-		ErrorMessage:   payload.ErrorMessage,
-	}
-	if payload.EmittedAt != nil {
-		enriched.EmittedAt = toProtoTime(payload.EmittedAt)
-	}
-	return enriched
-}
-
-func encodeVideoProcessingFailed(evt *DomainEvent, payload *VideoProcessingFailed) *videov1.Event_VideoProcessingFailed {
-	failed := &videov1.Event_VideoProcessingFailed{
-		VideoId:        payload.VideoID.String(),
-		Version:        evt.Version,
-		OccurredAt:     evt.OccurredAt.UTC().Format(time.RFC3339Nano),
-		FailedStage:    payload.Stage,
-		ErrorMessage:   payload.ErrorMessage,
-		JobId:          payload.JobID,
-		Status:         string(payload.Status),
-		MediaStatus:    string(payload.MediaStatus),
-		AnalysisStatus: string(payload.AnalysisStatus),
-	}
-	if payload.EmittedAt != nil {
-		failed.EmittedAt = toProtoTime(payload.EmittedAt)
-	}
-	return failed
-}
-
-func encodeVideoVisibilityChanged(evt *DomainEvent, payload *VideoVisibilityChanged) *videov1.Event_VideoVisibilityChanged {
-	visibility := &videov1.Event_VideoVisibilityChanged{
-		VideoId:    payload.VideoID.String(),
-		Version:    evt.Version,
-		OccurredAt: evt.OccurredAt.UTC().Format(time.RFC3339Nano),
-		Status:     string(payload.Status),
-		Reason:     payload.Reason,
-	}
-	if payload.VisibilityStatus != "" {
-		value := payload.VisibilityStatus
-		visibility.VisibilityStatus = &value
-	}
-	if payload.PreviousStatus != nil {
-		value := string(*payload.PreviousStatus)
-		visibility.PreviousStatus = &value
-	}
-	if payload.PublishedAt != nil {
-		visibility.PublishedAt = toProtoTime(payload.PublishedAt)
-	}
-	return visibility
-}
-
 func kindToProto(kind Kind) videov1.EventType {
 	switch kind {
 	case KindVideoCreated:
@@ -224,23 +134,7 @@ func kindToProto(kind Kind) videov1.EventType {
 		return videov1.EventType_EVENT_TYPE_VIDEO_UPDATED
 	case KindVideoDeleted:
 		return videov1.EventType_EVENT_TYPE_VIDEO_DELETED
-	case KindVideoMediaReady:
-		return videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY
-	case KindVideoAIEnriched:
-		return videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED
-	case KindVideoProcessingFailed:
-		return videov1.EventType_EVENT_TYPE_VIDEO_PROCESSING_FAILED
-	case KindVideoVisibilityChanged:
-		return videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED
 	default:
 		return videov1.EventType_EVENT_TYPE_UNSPECIFIED
 	}
-}
-
-func toProtoTime(t *time.Time) *string {
-	if t == nil {
-		return nil
-	}
-	v := t.UTC().Format(time.RFC3339Nano)
-	return &v
 }

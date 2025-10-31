@@ -1,3 +1,4 @@
+// Package gcs 提供与 Google Cloud Storage 交互的基础设施封装。
 package gcs
 
 import (
@@ -35,20 +36,22 @@ func WithClock(clock func() time.Time) Option {
 	}
 }
 
+// WithServiceAccountKey 允许直接注入访问 ID 与私钥（测试友好）。
+func WithServiceAccountKey(accessID string, privateKey []byte) Option {
+	return func(s *ResumableSigner) {
+		if accessID != "" {
+			s.googleAccessID = accessID
+		}
+		if len(privateKey) > 0 {
+			s.privateKey = append([]byte(nil), privateKey...)
+		}
+	}
+}
+
 // NewResumableSigner 创建 ResumableSigner，要求默认凭据中包含 service account 私钥。
 func NewResumableSigner(ctx context.Context, accessID string, logger log.Logger, opts ...Option) (*ResumableSigner, error) {
-	if accessID == "" {
-		return nil, errors.New("gcs signer: google access id is required")
-	}
-
-	privKey, detectedAccessID, err := loadServiceAccountKey(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("init gcs signer: %w", err)
-	}
-
 	signer := &ResumableSigner{
 		googleAccessID: accessID,
-		privateKey:     privKey,
 		now:            time.Now,
 		log:            log.NewHelper(logger),
 	}
@@ -57,8 +60,24 @@ func NewResumableSigner(ctx context.Context, accessID string, logger log.Logger,
 		opt(signer)
 	}
 
-	if detectedAccessID != "" && detectedAccessID != accessID {
-		signer.log.WithContext(ctx).Warnf("gcs signer access id mismatch: config=%s credentials=%s", accessID, detectedAccessID)
+	if len(signer.privateKey) == 0 {
+		privKey, detectedAccessID, err := loadServiceAccountKey(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("init gcs signer: %w", err)
+		}
+		signer.privateKey = privKey
+		if signer.googleAccessID == "" {
+			signer.googleAccessID = detectedAccessID
+		} else if detectedAccessID != "" && detectedAccessID != signer.googleAccessID {
+			signer.log.WithContext(ctx).Warnf("gcs signer access id mismatch: config=%s credentials=%s", signer.googleAccessID, detectedAccessID)
+		}
+	}
+
+	if signer.googleAccessID == "" {
+		return nil, errors.New("gcs signer: google access id is required")
+	}
+	if len(signer.privateKey) == 0 {
+		return nil, errors.New("gcs signer: private key is required")
 	}
 
 	return signer, nil

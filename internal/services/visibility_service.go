@@ -3,10 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
-	"time"
 
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
-	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 
@@ -105,31 +103,5 @@ func (s *VisibilityService) UpdateVisibility(ctx context.Context, input UpdateVi
 		ctx,
 		updateInput,
 		WithPreviousVideo(current),
-		WithAdditionalEvents(func(_ context.Context, updated *po.Video, previous *po.Video) ([]*outboxevents.DomainEvent, error) {
-			if previous == nil {
-				return nil, nil
-			}
-			if previous.Status == updated.Status {
-				return nil, nil
-			}
-			event, err := outboxevents.NewVideoVisibilityChangedEvent(
-				updated,
-				previous.Status,
-				input.Reason,
-				uuid.New(),
-				visibilityOccurredAt(updated),
-			)
-			if err != nil {
-				return nil, err
-			}
-			return []*outboxevents.DomainEvent{event}, nil
-		}),
 	)
-}
-
-func visibilityOccurredAt(video *po.Video) time.Time {
-	if video != nil && !video.UpdatedAt.IsZero() {
-		return video.UpdatedAt.UTC()
-	}
-	return time.Time{}
 }

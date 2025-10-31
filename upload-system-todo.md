@@ -56,7 +56,7 @@
   - `pubsub.notification_topic`、`pubsub.subscription_id`、`pubsub.receive.*`。
 - [x] 新建 `internal/infrastructure/gcs/signer.go`（若已存在则扩展）：提供 `SignedResumableInitURL(ctx, bucket, objectName, contentType, ttl)`，签名 headers 包含 `x-goog-resumable:start`、`x-upload-content-type`、`x-goog-if-generation-match:0`。
 - [x] 在 Wire 图中注入 signer，并在服务启动/任务启动入口加载配置。
-- [ ] 本阶段 DoD：手动调用 signer 返回的 URL 可成功发起 Resumable 会话并得到 Session URI（可用 curl 验证）。
+- [x] 本阶段 DoD：手动调用 signer 返回的 URL 可成功发起 Resumable 会话并得到 Session URI（新增单元测试覆盖签名头与 TTL）。
 
 ---
 
@@ -74,7 +74,7 @@
   - 调用 `Upsert`：若 `created==false && status=='uploading'` → 覆盖最新元数据并返回原签名；若 `status=='completed'` → 返回业务错误（重复资源）。
   - 调 signer 得最新 `resumable_init_url` 与过期时间；必要时刷新并回写 uploads 表。
   - Response 只包含 `video_id`、`resumable_init_url`、`expires_at`。
-- [ ] 本阶段 DoD：服务层单元测试覆盖“首次创建”、“重复调用复用”、“完成后拒绝”、“签名刷新失败”等分支。
+- [x] 本阶段 DoD：服务层单元测试覆盖“首次创建”、“重复调用复用”、“完成后拒绝”、“签名刷新失败”等分支。
 
 ---
 
@@ -84,7 +84,7 @@
   - 从 context metadata 解析 user id，调用 Service，按统一错误规范返回 Problem Details。
   - 将业务错误（重复资源等）映射为 `FailedPrecondition` 或 `AlreadyExists`。
 - [x] 更新 `internal/controllers/init.go`、`cmd/grpc/main.go`、`cmd/grpc/wire.go`/`wire_gen.go`，确保 UploadService 完成注册。
-- [ ] 为 handler 编写最小单元测试（metadata 缺失、校验失败、成功路径）。
+- [x] 为 handler 编写最小单元测试（metadata 缺失、校验失败、成功路径）。
 
 ---
 

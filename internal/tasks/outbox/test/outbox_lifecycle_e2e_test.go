@@ -22,19 +22,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var expectedLifecycleTypes = []videov1.EventType{
-	videov1.EventType_EVENT_TYPE_VIDEO_CREATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED,
-	videov1.EventType_EVENT_TYPE_VIDEO_UPDATED,
-	videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED,
-}
+const expectedLifecycleEventCount = 11
 
 type lifecycleTestEnv struct {
 	ctx           context.Context
@@ -66,36 +54,59 @@ func TestOutboxPublisher_EndToEndLifecycle(t *testing.T) {
 	env := newLifecycleTestEnv(t)
 	result := runLifecycleFlow(t, env)
 
-	msgs := waitForMessages(t, env.server, len(expectedLifecycleTypes))
+	msgs := waitForMessages(t, env.server, expectedLifecycleEventCount)
 	events := decodeMessages(t, msgs)
-	require.Len(t, events, len(expectedLifecycleTypes))
+	require.Len(t, events, expectedLifecycleEventCount)
 
 	for i, evt := range events {
-		require.Equal(t, expectedLifecycleTypes[i], evt.EventType)
+		if i == 0 {
+			require.Equal(t, videov1.EventType_EVENT_TYPE_VIDEO_CREATED, evt.EventType)
+		} else {
+			require.Equal(t, videov1.EventType_EVENT_TYPE_VIDEO_UPDATED, evt.EventType)
+		}
 		require.Equal(t, result.VideoID.String(), evt.AggregateId)
 		require.Equal(t, "video", evt.AggregateType)
+	}
 
-		switch evt.EventType {
-		case videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY:
-			payload := evt.GetMediaReady()
-			require.NotNil(t, payload)
-			require.Equal(t, result.MediaJobID, payload.GetJobId())
-			require.Equal(t, "ready", payload.GetMediaStatus())
-			require.Equal(t, result.Resolution, payload.GetEncodedResolution())
-		case videov1.EventType_EVENT_TYPE_VIDEO_AI_ENRICHED:
-			payload := evt.GetAiEnriched()
-			require.NotNil(t, payload)
-			require.Equal(t, result.AnalysisJobID, payload.GetJobId())
-			require.Equal(t, result.Difficulty, payload.GetDifficulty())
-			require.Equal(t, result.Summary, payload.GetSummary())
-			require.Equal(t, result.SubtitleURL, payload.GetRawSubtitleUrl())
-		case videov1.EventType_EVENT_TYPE_VIDEO_VISIBILITY_CHANGED:
-			payload := evt.GetVisibilityChanged()
-			require.NotNil(t, payload)
-			require.Equal(t, "published", payload.GetStatus())
-			require.Equal(t, "ready", payload.GetPreviousStatus())
+	var (
+		seenMediaReady    bool
+		seenMediaMetadata bool
+		seenAnalysisReady bool
+		seenAnalysisMeta  bool
+		seenPublished     bool
+	)
+
+	for _, evt := range events {
+		if evt.EventType != videov1.EventType_EVENT_TYPE_VIDEO_UPDATED {
+			continue
+		}
+		payload := evt.GetUpdated()
+		require.NotNil(t, payload)
+
+		if payload.GetMediaStatus() == "ready" {
+			seenMediaReady = true
+			if payload.GetDurationMicros() == result.DurationMicros &&
+				payload.GetHlsMasterPlaylist() == result.Playlist {
+				seenMediaMetadata = true
+			}
+		}
+		if payload.GetAnalysisStatus() == "ready" {
+			seenAnalysisReady = true
+			if payload.GetDifficulty() == result.Difficulty &&
+				payload.GetRawSubtitleUrl() == result.SubtitleURL {
+				seenAnalysisMeta = true
+			}
+		}
+		if payload.GetStatus() == "published" {
+			seenPublished = true
 		}
 	}
+
+	require.True(t, seenMediaReady, "expected update with media_status=ready")
+	require.True(t, seenMediaMetadata, "expected media metadata update to propagate")
+	require.True(t, seenAnalysisReady, "expected update with analysis_status=ready")
+	require.True(t, seenAnalysisMeta, "expected analysis metadata update to propagate")
+	require.True(t, seenPublished, "expected publish status update")
 
 	pending, err := env.outboxRepo.CountPending(env.ctx)
 	require.NoError(t, err)
@@ -106,9 +117,9 @@ func TestOutboxPublisher_MediaReadyIdempotent(t *testing.T) {
 	env := newLifecycleTestEnv(t)
 	result := runLifecycleFlow(t, env)
 
-	initialMsgs := waitForMessages(t, env.server, len(expectedLifecycleTypes))
+	initialMsgs := waitForMessages(t, env.server, expectedLifecycleEventCount)
 	initialEvents := decodeMessages(t, initialMsgs)
-	require.Equal(t, 1, countEventType(initialEvents, videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY))
+	require.Equal(t, 1, countEventType(initialEvents, videov1.EventType_EVENT_TYPE_VIDEO_CREATED))
 
 	mediaStatus := po.StageReady
 	_, err := env.mediaSvc.UpdateMediaInfo(env.ctx, services.UpdateMediaInfoInput{
@@ -127,9 +138,12 @@ func TestOutboxPublisher_MediaReadyIdempotent(t *testing.T) {
 	updatedMsgs := waitForMessages(t, env.server, len(initialMsgs)+1)
 	updatedEvents := decodeMessages(t, updatedMsgs)
 	require.Equal(t, len(initialEvents)+1, len(updatedEvents))
-	require.Equal(t, 1, countEventType(updatedEvents, videov1.EventType_EVENT_TYPE_VIDEO_MEDIA_READY))
 	last := updatedEvents[len(updatedEvents)-1]
 	require.Equal(t, videov1.EventType_EVENT_TYPE_VIDEO_UPDATED, last.EventType)
+	payload := last.GetUpdated()
+	require.NotNil(t, payload)
+	require.Equal(t, "ready", payload.GetMediaStatus())
+	require.Equal(t, result.Playlist, payload.GetHlsMasterPlaylist())
 
 	pending, err := env.outboxRepo.CountPending(env.ctx)
 	require.NoError(t, err)

@@ -10,8 +10,11 @@ import (
 type UploadStatus string
 
 const (
+	// UploadStatusUploading 表示上传会话仍在进行。
 	UploadStatusUploading UploadStatus = "uploading"
+	// UploadStatusCompleted 表示上传会话已完成。
 	UploadStatusCompleted UploadStatus = "completed"
+	// UploadStatusFailed 表示上传会话失败并记录错误信息。
 	UploadStatusFailed    UploadStatus = "failed"
 )
 

@@ -123,6 +123,28 @@ func (r *UploadRepository) GetByUserMD5(ctx context.Context, sess txmanager.Sess
 	return mappers.UploadSessionFromCatalog(record), nil
 }
 
+// GetByObject 查询指定 bucket/object_name 的上传会话。
+func (r *UploadRepository) GetByObject(ctx context.Context, sess txmanager.Session, bucket, objectName string) (*po.UploadSession, error) {
+	queries := r.queries
+	if sess != nil {
+		queries = queries.WithTx(sess.Tx())
+	}
+
+	record, err := queries.GetUploadByObject(ctx, catalogsql.GetUploadByObjectParams{
+		Bucket:     bucket,
+		ObjectName: objectName,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUploadNotFound
+		}
+		r.log.WithContext(ctx).Errorf("get upload by object failed: bucket=%s object=%s err=%v", bucket, objectName, err)
+		return nil, fmt.Errorf("get upload by object: %w", err)
+	}
+
+	return mappers.UploadSessionFromCatalog(record), nil
+}
+
 // MarkCompleted 将上传会话标记为 completed，并回写对象校验信息。
 func (r *UploadRepository) MarkCompleted(ctx context.Context, sess txmanager.Session, input MarkUploadCompletedInput) (*po.UploadSession, error) {
 	queries := r.queries

@@ -23,6 +23,7 @@ type UpdateOriginalMediaInput struct {
 	IdempotencyKey  string
 }
 
+// OriginalMediaRepo 定义 OriginalMediaService 所需的读取接口。
 type OriginalMediaRepo interface {
 	GetLifecycleSnapshot(ctx context.Context, sess txmanager.Session, videoID uuid.UUID) (*po.Video, error)
 }

@@ -74,6 +74,13 @@ FROM catalog.uploads
 WHERE video_id = $1
 LIMIT 1;
 
+-- name: GetUploadByObject :one
+SELECT *
+FROM catalog.uploads
+WHERE bucket = $1
+  AND object_name = $2
+LIMIT 1;
+
 -- name: GetUploadByUserMd5 :one
 SELECT *
 FROM catalog.uploads

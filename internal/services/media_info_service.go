@@ -6,7 +6,6 @@ import (
 	"time"
 
 	videov1 "github.com/bionicotaku/lingo-services-catalog/api/video/v1"
-	outboxevents "github.com/bionicotaku/lingo-services-catalog/internal/models/outbox_events"
 	"github.com/bionicotaku/lingo-services-catalog/internal/models/po"
 	"github.com/bionicotaku/lingo-services-catalog/internal/repositories"
 
@@ -92,78 +91,5 @@ func (s *MediaInfoService) UpdateMediaInfo(ctx context.Context, input UpdateMedi
 		ctx,
 		updateInput,
 		WithPreviousVideo(current),
-		WithAdditionalEvents(func(_ context.Context, updated *po.Video, previous *po.Video) ([]*outboxevents.DomainEvent, error) {
-			if previous == nil {
-				return nil, nil
-			}
-			if updated.MediaStatus != po.StageReady {
-				return nil, nil
-			}
-			if previous.MediaStatus == po.StageReady && !mediaPayloadChanged(previous, updated) {
-				return nil, nil
-			}
-			event, err := outboxevents.NewVideoMediaReadyEvent(updated, uuid.New(), mediaOccurredAt(updated))
-			if err != nil {
-				return nil, err
-			}
-			return []*outboxevents.DomainEvent{event}, nil
-		}),
 	)
-}
-
-func mediaOccurredAt(video *po.Video) time.Time {
-	if video == nil || video.MediaEmittedAt == nil {
-		return time.Time{}
-	}
-	return video.MediaEmittedAt.UTC()
-}
-
-func mediaPayloadChanged(previous, updated *po.Video) bool {
-	if previous == nil || updated == nil {
-		return true
-	}
-	switch {
-	case !equalStringPtr(previous.EncodedResolution, updated.EncodedResolution):
-		return true
-	case !equalIntPtr(previous.EncodedBitrate, updated.EncodedBitrate):
-		return true
-	case !equalStringPtr(previous.ThumbnailURL, updated.ThumbnailURL):
-		return true
-	case !equalStringPtr(previous.HLSMasterPlaylist, updated.HLSMasterPlaylist):
-		return true
-	case !equalInt64Ptr(previous.DurationMicros, updated.DurationMicros):
-		return true
-	default:
-		return false
-	}
-}
-
-func equalStringPtr(a, b *string) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a == *b
-}
-
-func equalIntPtr(a, b *int32) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a == *b
-}
-
-func equalInt64Ptr(a, b *int64) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a == *b
 }

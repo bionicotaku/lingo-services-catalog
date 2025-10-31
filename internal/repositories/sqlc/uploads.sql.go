@@ -12,6 +12,48 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getUploadByObject = `-- name: GetUploadByObject :one
+SELECT video_id, user_id, bucket, object_name, content_type, expected_size, size_bytes, content_md5, title, description, signed_url, signed_url_expires_at, status, gcs_generation, gcs_etag, md5_hash, crc32c, error_code, error_message, created_at, updated_at
+FROM catalog.uploads
+WHERE bucket = $1
+  AND object_name = $2
+LIMIT 1
+`
+
+type GetUploadByObjectParams struct {
+	Bucket     string `json:"bucket"`
+	ObjectName string `json:"object_name"`
+}
+
+func (q *Queries) GetUploadByObject(ctx context.Context, arg GetUploadByObjectParams) (CatalogUpload, error) {
+	row := q.db.QueryRow(ctx, getUploadByObject, arg.Bucket, arg.ObjectName)
+	var i CatalogUpload
+	err := row.Scan(
+		&i.VideoID,
+		&i.UserID,
+		&i.Bucket,
+		&i.ObjectName,
+		&i.ContentType,
+		&i.ExpectedSize,
+		&i.SizeBytes,
+		&i.ContentMd5,
+		&i.Title,
+		&i.Description,
+		&i.SignedUrl,
+		&i.SignedUrlExpiresAt,
+		&i.Status,
+		&i.GcsGeneration,
+		&i.GcsEtag,
+		&i.Md5Hash,
+		&i.Crc32c,
+		&i.ErrorCode,
+		&i.ErrorMessage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUploadByUserMd5 = `-- name: GetUploadByUserMd5 :one
 SELECT video_id, user_id, bucket, object_name, content_type, expected_size, size_bytes, content_md5, title, description, signed_url, signed_url_expires_at, status, gcs_generation, gcs_etag, md5_hash, crc32c, error_code, error_message, created_at, updated_at
 FROM catalog.uploads
