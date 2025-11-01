@@ -101,6 +101,7 @@ gcs:
   bucket: media-uploads-dev
   signer_service_account: upload-signer@smiling-landing-472320-q0.iam.gserviceaccount.com
   signed_url_ttl: 900s
+  # 如需自定义对象前缀或区域，可在 upload-system.md 中的规划基础上扩展，保持 raw_videos/{user_id}/{video_id} 约定即可。
 
 # 可观测性配置：追踪与指标
 observability:
@@ -167,6 +168,20 @@ messaging:
       receive:
         num_goroutines: 4
         max_outstanding_messages: 1000
+        max_outstanding_bytes: 67108864
+        max_extension: 60s
+        max_extension_period: 600s
+    uploads:
+      project_id: smiling-landing-472320-q0
+      topic_id: catalog.video-uploads
+      subscription_id: catalog.video-uploads.runner
+      logging_enabled: true
+      metrics_enabled: true
+      emulator_endpoint: ""
+      publish_timeout: 5s
+      receive:
+        num_goroutines: 4
+        max_outstanding_messages: 500
         max_outstanding_bytes: 67108864
         max_extension: 60s
         max_extension_period: 600s

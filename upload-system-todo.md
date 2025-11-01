@@ -117,7 +117,7 @@
 - [ ] 更新 `services-catalog/upload-system.md`（已完成的内容需再次核对与实现一致）。
 - [ ] 更新 `services-catalog/ARCHITECTURE.md`、`README.md`、`MVP.md` 中关于上传流程、接口、事件的描述。
 - [ ] 在 `docs/` 或 `infra` 目录补充 Pub/Sub/GCS 开通脚本、权限说明（若尚未存在）。
-- [ ] 将新的配置项加入 Sample `.env` 或配置示例。
+- [x] 将新的配置项加入 Sample `.env` 或配置示例（`configs/.env.example`、`configs/config.yaml`）。
 - [ ] 更新 `services-catalog/todo.md` 任务状态，使其与实际工作同步。
 
 ---
