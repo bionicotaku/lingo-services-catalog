@@ -109,50 +109,115 @@
 
 ---
 
-## 三、订阅端配置（Uploads Runner → `catalog.video-uploads`）
+## 三、GCS → Pub/Sub → Uploads Runner（`catalog.video-uploads`）端到端搭建
 
-1. **创建 Topic / Subscription**
+> 目标：当 GCS 存储桶写入原始视频后，自动触发 `OBJECT_FINALIZE` 事件，推送到 `catalog.video-uploads` Topic，再由 Catalog Uploads Runner 串联 `catalog.uploads` / `catalog.videos` / Outbox。
+
+### 3.1 前置条件
+
+- 已创建目标存储桶（示例：`media-uploads-dev`），并确认启用了 **Uniform bucket-level access**。
+- Catalog 服务运行账号具备：
+  - `roles/storage.objectViewer`（读取 GCS 元数据，用于校验）；
+  - `roles/pubsub.publisher`（若后续扩展需要回写 Topic）；
+  - `roles/pubsub.subscriber`（消费上传通知）。
+- 本文示例默认项目为 `smiling-landing-472320-q0`，执行命令前请替换。
+
+### 3.2 创建 Topic 与订阅
+
+```bash
+gcloud pubsub topics create catalog.video-uploads \
+    --project=smiling-landing-472320-q0
+
+gcloud pubsub subscriptions create catalog.video-uploads.runner \
+    --project=smiling-landing-472320-q0 \
+    --topic=catalog.video-uploads \
+    --ack-deadline=60 \
+    --message-retention-duration=7d \
+    --enable-message-ordering \
+    --min-retry-delay=10s \
+    --max-retry-delay=600s
+
+gcloud pubsub topics add-iam-policy-binding catalog.video-uploads \
+    --project=smiling-landing-472320-q0 \
+    --member=serviceAccount:sa-catalog-reader@smiling-landing-472320-q0.iam.gserviceaccount.com \
+    --role=roles/pubsub.subscriber
+```
+
+> 若 Uploads Runner 使用独立 Service Account，可在此替换为实际账户；推荐单独授予 `roles/pubsub.viewer` 以便排查。
+
+### 3.3 为存储桶创建通知（Cloud Storage → Pub/Sub）
+
+1. 确认项目启用 Storage Notifications API：
    ```bash
-   gcloud pubsub topics create catalog.video-uploads \
+   gcloud services enable storage.googleapis.com \
        --project=smiling-landing-472320-q0
-
-   gcloud pubsub subscriptions create catalog.video-uploads.runner \
-       --project=smiling-landing-472320-q0 \
-       --topic=catalog.video-uploads \
-       --ack-deadline=60 \
-       --message-retention-duration=7d
-
-   gcloud pubsub topics add-iam-policy-binding catalog.video-uploads \
-       --member=serviceAccount:sa-catalog-reader@smiling-landing-472320-q0.iam.gserviceaccount.com \
-       --role=roles/pubsub.subscriber
    ```
-
-2. **`config.yaml` 段落**
-   ```yaml
-   messaging:
-     topics:
-       uploads:
-         project_id: smiling-landing-472320-q0
-         topic_id: catalog.video-uploads
-         subscription_id: catalog.video-uploads.runner
-         logging_enabled: true
-         metrics_enabled: true
-         emulator_endpoint: ""
-         publish_timeout: 5s
-         receive:
-           num_goroutines: 4
-           max_outstanding_messages: 500
-           max_outstanding_bytes: 67108864
-           max_extension: 60s
-           max_extension_period: 600s
+2. 调用 `gsutil notification create` 绑定存储桶与 Topic：
+   ```bash
+   gsutil notification create \
+       -t projects/smiling-landing-472320-q0/topics/catalog.video-uploads \
+       -f json \
+       -e OBJECT_FINALIZE \
+       -p raw_videos/ \
+       gs://media-uploads-dev
    ```
+   - `-f json` 指定 Cloud Storage JSON 消息格式（Uploads Runner 解码 JSON）。
+   - `-e OBJECT_FINALIZE` 仅捕获最终写入事件，忽略删除、元数据更新。
+   - `-p raw_videos/` 使用对象前缀过滤，只投递用户上传的原始视频目录。
+3. 验证通知是否生效：
+   ```bash
+   gsutil notification list gs://media-uploads-dev
+   ```
+   需看到 `topic:projects/.../topics/catalog.video-uploads` 的记录。
 
-3. **Runner 处理流程**
-   - 消费 GCS `OBJECT_FINALIZE` 通知 → 根据 `(bucket, object_name)` 查找 `catalog.uploads` 会话。
-   - 校验 `md5Hash`，成功则 `MarkCompleted` 并创建/更新 `catalog.videos`，随后写入 Outbox。
-   - 利用 Inbox 表 (`INSERT ... ON CONFLICT DO NOTHING`) 保证重复消息幂等。
-   - MD5 mismatch 时将会话标记为 `failed`，等待后续正确事件恢复。
-   - 本地开发可配置 `PUBSUB_EMULATOR_HOST` 使用 emulator，`emulator_endpoint` 指向同地址，以保持同一代码路径。
+### 3.4 更新 Catalog 配置
+
+在 `services-catalog/configs/config.yaml` 中补全 uploads 段落（若已有仅需确认值）：
+
+```yaml
+messaging:
+  topics:
+    uploads:
+      project_id: smiling-landing-472320-q0
+      topic_id: catalog.video-uploads
+      subscription_id: catalog.video-uploads.runner
+      logging_enabled: true
+      metrics_enabled: true
+      emulator_endpoint: ""      # 使用 Pub/Sub emulator 时填入 localhost:8085
+      publish_timeout: 5s        # 仅用于需要往该 topic 发布消息的场景
+      receive:
+        num_goroutines: 4
+        max_outstanding_messages: 500
+        max_outstanding_bytes: 67108864
+        max_extension: 60s
+        max_extension_period: 600s
+```
+
+> 与 `messaging.outboxes`、`messaging.inboxes` 保持统一，便于 Wire 装配。若本地联调需要 emulator，请同时设置 `PUBSUB_EMULATOR_HOST` 环境变量。
+
+### 3.5 Uploads Runner 处理流程速览
+
+1. StreamingPull 获取消息 → Inbox Runner 记录 `inbox(event_id)` 去重。
+2. 解析 JSON payload，抽取 `bucket/name/md5Hash/generation/size`。
+3. 查找 `catalog.uploads`，校验 `content_md5`、判断是否重入。
+4. `MarkCompleted` 更新上传状态、写入对象摘要；首次完成时驱动 `LifecycleWriter.CreateVideo` + `UpdateVideo`。
+5. Lifecycle Writer 在同事务中写入 Outbox 事件，交由 Outbox Runner 发布 `catalog.video.events`。
+
+详见 `internal/tasks/uploads/handler.go` 与 `internal/services/lifecycle_writer.go`。
+
+### 3.6 验证与排查
+
+- **手动触发**：向存储桶上传测试对象（保持 `raw_videos/{user_id}/{video_id}` 命名），查询 Uploads Runner 日志确认处理完整。
+- **订阅抽样**：
+  ```bash
+  gcloud pubsub subscriptions pull catalog.video-uploads.runner \
+      --project=smiling-landing-472320-q0 \
+      --limit=5 --auto-ack
+  ```
+- **通知状态**：若消息未触发，使用 `gsutil notification list` 验证配置；或通过 Cloud Logging 查看 GCS 通知是否报错。
+- **DLQ 策略**：若后续需要将毒消息隔离，可为 `catalog.video-uploads` 单独创建 DLQ 与监控订阅（流程与视频事件一致）。
+
+> Uploads Runner 默认不返回 Ack 直到事务成功提交，若数据库不可用将自动重试；超过最大投递次数前请确保数据库恢复或手动处理。
 
 ---
 
