@@ -350,123 +350,101 @@ services/catalog-read/
 
 ---
 
-## 5. gRPC 契约
+## 5. gRPC 契约（video.v1）
 
-### 5.1 `CatalogQueryService`
+Catalog 暴露的对外接口全部收敛在 `video.v1` 包内的三个 gRPC Service：`UploadService`、`CatalogLifecycleService` 与 `CatalogQueryService`。所有写接口都会从请求头解析 `x-md-idempotency-key`、`If-*` 以及 `X-Apigateway-Api-Userinfo`，通过 `metadata.HandlerMetadata` 注入上下文，实现幂等与权限校验。错误码统一映射到 `video.v1.ErrorReason`（详见 §5.4）。
 
-```proto
-service CatalogQueryService {
-  // 返回用户无关的视频元数据（媒体、AI 字段），供内部组装
-  rpc GetVideoMetadata(GetVideoMetadataRequest) returns (GetVideoMetadataResponse);
+### 5.1 UploadService
 
-  // Gateway 调用；返回包含用户 engagement 信息的单视频详情
-  rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
+**公开 RPC**
 
-  // Gateway 调用；列出指定用户的公开视频
-  rpc ListUserPublicVideos(ListUserPublicVideosRequest) returns (ListUserPublicVideosResponse);
+- `InitResumableUpload(InitResumableUploadRequest) → InitResumableUploadResponse`
 
-  // Gateway 调用；列出当前用户上传的全部视频（含非公开状态）
-  rpc ListMyUploads(ListMyUploadsRequest) returns (ListMyUploadsResponse);
+**请求字段与校验**
 
-}
-```
+- `size_bytes`：允许 0（客户端可能无法预估），用于写入 `catalog.uploads.expected_size`。
+- `content_type`：必须为非空的 MIME；服务端会再做白名单校验（`video/mp4`、`video/quicktime` 等，见 `UploadService` 内的 allowlist）。
+- `content_md5_hex`：32 位十六进制（buf-validate 保证格式），用于 `(user_id, content_md5)` 幂等约束。
+- `duration_seconds`：1~300，限制移动端单条上传时长（MVP 上限 5 分钟）。
+- `title`、`description`：至少 1 个字符，直接写入 `catalog.videos`。
 
-- `GetVideoMetadata`：返回与用户无关的客观元数据（媒体、AI 字段等），可供 Gateway 或内部服务组合使用。
-- `GetVideoDetail`：返回 `GetVideoMetadataResponse` 全字段，并追加用户态布尔字段 `has_liked`、`has_bookmarked` 以及聚合统计字段 `like_count`、`bookmark_count`、`watch_count`、`unique_watchers`；布尔态来自 `catalog.video_user_engagements_projection`，统计数据来自新建的 `catalog.video_engagement_stats_projection`。接口支持 `If-None-Match`，并在内部并行调用 Progress/Profile；若超时或失败返回 `partial=true` 并省略用户态字段，保证详情页可降级展示。
-- `GetVideoMetadata`：在原有媒体/AI 字段基础上同步返回 `like_count`、`bookmark_count`、`watch_count` 三项聚合指标；若投影为空默认返回 0，保持统计字段稳定。
-- `catalog.video_engagement_stats_projection`：由 Inbox Runner (`internal/tasks/engagement`) 订阅 `profile.engagement.added/removed` 与 `profile.watch.progressed` 事件维护，记录每个视频的点赞、收藏、有效观看次数及唯一观看用户数，同时保留首次/最近观看时间供新客运营与推荐使用。消费端直接使用 Profile 服务对外暴露的 `profile.v1` 事件 proto（`schemas/api/profile/v1/events.proto`），并通过 Pub/Sub 属性携带 `event_type`、`schema_version`、`event_id`、`aggregate_id`，确保重复投递可幂等跳过；消息若携带历史 JSON 负载会被拒绝并记入 Inbox error 以便排查。
-- `ListUserPublicVideos`：过滤 `status=published`，未来扩展 `visibility_status=public` 时保持契约不变；提供游标与 `Link` 风格信息。
-- `ListMyUploads`：校验 `user_id`，返回所有状态及处理进度，默认按 `created_at desc` 排序，可携带 `stage_filter` 参数筛选。
+**行为**
 
-> 注意：当前实现直接访问 Catalog 主库；`catalog_read` 投影流程已停用，以下描述保留作未来扩展参考。
+- 解析 `X-Apigateway-Api-Userinfo`，缺失或非法时返回 `ERROR_REASON_UPLOAD_INVALID`。
+- 生成 `video_id` 与对象路径 `raw_videos/{user_id}/{video_id}`。
+- `(user_id, content_md5)` 唯一：若已有进行中的会话，直接返回既有 `video_id` 和签名 URL；若会话状态为 `completed` 则返回 `ERROR_REASON_UPLOAD_ALREADY_COMPLETED`。
+- 使用 GCS V4 签名生成 Resumable Session 初始化 URL，默认有效期 `signed_url_ttl`（配置为 900 秒）。URL 过期需重新调用本 RPC。
+- 成功后 UPSERT `catalog.uploads`（状态 `uploading`），记录签名 URL、过期时间、预期大小、描述等。
 
-### 5.2 `CatalogLifecycleService`
+**响应**
 
-```proto
-service CatalogLifecycleService {
-  // Upload 服务调用；注册上传并生成 video_id
-  rpc RegisterUpload(RegisterUploadRequest) returns (RegisterUploadResponse);
+- `video_id`：后续生命周期 RPC 使用。
+- `resumable_init_url`：客户端 `POST` + `x-goog-resumable:start` 使用的会话初始化 URL。
+- `expires_at_unixms`：签名过期时间（毫秒）。
 
-  // Upload 服务调用；直传完成后补写原始媒体信息
-  rpc UpdateOriginalMedia(UpdateOriginalMediaRequest) returns (VideoRevision);
+错误场景映射到 `ERROR_REASON_UPLOAD_INVALID` / `ERROR_REASON_UPLOAD_ALREADY_COMPLETED`。
 
-  // Upload / Media / AI 调用；更新阶段状态
-  rpc UpdateProcessingStatus(UpdateProcessingStatusRequest) returns (VideoRevision);
+### 5.2 CatalogLifecycleService
 
-  // Media 服务调用；写入转码结果
-  rpc UpdateMediaInfo(UpdateMediaInfoRequest) returns (VideoRevision);
+写模型统一通过 `CatalogLifecycleService` 暴露，所有 RPC 都依赖 `Idempotency-Key`（来自 `x-md-idempotency-key`），并支持 `expected_version`/`expected_status` 做并发控制。服务实现位于 `internal/services/*_service.go`，调用 `LifecycleWriter` 以事务方式写业务表与 Outbox。
 
-  // AI 服务调用；写入分析结果与标签
-  rpc UpdateAIAttributes(UpdateAIAttributesRequest) returns (VideoRevision);
+| RPC | 调用方 | 输入要点 | 行为摘要 |
+| --- | --- | --- | --- |
+| `RegisterUpload` | Upload Service | `upload_user_id`, `title`, `raw_file_reference`, `description?` | 创建 `catalog.videos` 基础记录（`status=pending_upload`），写入 Outbox `catalog.video.created`，返回 `VideoRevision`（包含版本号、事件 ID、时间戳）。 |
+| `UpdateOriginalMedia` | Upload Service | `raw_file_size?`, `raw_resolution?`, `raw_bitrate?`, `expected_version?` | 直传完成后补充原始媒体信息并自增版本；`expected_version` 不匹配返回 `FAILED_PRECONDITION`。 |
+| `UpdateProcessingStatus` | Media / AI Pipeline | `stage`(`MEDIA`/`ANALYSIS`), `new_status`, `job_id`, `emitted_at`, `expected_status?`, `error_message?`, `expected_version?` | 校验阶段迁移合法性与时间戳新鲜度：`failed` 会同步将整体 `status` 置为 `failed`；重复或过期回调被拒绝。 |
+| `UpdateMediaInfo` | Media Pipeline | `duration_micros?`, `encoded_resolution?`, `encoded_bitrate?`, `thumbnail_url?`, `hls_master_playlist?`, `media_status?`, `job_id`, `emitted_at`, `expected_version?` | 写入转码产物并可同步将 `media_status` 置为 `ready`/`failed`。`job_id` 与 `emitted_at` 作为幂等因子。 |
+| `UpdateAIAttributes` | AI Pipeline | `difficulty?`, `summary?`, `tags[]`, `raw_subtitle_url?`, `analysis_status?`, `error_message?`, `job_id`, `emitted_at`, `expected_version?` | 写入 AI 语义层数据；当媒体和分析阶段均 `ready` 时，总体 `status` 变为 `ready`。 |
+| `ArchiveVideo` | 运营 / 自动策略 | `reason?`, `expected_version?` | 将视频标记为 `archived` 并记录原因；响应包含新的版本号与事件 ID。 |
 
-  // Safety/运营调用；归档视频（撤出公开列表）
-  rpc ArchiveVideo(ArchiveVideoRequest) returns (VideoRevision);
+**通用约束**
 
-}
-```
+- 成功响应统一返回 `VideoRevision`（`video_id`、状态/阶段状态、版本、`updated_at`、事件 ID、`occurred_at`）。
+- 不存在的视频 → `NOT_FOUND`（`ERROR_REASON_VIDEO_NOT_FOUND`）。
+- 参数或状态冲突 → `INVALID_ARGUMENT/FAILED_PRECONDITION`（`ERROR_REASON_VIDEO_UPDATE_INVALID`）。
+- 所有写操作均会写出 `catalog.video.created/updated/deleted` 中的某一种事件（见 §6）。
 
-- 安全：要求 mTLS + OIDC（audience=`catalog-lifecycle`），`actor_type` 校验留待 Post-MVP（当前生命周期 RPC 依赖 `X-Apigateway-Api-Userinfo` 解析终端用户）。
-- 幂等：所有写请求必须包含 `idempotency_key`，重复请求返回首个结果。
-- 并发控制：需传入 `expected_status` 或 `expected_version`，冲突返回 `codes.FailedPrecondition`（Problem type `status-conflict`）。
-- 版本策略：Service 在事务内 `SELECT ... FOR UPDATE` 锁定记录，校验 `expected_version`，成功后执行 `version = version + 1` 并返回最新版本；所有事件使用该版本号，读模型以此做幂等。
-- 原始媒体更新：上传完成后由 Upload 服务调用 `UpdateOriginalMedia` 写入 `raw_file_size`、`raw_resolution`、`raw_bitrate` 等字段，并将 `version` 自增 1。
-- 阶段更新：`UpdateProcessingStatus` 需要携带 `stage`（`MEDIA`/`ANALYSIS`）与目标阶段状态；当 `new_status=processing` 或 `failed` 时必须传入新的 `job_id` 和可选原因，Service 会锁定记录、更新阶段状态并刷新 `media_job_id`/`analysis_job_id`。
-- 媒体/AI 结果回写：`UpdateMediaInfo`、`UpdateAIAttributes` 请求必须携带 `job_id` 与 `emitted_at`。Service 在事务内比对 `media_job_id`/`analysis_job_id` 与 `media_emitted_at`/`analysis_emitted_at`，只有在 `emitted_at` 更新、更晚的情况下才写入并自增 `version`，同时使用 `idempotency_key=job_id` 保证重复回调安全。
-- 归档：`ArchiveVideo` 由运营或自动策略调用，将 `status` 置为 `archived`，记录归档原因，并生成 `catalog.video.visibility_changed` 事件；归档后的视频不再出现在公开列表，可通过后续运营流程重新发布。
+### 5.3 CatalogQueryService
 
-### 5.3 `CatalogAdminService`（post mvp 后续扩展）
+查询接口面向 Gateway 与内部服务，控制器会将 `X-Apigateway-Api-Userinfo` 注入，以便返回用户态布尔字段。
 
-```proto
-service CatalogAdminService {
-  // 运营后台调用；搜索视频并支持多条件过滤
-  rpc SearchVideos(AdminSearchVideosRequest) returns (AdminSearchVideosResponse);
+| RPC | 作用 | 说明 |
+| --- | --- | --- |
+| `GetVideoMetadata(video_id)` | 返回媒体/AI 元数据与聚合计数 | 读取 `catalog.videos` 与衍生视图，附带 `duration_micros`、`encoded_resolution`、`difficulty`、`summary`、`tags`、`raw_subtitle_url`、`version` 以及点赞/收藏/观看次数。 |
+| `GetVideoDetail(video_id)` | 公共详情页补水 | 读取 ready/published 视图并补充用户态字段：`has_liked`、`has_bookmarked`（来自 `catalog.video_user_engagements_projection`），统计来自 `catalog.video_engagement_stats_projection`。当 `X-Apigateway-Api-Userinfo` 无法解析为合法 UUID 时返回 `ERROR_REASON_VIDEO_ID_INVALID`。 |
+| `ListUserPublicVideos(page_size, page_token)` | 列出公开视频 | 仅返回 `status=published` 的条目，按 `created_at DESC, video_id DESC` 排序，游标编码在 `next_page_token`。`page_size` 超过 100 会被裁剪。 |
+| `ListMyUploads(page_size, page_token, status_filter[], stage_filter[])` | 列出当前用户上传的全部视频 | 需要从 metadata 解析用户 ID；支持 `status_filter` 与阶段过滤（枚举值在 proto 中约束），并返回 `version` 以便前端执行乐观锁。 |
 
-  // 运营后台调用；获取单条视频的审计轨迹
-  rpc GetAuditTrail(GetAuditTrailRequest) returns (GetAuditTrailResponse);
+所有查询通过 `WithinReadOnlyTx` 执行，成功路径返回 `videov1.VideoDetail`、`VideoMetadata`、`VideoListItem`、`MyUploadListItem`，并在控制器层转换为 Problem Details/ETag 友好的响应格式。
 
-  // 运营后台调用；获取处理/审核统计指标
-  rpc GetProcessingMetrics(GetProcessingMetricsRequest) returns (GetProcessingMetricsResponse);
+### 5.4 错误码映射
 
-  // Safety/运营调用；审核发布或拒绝
-  rpc FinalizeVisibility(FinalizeVisibilityRequest) returns (VideoRevision);
+`video.v1.ErrorReason` 当前定义并使用以下取值：
 
-  // 运营调用；强制调整状态（紧急下架等）
-  rpc OverrideStatus(OverrideStatusRequest) returns (VideoRevision);
-}
-```
+- `ERROR_REASON_VIDEO_NOT_FOUND`：指定视频不存在或非公开。
+- `ERROR_REASON_VIDEO_ID_INVALID`：请求中的 `video_id` 或用户身份头无法解析为 UUID。
+- `ERROR_REASON_QUERY_VIDEO_FAILED` / `ERROR_REASON_QUERY_TIMEOUT`：查询层内部故障或超时。
+- `ERROR_REASON_VIDEO_UPDATE_INVALID`：生命周期请求的参数非法、状态冲突或分页游标失效。
+- `ERROR_REASON_VIDEO_DELETE_INVALID`：保留给未来删除/强制下架流程。
+- `ERROR_REASON_UPLOAD_INVALID`：上传初始化请求缺失必要字段或鉴权失败。
+- `ERROR_REASON_UPLOAD_ALREADY_COMPLETED`：同 `(user_id, content_md5)` 的上传会话已成功完成。
 
-> 该 Service 仅供内部控制台使用，需独立 IAM 角色与网络隔离。
-
----
-
-### 5.4 失败处理与补偿（MVP）
-
-- 当任一阶段回调失败（返回 `stage_status=failed`）时，Service 将：
-  1. 写入 `error_message`，将对应阶段标记为 `failed`，总体 `status` 改为 `failed` 并自增 `version`；
-  2. 写入一条 Outbox 事件 `catalog.video.processing_failed`（包含 `failed_stage`、`error_message`、`version`）供监控与告警；
-  3. 不自动重试；外部编排（Media/AI 服务）在问题排除后需调用 `UpdateProcessingStatus(stage, new_status=processing, job_id)` 重新启动任务并写入新的 `idempotency_key`。
-- `UpdateProcessingStatus(stage, new_status=processing, job_id)` 在事务内验证当前 `status in {failed, processing}` 且目标阶段为 `failed` 才允许，将阶段置为 `processing`，清空 `error_message` 并更新 `media_job_id`/`analysis_job_id`。
-- 若长期无法恢复，运营（Post-MVP）可选择 `Reject` 或归档；MVP 阶段仅提供状态查询与手动重排能力。
-
----
+控制器会将 gRPC `Status` 映射为 RFC 9457 Problem Details，保留 `error_reason`（enum 名称）、`status`, `title`, `detail` 与可选 `trace_id` 便于前端定位问题。
 
 ## 6. 领域事件与 Outbox
 
 | 事件名                             | 触发条件                                 | 关键字段                                                                                          | 主要订阅方                                  |
 | ---------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `catalog.video.created`            | `RegisterUpload` 成功                    | `video_id`, `upload_user_id`, `title`, `status`, `raw_file_reference`, `occurred_at`, `version`   | Catalog Read 投影, Search, Reporting        |
-| `catalog.video.stage_updated`      | 任一阶段（媒体/分析）状态变化            | `video_id`, `stage`, `previous_stage_status`, `new_stage_status`, `status`, `trace_id`, `version` | Catalog Read 投影, Monitoring, Media 控制台 |
-| `catalog.video.media_ready`        | `UpdateMediaInfo` 成功                   | `video_id`, `duration_micros`, `thumbnail_url`, `hls_master_playlist`, `version`                  | Catalog Read 投影, Feed, Search, AI         |
-| `catalog.video.ai_enriched`        | `UpdateAIAttributes` 成功                | `video_id`, `difficulty`, `summary`, `tags`, `raw_subtitle_url`, `version`                        | Catalog Read 投影, Search, RecSys           |
-| `catalog.video.visibility_changed` | `FinalizeVisibility` 或 `OverrideStatus` | `video_id`, `visibility_status`, `publish_at`, `region_restrictions`, `version`（actor 元数据 Post-MVP 预留） | Catalog Read 投影, Feed, Search             |
-| `catalog.video.processing_failed`  | 状态转为 `failed`                        | `video_id`, `error_message`, `failed_stage`                                                       | Alerting, Upload, Support                   |
-| `catalog.video.restored`           | 从失败/拒绝恢复                          | `video_id`, `previous_status`, `new_status`（actor 元数据 Post-MVP 预留）                         | Audit, Reporting                            |
+| `catalog.video.created`  | `RegisterUpload` 成功 | `video_id`, `upload_user_id`, `title`, `description?`, `status`, `media_status`, `analysis_status`, `occurred_at`, `version` | Feed、Search、Reporting 等需要新视频上线的服务 |
+| `catalog.video.updated`  | 任意生命周期写接口在同一事务内更新了 `catalog.videos` | payload 仅包含发生变化的字段（标题、描述、状态、阶段状态、媒体/AI 信息、可见性等），并携带最新 `version`、`occurred_at` | Feed、Search、RecSys、自建投影服务 |
+| `catalog.video.deleted`* | 归档/删除（未来扩展） | `video_id`, `deleted_at`, `reason?`, `version` | 预留给治理/审计，下游目前可忽略 |
 
 - **事件字段约束（MVP）**
   - 每条事件至少包含：`event_id`、`aggregate_id=video_id`、`version`、`occurred_at`。（`actor` 字段 Post-MVP 规划，当前未输出）
-  - `media_ready` / `ai_enriched` 必须输出完整快照字段（媒体/AI 相关列），以便下游覆盖更新；不返回 delta。
-  - `stage_updated` 仅描写状态变化，可选 `error_message`；`processing_failed` 承载错误详情。
-  - 所有事件 payload 使用 Protobuf，并保留向后兼容新增字段策略（仅追加字段，禁止复用 tag）。
+  - `catalog.video.created` 输出完整快照，供下游构建初始投影。
+  - `catalog.video.updated` 仅携带发生变化的字段；下游收到事件后应与本地状态合并，未出现的字段视为维持原值。
+  - `catalog.video.deleted` 目前未在代码路径中触发，预留给后续治理流程；下游可选择忽略。
+  - 所有事件 payload 使用 Protobuf，并保持向后兼容（只追加字段，禁止复用已有 tag）。
 
 ### 6.1 Outbox 发布（Pub/Sub）
 
