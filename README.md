@@ -1,206 +1,212 @@
 # Services-Catalog
 
-**Catalog 微服务** - 维护视频权威元数据，协调上传→转码→AI分析→上架的完整流程。
+**Catalog microservice** — Maintains the authoritative video metadata and orchestrates the full pipeline from upload → transcoding → AI analysis → publishing.
 
 ---
 
-## 概览
+## Overview
 
-Catalog 服务负责：
+The Catalog service is responsible for:
 
-- **视频元数据管理**：维护视频的基础信息、媒体属性、AI分析结果
-- **生命周期协调**：管理视频从上传到发布的状态流转（`pending_upload` → `processing` → `ready` → `published`）
-- **事件驱动集成**：通过 Outbox + GCP Pub/Sub 发布领域事件，供下游服务（Search/Feed/Progress）消费
+* **Video metadata management**: Maintains basic video info, media attributes, and AI analysis results
+* **Lifecycle orchestration**: Manages state transitions from upload to publish (`pending_upload` → `processing` → `ready` → `published`)
+* **Event-driven integration**: Publishes domain events via Outbox + GCP Pub/Sub for downstream consumers (Search/Feed/Progress)
 
-**架构特点：**
-- DDD-lite + CQRS + Event Sourcing
-- Kratos 微服务框架 + Wire 依赖注入
-- PostgreSQL (Supabase) + SQLC
-- Outbox Pattern 驱动下游集成
-- OpenTelemetry 可观测性
+**Architecture highlights:**
+
+* DDD-lite + CQRS + Event Sourcing
+* Kratos microservice framework + Wire dependency injection
+* PostgreSQL (Supabase) + SQLC
+* Outbox Pattern for downstream integration
+* OpenTelemetry observability
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 1. 环境准备
+### 1. Prerequisites
 
-**必需：**
-- Go 1.22+
-- PostgreSQL 15+ (推荐 Supabase)
-- GCP Pub/Sub (或本地 emulator)
+**Required:**
 
-**工具链：**
+* Go 1.22+
+* PostgreSQL 15+ (Supabase recommended)
+* GCP Pub/Sub (or local emulator)
+
+**Toolchain:**
+
 ```bash
-# 安装开发工具
+# Install development tools
 make init
 
-# 安装的工具包括：
-# - buf (Protocol Buffers 管理)
-# - wire (依赖注入代码生成)
-# - sqlc (SQL 查询代码生成)
-# - gofumpt, goimports (代码格式化)
-# - staticcheck, revive (静态检查)
+# Tools installed include:
+# - buf (Protocol Buffers management)
+# - wire (DI code generation)
+# - sqlc (SQL query code generation)
+# - gofumpt, goimports (formatting)
+# - staticcheck, revive (static analysis)
 ```
 
-### 2. 配置
+### 2. Configuration
 
-> **配置约定**：所有业务配置均来源于 `configs/config.yaml`（可按环境复制 `config.$ENV.yaml` 覆盖）。`.env` 仅用于注入 `DATABASE_URL` 等敏感信息或平台自动注入的 `PORT`，不再驱动业务开关。
+> **Config convention**: All business configuration comes from `configs/config.yaml` (optionally override by copying `config.$ENV.yaml`). `.env` is only for sensitive values like `DATABASE_URL` or platform-injected `PORT`, and no longer controls business feature flags.
 
-示例 `.env` 仅需声明数据库连接：
+Example `.env` only needs the database connection string:
 
 ```env
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable&search_path=catalog
 ```
 
-### 3. 数据库迁移
+### 3. Database migrations
 
 ```bash
-# 执行迁移脚本
+# Run migration scripts
 psql "$DATABASE_URL" -f migrations/001_init_catalog_schema.sql
 psql "$DATABASE_URL" -f migrations/002_create_catalog_event_tables.sql
 psql "$DATABASE_URL" -f migrations/003_create_catalog_videos_table.sql
 psql "$DATABASE_URL" -f migrations/004_create_catalog_video_user_engagements_projection.sql
 ```
 
-### 4. 启动服务
+### 4. Start the service
 
 ```bash
-# 开发模式
+# Dev mode
 go run ./cmd/grpc -conf configs/config.yaml
 
-# 或构建后运行
+# Or build and run
 make build
 ./bin/grpc -conf configs/config.yaml
 ```
 
-服务启动后监听：
-- **gRPC**: `0.0.0.0:9000`
-- **Metrics**: `0.0.0.0:9090/metrics` (如果启用)
+After startup, the service listens on:
 
-### 5. 请求元数据头（Headers）
+* **gRPC**: `0.0.0.0:9000`
+* **Metrics**: `0.0.0.0:9090/metrics` (if enabled)
 
-Catalog 服务统一从 GCP API Gateway 注入的 metadata 中获取身份信息，同时保留 `x-md-*` 前缀的上下文字段。核心字段包括：
+### 5. Request metadata headers (Headers)
 
-| Header 名称                     | 说明 | 示例 |
-| -------------------------------- | ---- | ---- |
-| `X-Apigateway-Api-Userinfo`      | API Gateway 验证后的 JWT payload（Base64Url 编码）。服务端会从 `sub`/`user_id` 字段提取终端用户 UUID。匿名请求可缺省。 | `eyJzdWIiOiI3YjYxZ...` |
-| `x-md-actor-type`                | （Post-MVP 预留）操作者类型，当前服务忽略，可缺省。 | — |
-| `x-md-actor-id`                  | （Post-MVP 预留）操作者标识，当前服务忽略，可缺省。 | — |
-| `x-md-idempotency-key`           | 幂等写请求标识，仅写接口使用。 | `req-20251026-001` |
-| `x-md-if-match` / `x-md-if-none-match` | 条件请求/缓存控制，读写接口按需携带。 | `"W/\"etag\""` |
+The Catalog service consistently extracts identity information from metadata injected by the GCP API Gateway, while preserving context fields prefixed with `x-md-*`. Key headers include:
 
-`configs/config.yaml` 与 `data.grpc_client.metadata_keys` 只需保留正在使用的字段（MVP 阶段仅需 `X-Apigateway-Api-Userinfo` 与幂等/条件请求相关 Header）。`internal/metadata` 包统一解析这些值；`x-md-actor-*` 作为未来审计扩展保留但当前不会被消费。
+| Header name                            | Description                                                                                                                                                    | Example                |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `X-Apigateway-Api-Userinfo`            | JWT payload (Base64Url encoded) after API Gateway verification. The server extracts the end-user UUID from `sub` / `user_id`. Optional for anonymous requests. | `eyJzdWIiOiI3YjYxZ...` |
+| `x-md-actor-type`                      | (Post-MVP reserved) actor type; ignored by the current service; optional.                                                                                      | —                      |
+| `x-md-actor-id`                        | (Post-MVP reserved) actor identifier; ignored by the current service; optional.                                                                                | —                      |
+| `x-md-idempotency-key`                 | Idempotency key for write requests; used only by write APIs.                                                                                                   | `req-20251026-001`     |
+| `x-md-if-match` / `x-md-if-none-match` | Conditional requests / cache control; included as needed for read/write APIs.                                                                                  | `"W/\"etag\""`         |
 
-### 6. 独立运行 Outbox 发布器
+In `configs/config.yaml`, `data.grpc_client.metadata_keys` should keep only actively used fields (for MVP: only `X-Apigateway-Api-Userinfo` plus idempotency/conditional request headers). The `internal/metadata` package parses these values uniformly; `x-md-actor-*` is reserved for future auditing extensions but is not consumed today.
 
-在本地调试或分离式部署场景下，可单独启动 Outbox Runner：
+### 6. Run the Outbox publisher independently
+
+For local debugging or split deployments, you can run the Outbox Runner separately:
 
 ```bash
 go run ./cmd/tasks/outbox -conf configs/config.yaml
 ```
 
-该命令会读取与主服务相同的配置，复用 Pub/Sub 参数、数据库连接与观测设置，仅负责扫描 `catalog.outbox_events` 并发布到 `messaging.pubsub.topic_id`。
+This command reads the same configuration as the main service and reuses Pub/Sub parameters, DB connection, and observability settings. It only scans `catalog.outbox_events` and publishes events to `messaging.pubsub.topic_id`.
 
-### 7. 独立运行 Engagement 投影
+### 7. Run the Engagement projection independently
 
 ```bash
 go run ./cmd/tasks/engagement -conf configs/config.yaml
 ```
 
-该任务订阅 Profile 服务发布的 `profile.engagement.*` 事件（配置于 `messaging.engagement`），持续更新 `catalog.video_user_engagements_projection` 投影，可单独部署于后台。
+This task subscribes to `profile.engagement.*` events published by the Profile service (configured under `messaging.engagement`) and continuously updates the `catalog.video_user_engagements_projection` projection. It can be deployed as a standalone background worker.
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```
 services-catalog/
-├── cmd/grpc/               # Kratos gRPC 服务入口
-│   ├── main.go             # 主程序
-│   ├── wire.go             # Wire 依赖注入配置
-│   └── wire_gen.go         # Wire 生成代码（自动）
-├── configs/                # 配置文件
-│   ├── config.yaml         # 基础配置
-│   ├── conf.proto          # 配置结构定义
-│   └── .env                # 环境变量覆盖（不提交到 Git）
+├── cmd/grpc/               # Kratos gRPC service entrypoint
+│   ├── main.go             # Main program
+│   ├── wire.go             # Wire DI configuration
+│   └── wire_gen.go         # Wire-generated code (auto)
+├── configs/                # Configuration files
+│   ├── config.yaml         # Base config
+│   ├── conf.proto          # Config schema definition
+│   └── .env                # Env overrides (not committed)
 ├── api/
-│   └── video/v1/           # gRPC Proto 定义
-│       ├── video.proto     # 视频查询/命令服务
-│       ├── events.proto    # 领域事件定义
+│   └── video/v1/           # gRPC Proto definitions
+│       ├── video.proto     # Video query/command services
+│       ├── events.proto    # Domain event definitions
 │       └── error_reason.proto
 ├── internal/
-│   ├── controllers/        # gRPC Handler（API 层）
+│   ├── controllers/        # gRPC handlers (API layer)
 │   │   ├── video_command_handler.go
 │   │   ├── video_query_handler.go
-│   │   └── dto/            # 请求/响应转换
-│   ├── services/           # 业务逻辑层
+│   │   └── dto/            # Request/response mapping
+│   ├── services/           # Business logic layer
 │   │   ├── video_command_service.go
 │   │   ├── video_query_service.go
 │   │   └── video_types.go
-│   ├── repositories/       # 数据访问层
+│   ├── repositories/       # Data access layer
 │   │   ├── video_repo.go
 │   │   ├── outbox_repo.go
-│   │   ├── sqlc/           # SQLC 生成代码
-│   │   └── mappers/        # DB 模型映射
+│   │   ├── sqlc/           # SQLC-generated code
+│   │   └── mappers/        # DB model mapping
 │   ├── models/
-│   │   ├── po/             # 持久化对象（数据库模型）
-│   │   ├── vo/             # 视图对象（返回给客户端）
-│   │   └── outbox_events/  # 领域事件构建器
-│   ├── infrastructure/     # 基础设施
-│   │   ├── configloader/   # 配置加载
-│   │   ├── grpc_server/    # gRPC 服务器配置
-│   │   └── grpc_client/    # gRPC 客户端配置
-│   └── tasks/              # 后台任务
-│       └── outbox/         # Outbox 发布器
-├── migrations/             # 数据库迁移脚本
+│   │   ├── po/             # Persistent objects (DB models)
+│   │   ├── vo/             # View objects (client-facing)
+│   │   └── outbox_events/  # Domain event builders
+│   ├── infrastructure/     # Infrastructure
+│   │   ├── configloader/   # Config loading
+│   │   ├── grpc_server/    # gRPC server setup
+│   │   └── grpc_client/    # gRPC client setup
+│   └── tasks/              # Background jobs
+│       └── outbox/         # Outbox publisher
+├── migrations/             # DB migration scripts
 ├── sqlc/
-│   └── schema/             # SQLC 使用的 Schema 定义
-├── test/                   # 端到端测试脚本
-├── Makefile                # 常用命令
-├── buf.yaml                # Buf 配置
-├── sqlc.yaml               # SQLC 配置
-└── catalog design.md       # 详细设计文档
+│   └── schema/             # Schemas used by SQLC
+├── test/                   # End-to-end test scripts
+├── Makefile                # Common commands
+├── buf.yaml                # Buf config
+├── sqlc.yaml               # SQLC config
+└── catalog design.md       # Detailed design doc
 ```
 
 ---
 
-## API 接口
+## API
 
-### VideoQueryService (只读查询)
+### VideoQueryService (read-only)
 
 ```protobuf
 service VideoQueryService {
-  // 获取视频详情（从投影表读取）
+  // Get video detail (read from projection table)
   rpc GetVideoDetail(GetVideoDetailRequest) returns (GetVideoDetailResponse);
 }
 ```
 
-**示例调用：**
+**Example call:**
+
 ```bash
 grpcurl -plaintext \
   -d '{"video_id":"550e8400-e29b-41d4-a716-446655440000"}' \
   localhost:9000 video.v1.VideoQueryService/GetVideoDetail
 ```
 
-### VideoCommandService (写操作)
+### VideoCommandService (writes)
 
 ```protobuf
 service VideoCommandService {
-  // 创建新视频记录
+  // Create a new video record
   rpc CreateVideo(CreateVideoRequest) returns (CreateVideoResponse);
 
-  // 更新视频元数据
+  // Update video metadata
   rpc UpdateVideo(UpdateVideoRequest) returns (UpdateVideoResponse);
 
-  // 删除视频记录
+  // Delete a video record
   rpc DeleteVideo(DeleteVideoRequest) returns (DeleteVideoResponse);
 }
 ```
 
-**示例调用：**
+**Example calls:**
+
 ```bash
-# 创建视频
+# Create video
 grpcurl -plaintext \
   -d '{
     "upload_user_id":"123e4567-e89b-12d3-a456-426614174000",
@@ -210,7 +216,7 @@ grpcurl -plaintext \
   }' \
   localhost:9000 video.v1.VideoCommandService/CreateVideo
 
-# 更新视频（例如：媒体处理完成后）
+# Update video (e.g., after media processing completes)
 grpcurl -plaintext \
   -d '{
     "video_id":"550e8400-e29b-41d4-a716-446655440000",
@@ -224,167 +230,178 @@ grpcurl -plaintext \
 
 ---
 
-## 数据模型
+## Data Model
 
-### 主表：catalog.videos
+### Primary table: `catalog.videos`
 
-**核心字段：**
-- `video_id` (UUID): 主键
-- `upload_user_id` (UUID): 上传者
-- `title`, `description`: 基础信息
-- `raw_file_reference`: 原始文件路径（GCS）
-- `status` (enum): 总体状态（`pending_upload` → `processing` → `ready` → `published`）
-- `version` (bigint): 乐观锁版本号
+**Core fields:**
 
-**媒体处理字段：**
-- `media_status`, `media_job_id`, `media_emitted_at`
-- `duration_micros`, `encoded_resolution`, `thumbnail_url`, `hls_master_playlist`
+* `video_id` (UUID): primary key
+* `upload_user_id` (UUID): uploader
+* `title`, `description`: basic info
+* `raw_file_reference`: original file path (GCS)
+* `status` (enum): overall state (`pending_upload` → `processing` → `ready` → `published`)
+* `version` (bigint): optimistic locking version
 
-**AI 分析字段：**
-- `analysis_status`, `analysis_job_id`, `analysis_emitted_at`
-- `difficulty`, `summary`, `tags[]`, `raw_subtitle_url`
+**Media processing fields:**
 
-## 事件驱动集成
+* `media_status`, `media_job_id`, `media_emitted_at`
+* `duration_micros`, `encoded_resolution`, `thumbnail_url`, `hls_master_playlist`
 
-### 发布的事件
+**AI analysis fields:**
 
-| 事件类型 | 触发时机 | 主要字段 | 订阅方 |
-|---------|---------|---------|--------|
-| `catalog.video.created` | 创建视频 | `video_id`, `title`, `upload_user_id` | Search, Feed, Reporting |
-| `catalog.video.updated` | 更新元数据 | `video_id`, 更新字段 | Search, Feed |
-| `catalog.video.deleted` | 删除视频 | `video_id` | Search, Feed |
+* `analysis_status`, `analysis_job_id`, `analysis_emitted_at`
+* `difficulty`, `summary`, `tags[]`, `raw_subtitle_url`
 
-**事件流程：**
-1. Service 层在事务内同时写入业务数据 + Outbox 表
-2. Outbox 后台任务定期扫描未发布的事件
-3. 通过 GCP Pub/Sub 发布到 `video-events` Topic
-4. 下游服务（Search/Feed 等）订阅事件并维护各自的读模型
+## Event-driven Integration
+
+### Published events
+
+| Event type              | When triggered   | Key fields                            | Subscribers             |
+| ----------------------- | ---------------- | ------------------------------------- | ----------------------- |
+| `catalog.video.created` | Video created    | `video_id`, `title`, `upload_user_id` | Search, Feed, Reporting |
+| `catalog.video.updated` | Metadata updated | `video_id`, updated fields            | Search, Feed            |
+| `catalog.video.deleted` | Video deleted    | `video_id`                            | Search, Feed            |
+
+**Event flow:**
+
+1. The service layer writes business data + Outbox records in the same transaction
+2. The Outbox worker periodically scans unpublished events
+3. Publishes to the `video-events` topic via GCP Pub/Sub
+4. Downstream services (Search/Feed, etc.) subscribe and maintain their own read models
 
 ---
 
-## 开发指南
+## Development Guide
 
-### 常用命令
+### Common commands
 
 ```bash
-# 格式化代码
+# Format code
 make fmt
 
-# 静态检查
+# Lint
 make lint
 
-# 运行测试
+# Run tests
 make test
 
-# 构建
+# Build
 make build
 
-# 生成 gRPC 代码
+# Generate gRPC code
 buf generate
 
-# 生成 SQLC 代码
+# Generate SQLC code
 sqlc generate
 
-# 重新生成 Wire 代码
+# Regenerate Wire code
 wire ./cmd/grpc
 ```
 
-### 添加新字段
+### Adding new fields
 
-1. **更新数据库 Schema**：
-   - 在 `migrations/` 创建新迁移脚本
-   - 更新 `sqlc/schema/` 中的 Schema 定义
+1. **Update database schema**:
 
-2. **更新 SQLC 查询**：
-   - 在 `internal/repositories/sqlc/*.sql` 添加查询
-   - 运行 `sqlc generate`
+   * Create a new migration in `migrations/`
+   * Update schema definitions in `sqlc/schema/`
 
-3. **更新模型**：
-   - 更新 `internal/models/po/video.go`
-   - 更新 `internal/models/vo/video.go`
+2. **Update SQLC queries**:
 
-4. **更新 API**：
-   - 修改 `api/video/v1/*.proto`
-   - 运行 `buf generate`
+   * Add queries in `internal/repositories/sqlc/*.sql`
+   * Run `sqlc generate`
 
-5. **更新业务逻辑**：
-   - 在 `internal/services/` 添加处理逻辑
+3. **Update models**:
 
-## 生产部署
+   * Update `internal/models/po/video.go`
+   * Update `internal/models/vo/video.go`
 
-### 环境变量（必需）
+4. **Update API**:
+
+   * Modify `api/video/v1/*.proto`
+   * Run `buf generate`
+
+5. **Update business logic**:
+
+   * Add logic in `internal/services/`
+
+## Production Deployment
+
+### Environment variables (required)
 
 ```env
-DATABASE_URL=postgres://...          # 数据库连接
-PUBSUB_PROJECT_ID=production-project # GCP 项目 ID
-PUBSUB_VIDEO_TOPIC=video-events      # Pub/Sub Topic
+DATABASE_URL=postgres://...          # DB connection
+PUBSUB_PROJECT_ID=production-project # GCP project ID
+PUBSUB_VIDEO_TOPIC=video-events      # Pub/Sub topic
 SERVICE_NAME=services-catalog
 APP_ENV=production
 ```
 
-### 健康检查
+### Health checks
 
-服务提供 gRPC Health Check：
+The service provides gRPC Health Check:
 
 ```bash
 grpc-health-probe -addr=localhost:9000
 ```
 
-## 故障排查
+## Troubleshooting
 
-### 监控指标
+### Metrics
 
-通过 OpenTelemetry 暴露关键指标：
-- `catalog_outbox_publish_success_total` / `_failure_total`
-- `catalog_outbox_publish_latency_ms`
-- `catalog_engagement_apply_success_total` / `_failure_total`
-- `catalog_engagement_event_lag_ms`
+Key metrics are exposed via OpenTelemetry:
+
+* `catalog_outbox_publish_success_total` / `_failure_total`
+* `catalog_outbox_publish_latency_ms`
+* `catalog_engagement_apply_success_total` / `_failure_total`
+* `catalog_engagement_event_lag_ms`
 
 ---
 
-## 故障排查
+## Troubleshooting
 
-### 问题：事件未发布到 Pub/Sub
+### Issue: Events not published to Pub/Sub
 
-**检查：**
-1. 查询 Outbox 表：
+**Check:**
+
+1. Query the Outbox table:
+
    ```sql
    SELECT * FROM catalog.outbox_events WHERE published_at IS NULL;
    ```
-2. 检查日志是否有发布错误
+2. Check logs for publish errors
 
-**解决：**
-- 确认 GCP 凭证配置正确
-- 检查 Pub/Sub Topic 权限
-- 重启 Outbox 后台任务
+**Fix:**
 
-### 问题：视频状态卡在 processing
+* Verify GCP credentials are configured correctly
+* Check Pub/Sub topic permissions
+* Restart the Outbox background task
 
-**检查：**
+### Issue: Video status stuck in `processing`
+
+**Check:**
+
 ```sql
 SELECT video_id, status, media_status, analysis_status, error_message
 FROM catalog.videos
 WHERE status = 'processing' AND updated_at < NOW() - INTERVAL '1 hour';
 ```
 
-**解决：**
-- 检查 Media/AI 服务是否正常回调
-- 查看 `error_message` 字段
-- 手动更新状态或触发重试
+**Fix:**
+
+* Verify Media/AI services are calling back normally
+* Inspect the `error_message` field
+* Manually update the state or trigger a retry
 
 ---
 
-## 参考文档
+## References
 
-- [详细设计文档](./catalog%20design.md)
-- [只读投影方案](./docs/只读投影方案.md)
-- [GCP Pub/Sub 设置](./docs/gcp-pubsub-setup.md)
-- [Pub/Sub 约定](./docs/pubsub-conventions.md)
-- [Go-Kratos 官方文档](https://go-kratos.dev/)
-- [lingo-utils 工具库](https://github.com/bionicotaku/lingo-utils)
+* [Detailed design doc](./catalog%20design.md)
+* [Read-only projection approach](./docs/只读投影方案.md)
+* [GCP Pub/Sub setup](./docs/gcp-pubsub-setup.md)
+* [Pub/Sub conventions](./docs/pubsub-conventions.md)
+* [Go-Kratos official docs](https://go-kratos.dev/)
+* [lingo-utils utility library](https://github.com/bionicotaku/lingo-utils)
 
 ---
-
-## 许可证
-
-内部项目，保留所有权利。
